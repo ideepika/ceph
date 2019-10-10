@@ -5327,6 +5327,7 @@ int BlueStore::_minimal_open_bluefs(bool create)
     }
     if (create) {
       bluefs->add_block_extent(
+        create,
 	BlueFS::BDEV_DB,
 	SUPER_RESERVED,
 	bluefs->get_block_device_size(BlueFS::BDEV_DB) - SUPER_RESERVED);
@@ -5360,6 +5361,7 @@ int BlueStore::_minimal_open_bluefs(bool create)
     auto reserved = _get_ondisk_reserved();
 
     bluefs->add_block_extent(
+      create,
       bluefs_layout.shared_bdev,
       reserved,
       p2align(bdev->get_size(), min_alloc_size) - reserved);
@@ -5389,6 +5391,7 @@ int BlueStore::_minimal_open_bluefs(bool create)
 
     if (create) {
       bluefs->add_block_extent(
+        create,
         BlueFS::BDEV_WAL, BDEV_LABEL_BLOCK_SIZE,
 	  bluefs->get_block_device_size(BlueFS::BDEV_WAL) -
 	  BDEV_LABEL_BLOCK_SIZE);
@@ -6296,14 +6299,20 @@ int BlueStore::_mount_for_bluefs()
   ceph_assert(r == 0);
   r = _lock_fsid();
   ceph_assert(r == 0);
-  r = _open_bluefs(false);
+
+  r = _open_bdev(false);
   ceph_assert(r == 0);
+
+  r = _open_db_and_around(true);
+  ceph_assert(r == 0);
+
   return r;
 }
 
 void BlueStore::_umount_for_bluefs()
 {
-  _close_bluefs(false);
+  _close_db_and_around(true);
+  _close_bdev();
   _close_fsid();
   _close_path();
 }
@@ -6374,6 +6383,7 @@ int BlueStore::add_new_bluefs_device(int id, const string& dev_path)
   bluefs->mount();
 
   bluefs->add_block_extent(
+    false,
     id,
     reserved,
     bluefs->get_block_device_size(id) - reserved, true);
@@ -6408,7 +6418,7 @@ int BlueStore::migrate_to_existing_bluefs_device(const set<int>& devs_source,
 
   uint64_t used_space = 0;
   for(auto src_id : devs_source) {
-    used_space += bluefs->get_total(src_id) - bluefs->get_free(src_id);
+    used_space += bluefs->get_used(src_id);
   }
   uint64_t target_free = bluefs->get_free(id);
   if (target_free < used_space) {
@@ -6416,7 +6426,8 @@ int BlueStore::migrate_to_existing_bluefs_device(const set<int>& devs_source,
          << " can't migrate, free space at target: " << target_free
 	 << " is less than required space: " << used_space
 	 << dendl;
-    return -ENOSPC;
+    r = -ENOSPC;
+    goto shutdown;
   }
   if (devs_source.count(BlueFS::BDEV_DB)) {
     bluefs_layout.shared_bdev = BlueFS::BDEV_DB;
@@ -6521,6 +6532,7 @@ int BlueStore::migrate_to_new_bluefs_device(const set<int>& devs_source,
   bluefs->mount();
 
   bluefs->add_block_extent(
+    false,
     id, reserved, bluefs->get_block_device_size(id) - reserved);
 
   r = bluefs->device_migrate_to_new(cct, devs_source, id, bluefs_layout);
@@ -6616,7 +6628,7 @@ int BlueStore::expand_devices(ostream& out)
       out << devid
 	  <<" : expanding " << " from 0x" << std::hex
 	  << end << " to 0x" << size << std::dec << std::endl;
-      bluefs->add_block_extent(devid, end, size-end);
+      bluefs->add_block_extent(false, devid, end, size-end);
       string p = get_device_path(devid);
       const char* path = p.c_str();
       if (path == nullptr) {
@@ -6639,6 +6651,8 @@ int BlueStore::expand_devices(ostream& out)
     out << bluefs_layout.shared_bdev
       << " : expanding " << " from 0x" << std::hex
       << size0 << " to 0x" << size << std::dec << std::endl;
+    bluefs->add_block_extent(false,
+      bluefs_layout.shared_bdev, size0, size - size0);
     _write_out_fm_meta(size);
     if (bdev->supported_bdev_label()) {
       if (_set_bdev_label_size(path, size) >= 0) {
