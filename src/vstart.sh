@@ -674,13 +674,6 @@ EOF
 
 $extra_conf
 EOF
-wconf <<EOF
-[cephfs-shell]
-        debug shell = true
-
-$extra_conf
-EOF
-
 	do_rgw_conf
 	wconf << EOF
 [mds]
