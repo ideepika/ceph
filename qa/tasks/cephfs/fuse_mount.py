@@ -3,7 +3,7 @@ from io import StringIO
 import json
 import time
 import logging
-
+import re
 import six
 
 from textwrap import dedent
@@ -18,8 +18,8 @@ log = logging.getLogger(__name__)
 
 
 class FuseMount(CephFSMount):
-    def __init__(self, ctx, client_config, test_dir, client_id, client_remote):
-        super(FuseMount, self).__init__(ctx, test_dir, client_id, client_remote)
+    def __init__(self, ctx, client_config, test_dir, client_id, client_remote, brxnet):
+        super(FuseMount, self).__init__(ctx, test_dir, client_id, client_remote, brxnet)
 
         self.client_config = client_config if client_config else {}
         self.fuse_daemon = None
@@ -32,6 +32,7 @@ class FuseMount(CephFSMount):
         if mountpoint is not None:
             self.mountpoint = mountpoint
         self.setupfs(name=mount_fs_name)
+        self.setup_netns()
 
         try:
             return self._mount(mount_path, mount_fs_name, mount_options)
@@ -91,6 +92,10 @@ class FuseMount(CephFSMount):
                 self.client_config.get('valgrind'),
             )
             cwd = None # misc.get_valgrind_args chdir for us
+
+        netns_prefix = ['sudo', 'nsenter',
+                        '--net=/var/run/netns/{0}'.format(self.netns_name)]
+        run_cmd = netns_prefix + run_cmd
 
         run_cmd.extend(fuse_cmd)
 
@@ -162,6 +167,8 @@ class FuseMount(CephFSMount):
             self._fuse_conn = new_conns[0]
 
         self.gather_mount_info()
+
+        self.mounted = True
 
     def gather_mount_info(self):
         status = self.admin_socket(['status'])
@@ -252,7 +259,7 @@ class FuseMount(CephFSMount):
         try:
             log.info('Running fusermount -u on {name}...'.format(name=self.client_remote.name))
             self.client_remote.run(
-                args=[
+                args = [
                     'sudo',
                     'fusermount',
                     '-u',
@@ -334,6 +341,7 @@ class FuseMount(CephFSMount):
         try:
             # Permit a timeout, so that we do not block forever
             run.wait([self.fuse_daemon], timeout)
+
         except MaxWhileTries:
             log.error("process failed to terminate after unmount. This probably"
                       " indicates a bug within ceph-fuse.")
@@ -342,50 +350,8 @@ class FuseMount(CephFSMount):
             if require_clean:
                 raise
 
-        self.cleanup()
-
-    def cleanup(self):
-        """
-        Remove the mount point.
-
-        Prerequisite: the client is not mounted.
-        """
-        stderr = BytesIO()
-        try:
-            self.client_remote.run(
-                args=[
-                    'rmdir',
-                    '--',
-                    self.mountpoint,
-                ],
-                cwd=self.test_dir,
-                stderr=stderr,
-                timeout=(60*5),
-                check_status=False,
-            )
-        except CommandFailedError:
-            if b"No such file or directory" in stderr.getvalue():
-                pass
-            else:
-                raise
-
-    def kill(self):
-        """
-        Terminate the client without removing the mount point.
-        """
-        log.info('Killing ceph-fuse connection on {name}...'.format(name=self.client_remote.name))
-        self.fuse_daemon.stdin.close()
-        try:
-            self.fuse_daemon.wait()
-        except CommandFailedError:
-            pass
-
-    def kill_cleanup(self):
-        """
-        Follow up ``kill`` to get to a clean unmounted state.
-        """
-        log.info('Cleaning up killed ceph-fuse connection')
-        self.umount()
+        self.cleanup_netns()
+        self.mounted = False
         self.cleanup()
 
     def teardown(self):
@@ -402,6 +368,9 @@ class FuseMount(CephFSMount):
                 self.fuse_daemon.wait()
             except CommandFailedError:
                 pass
+
+        self.cleanup_netns()
+        self.mounted = False
 
         # Indiscriminate, unlike the touchier cleanup()
         self.client_remote.run(
