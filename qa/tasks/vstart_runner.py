@@ -43,6 +43,7 @@ import os
 import time
 import sys
 import errno
+from IPy import IP
 from unittest import suite, loader
 import unittest
 import platform
@@ -520,8 +521,8 @@ def safe_kill(pid):
 
 
 class LocalKernelMount(KernelMount):
-    def __init__(self, ctx, test_dir, client_id):
-        super(LocalKernelMount, self).__init__(ctx, test_dir, client_id, LocalRemote(), None, None, None)
+    def __init__(self, ctx, test_dir, client_id, brxnet):
+        super(LocalKernelMount, self).__init__(ctx, test_dir, client_id, LocalRemote(), brxnet)
 
     @property
     def config_path(self):
@@ -635,6 +636,7 @@ class LocalKernelMount(KernelMount):
 
     def mount(self, mount_path=None, mount_fs_name=None, mount_options=[]):
         self.setupfs(name=mount_fs_name)
+        self.setup_netns()
 
         log.info('Mounting kclient client.{id} at {remote} {mnt}...'.format(
             id=self.client_id, remote=self.client_remote, mnt=self.mountpoint))
@@ -663,6 +665,8 @@ class LocalKernelMount(KernelMount):
         self.client_remote.run(
             args=[
                 'sudo',
+                'nsenter',
+                '--net=/var/run/netns/{0}'.format(self.netns_name),
                 './bin/mount.ceph',
                 ':{mount_path}'.format(mount_path=mount_path),
                 self.mountpoint,
@@ -688,8 +692,8 @@ class LocalKernelMount(KernelMount):
                                       wait=False)
 
 class LocalFuseMount(FuseMount):
-    def __init__(self, ctx, test_dir, client_id):
-        super(LocalFuseMount, self).__init__(ctx, None, test_dir, client_id, LocalRemote())
+    def __init__(self, ctx, test_dir, client_id, brxnet):
+        super(LocalFuseMount, self).__init__(ctx, None, test_dir, client_id, LocalRemote(), brxnet)
 
     @property
     def config_path(self):
@@ -798,6 +802,7 @@ class LocalFuseMount(FuseMount):
         if mountpoint is not None:
             self.mountpoint = mountpoint
         self.setupfs(name=mount_fs_name)
+        self.setup_netns()
 
         self.client_remote.run(args=['mkdir', '-p', self.mountpoint])
 
@@ -838,7 +843,9 @@ class LocalFuseMount(FuseMount):
         prefix += mount_options;
 
         self.fuse_daemon = self.client_remote.run(args=
-                                            prefix + [
+                                            ['nsenter',
+                                             '--net=/var/run/netns/{0}'.format(self.netns_name),
+                                            ] + prefix + [
                                                 "-f",
                                                 "--name",
                                                 "client.{0}".format(self.client_id),
@@ -1176,6 +1183,7 @@ class InteractiveFailureResult(unittest.TextTestResult):
 def enumerate_methods(s):
     log.info("e: {0}".format(s))
     for t in s._tests:
+	print("t {0}, s._tests {1}".format(t, s._tests))
         if isinstance(t, suite.BaseTestSuite):
             for sub in enumerate_methods(t):
                 yield sub
@@ -1207,7 +1215,10 @@ def scan_tests(modules):
     max_required_mgr = 0
     require_memstore = False
 
+    print("module = {}".format(overall_suite))
     for suite_, case in enumerate_methods(overall_suite):
+	print("suite {0}".format(suite_))
+	print("case {0}".format(case))
         max_required_mds = max(max_required_mds,
                                getattr(case, "MDSS_REQUIRED", 0))
         max_required_clients = max(max_required_clients,
@@ -1285,6 +1296,7 @@ def exec_test():
     global opt_log_ps_output
     opt_log_ps_output = False
     use_kernel_client = False
+    opt_brxnet= None
 
     args = sys.argv[1:]
     flags = [a for a in args if a.startswith("-")]
@@ -1306,6 +1318,18 @@ def exec_test():
             clear_old_log()
         elif f == "--kclient":
             use_kernel_client = True
+        elif '--brxnet' in f:
+            if re.search(r'=[0-9./]+', f) is None:
+                log.error("--brxnet=<ip/mask> option needs one argument: '{0}'".format(f))
+                sys.exit(-1)
+            opt_brxnet=f.split('=')[1]
+            try:  
+                IP(opt_brxnet)  
+                if IP(opt_brxnet).iptype() is 'PUBLIC':
+                    raise RuntimeError('is public')
+            except Exception as  e:  
+                log.error("Invalid ip '{0}' {1}".format(opt_brxnet, e))
+                sys.exit(-1)
         else:
             log.error("Unknown option '{0}'".format(f))
             sys.exit(-1)
@@ -1390,9 +1414,9 @@ def exec_test():
             open("./keyring", "a").write(p.stdout.getvalue())
 
         if use_kernel_client:
-            mount = LocalKernelMount(ctx, test_dir, client_id)
+            mount = LocalKernelMount(ctx, test_dir, client_id, opt_brxnet)
         else:
-            mount = LocalFuseMount(ctx, test_dir, client_id)
+            mount = LocalFuseMount(ctx, test_dir, client_id, opt_brxnet)
 
         mounts.append(mount)
         if os.path.exists(mount.mountpoint):
