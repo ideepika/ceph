@@ -156,8 +156,8 @@ RGW object storage
 * Added `HashiCorp Vault Integration`_ for SSE-KMS.
 * Added Keystone token cache for S3 requests.
 
-CephFS distributed file system
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+**CephFS** distributed file system
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
   
 * Inline data support in CephFS has been deprecated and will likely be
   removed in a future release.
