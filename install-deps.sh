@@ -28,6 +28,8 @@ function munge_ceph_spec_in {
     shift
     local for_make_check=$1
     shift
+    local with_jaeger=$1
+    shift
     local OUTFILE=$1
     sed -e 's/@//g' < ceph.spec.in > $OUTFILE
     # http://rpm.org/user_doc/conditional_builds.html
@@ -37,6 +39,9 @@ function munge_ceph_spec_in {
     if $for_make_check; then
         sed -i -e 's/%bcond_with make_check/%bcond_without make_check/g' $OUTFILE
     fi
+    if $with_jaeger; then
+        sed -i -e 's/%bcond_with jaeger/%bcond_without jaeger/g' $OUTFILE
+    fi
 }
 
 function munge_debian_control {
@@ -45,6 +50,8 @@ function munge_debian_control {
     local with_seastar=$1
     shift
     local for_make_check=$1
+    shift
+    local with_jaeger=$1
     shift
     local control=$1
     case "$version" in
@@ -58,6 +65,9 @@ function munge_debian_control {
     fi
     if $for_make_check; then
         sed -i 's/^# Make-Check[[:space:]]/             /g' $control
+    fi
+    if $with_jaeger; then
+        sed -i 's/^# Jaeger[[:space:]]/             /g' $control
     fi
     echo $control
 }
@@ -223,6 +233,13 @@ else
     for_make_check=false
 fi
 
+if [ $WITH_JAEGER ]; then
+    with_jaeger=true
+else
+    with_jaeger=false
+fi
+ echo "${with_jaeger} jaeger flag"
+
 if [ x$(uname)x = xFreeBSDx ]; then
     $SUDO pkg install -yq \
         devel/babeltrace \
@@ -378,7 +395,7 @@ else
                 fi
                 ;;
         esac
-        munge_ceph_spec_in $with_seastar $for_make_check $DIR/ceph.spec
+        munge_ceph_spec_in $with_seastar $for_make_check $with_jaeger $DIR/ceph.spec
         # for python3_pkgversion macro defined by python-srpm-macros, which is required by python3-devel
         $SUDO $yumdnf install -y python3-devel
         $SUDO $builddepcmd $DIR/ceph.spec 2>&1 | tee $DIR/yum-builddep.out
@@ -393,7 +410,7 @@ else
         echo "Using zypper to install dependencies"
         zypp_install="zypper --gpg-auto-import-keys --non-interactive install --no-recommends"
         $SUDO $zypp_install systemd-rpm-macros rpm-build || exit 1
-        munge_ceph_spec_in $with_seastar $for_make_check $DIR/ceph.spec
+        munge_ceph_spec_in $with_seastar $for_make_check $with_jaeger $DIR/ceph.spec
         $SUDO $zypp_install $(rpmspec -q --buildrequires $DIR/ceph.spec) || exit 1
         ;;
     alpine)

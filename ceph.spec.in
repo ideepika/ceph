@@ -239,6 +239,13 @@ BuildRequires:  ragel
 BuildRequires:  systemtap-sdt-devel
 BuildRequires:  yaml-cpp-devel
 %endif
+%if 0%{with jaeger}
+BuildRequires: bison
+BuildRequires: flex
+BuildRequires: libevent-devel 
+BuildRequires: json-devel
+BuildRequires: yaml-cpp-devel
+%endif
 #################################################################################
 # distro-conditional dependencies
 #################################################################################
