@@ -127,6 +127,7 @@ Requires:       ceph-mds = %{_epoch_prefix}%{version}-%{release}
 Requires:       ceph-mgr = %{_epoch_prefix}%{version}-%{release}
 Requires:       ceph-mon = %{_epoch_prefix}%{version}-%{release}
 Requires(post):	binutils
+BuildRequires:  bison
 %if 0%{with cephfs_java}
 BuildRequires:	java-devel
 BuildRequires:	sharutils
@@ -143,6 +144,7 @@ BuildRequires:  cmake > 3.5
 %endif
 BuildRequires:	cryptsetup
 BuildRequires:	fuse-devel
+BuildRequires:  flex
 %if 0%{?rhel} == 7
 # devtoolset offers newer make and valgrind-devel, but the old ones are good
 # enough.
@@ -159,11 +161,13 @@ BuildRequires:	gperftools-devel >= 2.6.1
 BuildRequires:	gperftools-devel >= 2.4
 %endif
 %endif
+BuildRequires: json-devel
 BuildRequires:	leveldb-devel > 1.2
 BuildRequires:	libaio-devel
 BuildRequires:	libblkid-devel >= 2.17
 BuildRequires:	libcurl-devel
 BuildRequires:	libcap-ng-devel
+BuildRequires: libevent-devel 
 BuildRequires:	pkgconfig(libudev)
 BuildRequires:	libnl3-devel
 BuildRequires:	liboath-devel
@@ -228,6 +232,7 @@ BuildRequires:	python%{python3_pkgversion}-pyOpenSSL
 %endif
 BuildRequires:	socat
 %endif
+BuildRequires:  yaml-cpp-devel
 %if 0%{with seastar}
 BuildRequires:  c-ares-devel
 BuildRequires:  gnutls-devel
@@ -237,14 +242,6 @@ BuildRequires:  lksctp-tools-devel
 BuildRequires:  protobuf-devel
 BuildRequires:  ragel
 BuildRequires:  systemtap-sdt-devel
-BuildRequires:  yaml-cpp-devel
-%endif
-%if 0%{with jaeger}
-BuildRequires: bison
-BuildRequires: flex
-BuildRequires: libevent-devel 
-BuildRequires: json-devel
-BuildRequires: yaml-cpp-devel
 %endif
 #################################################################################
 # distro-conditional dependencies
