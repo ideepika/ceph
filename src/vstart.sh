@@ -1117,7 +1117,7 @@ start_ganesha() {
            Minor_Versions = 1, 2;
         }
 
-        %url rados://$pool_name/$namespace/nfs-conf
+        %url rados://$pool_name/$namespace/conf-nfs
 
         RADOS_KV {
            pool = $pool_name;
@@ -1138,7 +1138,7 @@ start_ganesha() {
         pid file = $ganesha_dir/ganesha.pid
 EOF
 
-        prun ceph_adm fs nfs export create "a"
+        prun ceph_adm fs nfs export create "a" "/cephfs" --attach=$name
         prun ganesha-rados-grace -p $pool_name -n $namespace add $name
         prun ganesha-rados-grace -p $pool_name -n $namespace
 
