@@ -174,6 +174,10 @@
 #define tracepoint(...)
 #endif
 
+#ifdef WITH_JAEGER
+#include "common/tracer.h"
+#endif
+
 #define dout_context cct
 #define dout_subsys ceph_subsys_osd
 #undef dout_prefix
@@ -7016,6 +7020,9 @@ void OSD::dispatch_session_waiting(const ceph::ref_t<Session>& session, OSDMapRe
 
 void OSD::ms_fast_dispatch(Message *m)
 {
+#ifdef WITH_JAEGER
+  JTracer::setUpTracer("osd-service");
+#endif 
   FUNCTRACE(cct);
   if (service.is_stopping()) {
     m->put();
