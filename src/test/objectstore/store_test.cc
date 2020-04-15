@@ -8778,7 +8778,7 @@ void doManySetAttr(ObjectStore* store,
   ostringstream err;
 
   bool b = admin_socket->execute_command(
-    { "{\"prefix\": \"bluestore bluefs stats\"}" },
+    { "{\"prefix\": \"bluefs stats\"}" },
     in, err, &out);
   if (!b) {
     cerr << "failure querying " << std::endl;
