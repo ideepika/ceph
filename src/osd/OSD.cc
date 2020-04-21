@@ -7031,7 +7031,7 @@ void OSD::ms_fast_dispatch(Message *m)
 {
 #ifdef WITH_JAEGER
   JTracer::setUpTracer("osd-service");
-#endif 
+#endif
   FUNCTRACE(cct);
   if (service.is_stopping()) {
     m->put();
