@@ -1094,6 +1094,9 @@ start_ganesha() {
             osd "allow rw pool=$pool_name namespace=$namespace, allow rw tag cephfs data=a" \
             mds "allow rw path=/" \
             >> "$keyring_fn"
+
+        ceph_adm mgr module enable test_orchestrator
+        ceph_adm orch set backend test_orchestrator
         prun ceph_adm nfs cluster create cephfs $name
 
         echo "NFS_CORE_PARAM {
@@ -1114,7 +1117,7 @@ start_ganesha() {
            Minor_Versions = 1, 2;
         }
 
-        %url rados://$pool_name/$namespace/conf-nfs
+        %url rados://$pool_name/$namespace/conf-nfs.$test_user
 
         RADOS_KV {
            pool = $pool_name;
