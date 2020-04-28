@@ -101,6 +101,7 @@ set(common_srcs
   strtol.cc
   types.cc
   url_escape.cc
+  pretty_binary.cc
   utf8.c
   util.cc
   version.cc)
