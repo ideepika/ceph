@@ -2249,7 +2249,7 @@ class CephadmOrchestrator(orchestrator.Orchestrator, MgrModule):
                 self._remove_daemon(dd.name(), dd.hostname)
 
             # ignore unmanaged services
-            if not spec or spec.unmanaged:
+            if spec and spec.unmanaged:
                 continue
 
             # dependencies?
