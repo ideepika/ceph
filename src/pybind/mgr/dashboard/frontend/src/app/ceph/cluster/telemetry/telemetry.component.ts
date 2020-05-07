@@ -144,9 +144,11 @@ export class TelemetryComponent extends CdForm implements OnInit {
     this.mgrModuleService.updateConfig('telemetry', config).subscribe(
       () => {
         this.disableModule(
-          'Your settings have been applied successfully. ' +
-            'Due to privacy/legal reasons the Telemetry module is now disabled until you ' +
-            'complete the next step and accept the license.',
+          this.i18n(
+            `Your settings have been applied successfully. \
+Due to privacy/legal reasons the Telemetry module is now disabled until you \
+complete the next step and accept the license.`
+          ),
           () => {
             this.getReport();
           }
@@ -166,7 +168,7 @@ export class TelemetryComponent extends CdForm implements OnInit {
   disableModule(message: string = null, followUpFunc: Function = null) {
     this.telemetryService.enable(false).subscribe(() => {
       if (message) {
-        this.notificationService.show(NotificationType.success, this.i18n(message));
+        this.notificationService.show(NotificationType.success, message);
       }
       if (followUpFunc) {
         followUpFunc();
