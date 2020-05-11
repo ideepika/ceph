@@ -7029,6 +7029,7 @@ void OSD::dispatch_session_waiting(const ceph::ref_t<Session>& session, OSDMapRe
 
 void OSD::ms_fast_dispatch(Message *m)
 {
+
 #ifdef WITH_JAEGER
   JTracer::setUpTracer("osd-service");
 #endif
