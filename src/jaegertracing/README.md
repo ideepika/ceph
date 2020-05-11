@@ -72,7 +72,7 @@ Based on the usecase, the tracer can be configured by passing suitable parameter
 TODO: elaborate more about config.yaml
 
 
-valid config parameters: 
+valid config parameters:
 https://www.jaegertracing.io/docs/1.16/client-features/
 
  <!-- TODO: 
