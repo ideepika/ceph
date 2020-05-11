@@ -122,7 +122,6 @@ Requires:       ceph-mds = %{_epoch_prefix}%{version}-%{release}
 Requires:       ceph-mgr = %{_epoch_prefix}%{version}-%{release}
 Requires:       ceph-mon = %{_epoch_prefix}%{version}-%{release}
 Requires(post):	binutils
-BuildRequires:	bison
 %if 0%{with cephfs_java}
 BuildRequires:	java-devel
 BuildRequires:	sharutils
@@ -147,21 +146,13 @@ BuildRequires:	gperftools-devel >= 2.6.1
 %endif
 %if 0%{?suse_version}
 BuildRequires:	gperftools-devel >= 2.4
-BuildRequires:	git
 %endif
-%endif
-%if 0%{?fedora} || 0%{?rhel}
-BuildRequires: json-devel
-%endif
-%if 0%{?suse_version}
-BuildRequires: nlohmann_json-devel
 %endif
 BuildRequires:	leveldb-devel > 1.2
 BuildRequires:	libaio-devel
 BuildRequires:	libblkid-devel >= 2.17
 BuildRequires:	libcurl-devel
 BuildRequires:	libcap-ng-devel
-BuildRequires:	libevent-devel
 BuildRequires:	pkgconfig(libudev)
 BuildRequires:	libnl3-devel
 BuildRequires:	liboath-devel
@@ -204,6 +195,19 @@ BuildRequires:	python%{python3_pkgversion}-virtualenv
 BuildRequires:	python%{python3_pkgversion}-coverage
 BuildRequires:	python%{python3_pkgversion}-pyOpenSSL
 BuildRequires:	socat
+%endif
+%if 0%{with jaeger}
+BuildRequires:	bison
+BuildRequires:	flex
+BuildRequires:	git
+%if 0%{?fedora} || 0%{?rhel}
+BuildRequires: json-devel
+%endif
+%if 0%{?suse_version}
+BuildRequires: nlohmann_json-devel
+%endif
+BuildRequires:	libevent-devel
+BuildRequires:  yaml-cpp-devel
 %endif
 %if 0%{with seastar}
 BuildRequires:  c-ares-devel
