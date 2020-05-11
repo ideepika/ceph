@@ -6,6 +6,8 @@ function(build_opentracing)
   set(OpenTracing_CMAKE_ARGS  -DCMAKE_POSITION_INDEPENDENT_CODE=ON
                               -DBUILD_MOCKTRACER=OFF
                               -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/external
+                              -DCMAKE_INSTALL_RPATH=${CMAKE_BINARY_DIR}/external
+			       -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=TRUE
                               -DCMAKE_INSTALL_LIBDIR=${CMAKE_BINARY_DIR}/external/lib
                               -DCMAKE_PREFIX_PATH=${CMAKE_BINARY_DIR}/external)
 
