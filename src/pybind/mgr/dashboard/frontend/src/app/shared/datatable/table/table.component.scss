@@ -221,6 +221,7 @@
     .datatable-row-detail {
       padding: 20px;
       border-bottom: 2px solid $color-table-header-border;
+      overflow-y: visible !important;
     }
     .expand-collapse-icon {
       display: block;
@@ -240,6 +241,7 @@
     }
   }
   .datatable-footer {
+    display: unset !important;
     .selected-count,
     .page-count {
       font-style: italic;
