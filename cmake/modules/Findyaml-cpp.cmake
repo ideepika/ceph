@@ -22,7 +22,9 @@
 
 find_package (PkgConfig REQUIRED)
 
-pkg_search_module (yaml-cpp_PC yaml-cpp)
+pkg_search_module (yaml-cpp_PC
+  QUIET
+  yaml-cpp)
 
 find_library (yaml-cpp_LIBRARY
   NAMES yaml-cpp
