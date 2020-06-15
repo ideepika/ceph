@@ -44,11 +44,10 @@ export class CriticalConfirmationModalComponent implements OnInit {
 
   callSubmitAction() {
     if (this.submitActionObservable) {
-      this.submitActionObservable().subscribe(
-        null,
-        this.stopLoadingSpinner.bind(this),
-        this.hideModal.bind(this)
-      );
+      this.submitActionObservable().subscribe({
+        error: this.stopLoadingSpinner.bind(this),
+        complete: this.hideModal.bind(this)
+      });
     } else {
       this.submitAction();
     }
