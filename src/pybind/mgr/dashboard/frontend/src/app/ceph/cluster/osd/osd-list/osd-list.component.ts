@@ -528,14 +528,13 @@ export class OsdListComponent extends ListWithDetails implements OnInit {
               this.getSelectedOsdIds().map((osd: any) => action.call(this.osdService, osd))
             );
             if (taskWrapped) {
-              observable.subscribe(
-                undefined,
-                () => {
+              observable.subscribe({
+                error: () => {
                   this.getOsdList();
                   modalRef.hide();
                 },
-                () => modalRef.hide()
-              );
+                complete: () => modalRef.hide()
+              });
             } else {
               observable.subscribe(
                 () => {
