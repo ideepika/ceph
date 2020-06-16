@@ -46,6 +46,7 @@ do_killall() {
 do_killcephadm() {
     FSID=$($CEPH_BIN/ceph -c $conf_fn fsid)
     sudo $CEPHADM_DIR_PATH/cephadm rm-cluster --fsid $FSID --force
+    echo "removed $FSID"
 }
 
 do_umountall() {
@@ -156,7 +157,7 @@ if [ $stop_all -eq 1 ]; then
         fi
     fi
 
-    if [ "$($CEPHADM_DIR_PATH/cephadm ls)" != "[]" ]; then
+    if [ "$(sudo $CEPHADM_DIR_PATH/cephadm ls)" != "[]" ]; then
         do_killcephadm
     fi
 
