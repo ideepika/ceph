@@ -10,7 +10,7 @@ Uploaders: Ken Dreyer <kdreyer@redhat.com>,
 Build-Depends: 
 # Jaeger       automake,
 # Jaeger       bison,
-               cmake (>= 3.5),
+               cmake (>= 3.10.2),
                cpio,
                cryptsetup-bin | cryptsetup,
                cython,
