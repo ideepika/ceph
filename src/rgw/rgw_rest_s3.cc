@@ -160,7 +160,9 @@ int RGWGetObj_ObjStore_S3::get_params()
 {
   #ifdef WITH_JAEGER
     span_structure ss;
-    start_trace(std::move(ss), {}, s, "rgw_rest_s3.cc RGWGetObj_ObjStore_S3::get_params", true);
+    string span_name = "";
+    span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
+    start_trace(std::move(ss), {}, s, span_name.c_str(), true);
     if(s && s->root_span)
       s->root_span->SetTag("gateway", "s3");
   #endif
@@ -181,7 +183,9 @@ int RGWGetObj_ObjStore_S3::send_response_data_error()
 {
   #ifdef WITH_JAEGER
     span_structure ss;
-    start_trace(std::move(ss), {}, s, "rgw_rest_s3.cc RGWGetObj_ObjStore_S3::send_response_data_error", true);
+    string span_name = "";
+    span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
+    start_trace(std::move(ss), {}, s, span_name.c_str(), true);
     if(s && s->root_span)
       s->root_span->SetTag("success", true);
   #endif
@@ -225,7 +229,9 @@ int RGWGetObj_ObjStore_S3::send_response_data(bufferlist& bl, off_t bl_ofs,
 {
   #ifdef WITH_JAEGER
     span_structure ss;
-    start_trace(std::move(ss), {}, s, "rgw_rest_s3.cc RGWGetObj_ObjStore_S3::send_response_data", true);
+    string span_name = "";
+    span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
+    start_trace(std::move(ss), {}, s, span_name.c_str(), true);
     if(s && s->root_span)
       s->root_span->SetTag("success", true);
   #endif
@@ -455,7 +461,9 @@ int RGWGetObj_ObjStore_S3::get_decrypt_filter(std::unique_ptr<RGWGetObj_Filter> 
 {
   #ifdef WITH_JAEGER
     span_structure ss;
-    start_trace(std::move(ss), {}, s, "rgw_rest_s3.cc RGWGetObj_ObjStore_S3::get_decrypt_filter", true);
+    string span_name = "";
+    span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
+    start_trace(std::move(ss), {}, s, span_name.c_str(), true);
   #endif
   if (skip_decrypt) { // bypass decryption for multisite sync requests
     return 0;
@@ -1276,7 +1284,9 @@ void RGWListBuckets_ObjStore_S3::send_response_begin(bool has_buckets)
 {
   #ifdef WITH_JAEGER
     span_structure ss;
-    start_trace(std::move(ss), {}, s, "rgw_rest_s3.cc RGWListBuckets_ObjStore_S3::send_response_begin", true);
+    string span_name = "";
+    span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
+    start_trace(std::move(ss), {}, s, span_name.c_str(), true);
     if(s && s->root_span)
       s->root_span->SetTag("gateway","s3");
   #endif
@@ -1300,7 +1310,9 @@ void RGWListBuckets_ObjStore_S3::send_response_data(rgw::sal::RGWBucketList& buc
 {
   #ifdef WITH_JAEGER
     span_structure ss;
-    start_trace(std::move(ss), {}, s, "rgw_rest_s3.cc RGWListBuckets_ObjStore_S3::send_response_data", true);
+    string span_name = "";
+    span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
+    start_trace(std::move(ss), {}, s, span_name.c_str(), true);
     if(s && s->root_span)
       s->root_span->SetTag("success",true);
   #endif
@@ -1503,7 +1515,9 @@ int RGWListBucket_ObjStore_S3::get_params()
 {
     #ifdef WITH_JAEGER
       span_structure ss;
-      start_trace(std::move(ss), {}, s, "rgw_rest_s3.cc RGWListBucket_ObjStore_S3::get_params", true);
+      string span_name = "";
+      span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
+      start_trace(std::move(ss), {}, s, span_name.c_str(), true);
       if(s && s->root_span)
         s->root_span->SetTag("gateway", "s3");
     #endif
@@ -1680,7 +1694,9 @@ void RGWListBucket_ObjStore_S3::send_response()
 {
     #ifdef WITH_JAEGER
       span_structure ss;
-      start_trace(std::move(ss), {}, s, "rgw_rest_s3.cc RGWListBucket_ObjStore_S3::send_response", true);
+      string span_name = "";
+      span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
+      start_trace(std::move(ss), {}, s, span_name.c_str(), true);
       if(s && s->root_span)
         s->root_span->SetTag("success", true);
     #endif
@@ -2190,7 +2206,9 @@ void RGWStatBucket_ObjStore_S3::send_response()
 {
   #ifdef WITH_JAEGER
       span_structure ss;
-      start_trace(std::move(ss), {}, s, "rgw_rest_s3.cc RGWStatBucket_ObjStore_S3::send_response", true);
+      string span_name = "";
+      span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
+      start_trace(std::move(ss), {}, s, span_name.c_str(), true);
     if(s && s->root_span){
       s->root_span->SetTag("gateway", "s3");
       s->root_span->SetTag("success", true);
@@ -2274,7 +2292,9 @@ int RGWCreateBucket_ObjStore_S3::get_params()
 {
   #ifdef WITH_JAEGER
     span_structure ss;
-    start_trace(std::move(ss), {}, s, "rgw_rest_s3.cc RGWCreateBucket_ObjStore_S3::get_params", true);
+    string span_name = "";
+    span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
+    start_trace(std::move(ss), {}, s, span_name.c_str(), true);
     if(s && s->root_span)
       s->root_span->SetTag("gaetway", "s3");
   #endif
@@ -2354,7 +2374,9 @@ void RGWCreateBucket_ObjStore_S3::send_response()
 {
   #ifdef WITH_JAEGER
     span_structure ss;
-    start_trace(std::move(ss), {}, s, "rgw_rest_s3.cc RGWCreateBucket_ObjStore_S3::send_response", true);
+    string span_name = "";
+    span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
+    start_trace(std::move(ss), {}, s, span_name.c_str(), true);
     if(s && s->root_span)
       s->root_span->SetTag("success", true);
   #endif
@@ -2384,7 +2406,9 @@ void RGWDeleteBucket_ObjStore_S3::send_response()
 {
   #ifdef WITH_JAEGER
     span_structure ss;
-    start_trace(std::move(ss), {}, s, "rgw_rest_s3.cc RGWDeleteBucket_ObjStore_S3::send_response", true);
+    string span_name = "";
+    span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
+    start_trace(std::move(ss), {}, s, span_name.c_str(), true);
     if(s && s->root_span){
         s->root_span->SetTag("gateway", "s3");
         s->root_span->SetTag("success", true);
@@ -2418,7 +2442,9 @@ int RGWPutObj_ObjStore_S3::get_params()
     if(s && s->root_span)
       s->root_span->SetTag("gateway", "s3");
     span_structure ss;
-    start_trace(std::move(ss), {}, s, "rgw_rest_s3.cc RGWPutObj_ObjStore_S3::get_params", true);
+    string span_name = "";
+    span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
+    start_trace(std::move(ss), {}, s, span_name.c_str(), true);
   #endif
   if (!s->length)
     return -ERR_LENGTH_REQUIRED;
@@ -2607,7 +2633,9 @@ int RGWPutObj_ObjStore_S3::get_data(bufferlist& bl)
 {
   #ifdef WITH_JAEGER
     span_structure ss;
-    start_trace(std::move(ss), {}, s, "rgw_rest_s3.cc RGWPutObj_ObjStore_S3::get_data", true);
+    string span_name = "";
+    span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
+    start_trace(std::move(ss), {}, s, span_name.c_str(), true);
   #endif
   const int ret = RGWPutObj_ObjStore::get_data(bl);
   if (ret == 0) {
@@ -2637,7 +2665,9 @@ void RGWPutObj_ObjStore_S3::send_response()
     if(s && s->root_span)
       s->root_span->SetTag("success", true);
     span_structure ss;
-    start_trace(std::move(ss), {}, s, "rgw_rest_s3.cc RGWPutObj_ObjStore_S3::send_response", true);
+    string span_name = "";
+    span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
+    start_trace(std::move(ss), {}, s, span_name.c_str(), true);
     if(s && s->root_span)
       s->root_span->SetTag("success", true);
   #endif
@@ -2726,7 +2756,9 @@ int RGWPutObj_ObjStore_S3::get_decrypt_filter(
 {
   #ifdef WITH_JAEGER
     span_structure ss;
-    start_trace(std::move(ss), {}, s, "rgw_rest_s3.cc RGWPutObj_ObjStore_S3::get_decrypt_filter", true);
+    string span_name = "";
+    span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
+    start_trace(std::move(ss), {}, s, span_name.c_str(), true);
   #endif
   std::map<std::string, std::string> crypt_http_responses_unused;
 
@@ -2756,7 +2788,9 @@ int RGWPutObj_ObjStore_S3::get_encrypt_filter(
 {
   #ifdef WITH_JAEGER
     span_structure ss;
-    start_trace(std::move(ss), {}, s, "rgw_rest_s3.cc RGWPutObj_ObjStore_S3::get_encrypt_filter", true);
+    string span_name = "";
+    span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
+    start_trace(std::move(ss), {}, s, span_name.c_str(), true);
   #endif
   int res = 0;
   if (!multipart_upload_id.empty()) {
@@ -3323,7 +3357,9 @@ int RGWDeleteObj_ObjStore_S3::get_params()
 {
   #ifdef WITH_JAEGER
     span_structure ss;
-    start_trace(std::move(ss), {}, s, "rgw_rest_s3.cc RGWDeleteObj_ObjStore_S3::get_params", true);
+    string span_name = "";
+    span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
+    start_trace(std::move(ss), {}, s, span_name.c_str(), true);
     if(s && s->root_span)
       s->root_span->SetTag("gateway", "s3");
   #endif
@@ -3357,7 +3393,9 @@ void RGWDeleteObj_ObjStore_S3::send_response()
 {
   #ifdef WITH_JAEGER
     span_structure ss;
-    start_trace(std::move(ss), {}, s, "rgw_rest_s3.cc RGWDeleteObj_ObjStore_S3::send_response", true);
+    string span_name = "";
+    span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
+    start_trace(std::move(ss), {}, s, span_name.c_str(), true);
     if(s && s->root_span)
       s->root_span->SetTag("success", true);
   #endif
@@ -3380,7 +3418,9 @@ int RGWCopyObj_ObjStore_S3::init_dest_policy()
 {
   #ifdef WITH_JAEGER
     span_structure ss;
-    start_trace(std::move(ss), {}, s, "rgw_rest_s3.cc RGWCopyObj_ObjStore_S3::init_dest_policy", true);
+    string span_name = "";
+    span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
+    start_trace(std::move(ss), {}, s, span_name.c_str(), true);
   #endif
   RGWAccessControlPolicy_S3 s3policy(s->cct);
 
@@ -3398,7 +3438,9 @@ int RGWCopyObj_ObjStore_S3::get_params()
 {
   #ifdef WITH_JAEGER
     span_structure ss;
-    start_trace(std::move(ss), {}, s, "rgw_rest_s3.cc RGWCopyObj_ObjStore_S3::get_params", true);
+    string span_name = "";
+    span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
+    start_trace(std::move(ss), {}, s, span_name.c_str(), true);
   if(s && s->root_span)
     s->root_span->SetTag("gateway", "s3");
   #endif
@@ -3452,7 +3494,9 @@ int RGWCopyObj_ObjStore_S3::check_storage_class(const rgw_placement_rule& src_pl
 {
   #ifdef WITH_JAEGER
     span_structure ss;
-    start_trace(std::move(ss), {}, s, "rgw_rest_s3.cc RGWCopyObj_ObjStore_S3::check_storage_class", true);
+    string span_name = "";
+    span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
+    start_trace(std::move(ss), {}, s, span_name.c_str(), true);
   #endif
   if (src_placement == s->dest_placement) {
     /* can only copy object into itself if replacing attrs */
@@ -3469,7 +3513,9 @@ void RGWCopyObj_ObjStore_S3::send_partial_response(off_t ofs)
 {
   #ifdef WITH_JAEGER
     span_structure ss;
-    start_trace(std::move(ss), {}, s, "rgw_rest_s3.cc RGWCopyObj_ObjStore_S3::send_partial_response", true);
+    string span_name = "";
+    span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
+    start_trace(std::move(ss), {}, s, span_name.c_str(), true);
     if(s && s->root_span)
       s->root_span->SetTag("success", true);
   #endif
@@ -3499,7 +3545,9 @@ void RGWCopyObj_ObjStore_S3::send_response()
 {
   #ifdef WITH_JAEGER
     span_structure ss;
-    start_trace(std::move(ss), {}, s, "rgw_rest_s3.cc RGWCopyObj_ObjStore_S3::send_response", true);
+    string span_name = "";
+    span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
+    start_trace(std::move(ss), {}, s, span_name.c_str(), true);
   if(s && s->root_span)
     s->root_span->SetTag("success", true);
   #endif
@@ -3520,7 +3568,9 @@ void RGWGetACLs_ObjStore_S3::send_response()
 {
   #ifdef WITH_JAEGER
     span_structure ss;
-    start_trace(std::move(ss), {}, s, "rgw_rest_s3.cc RGWGetACLs_ObjStore_S3::send_response", true);
+    string span_name = "";
+    span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
+    start_trace(std::move(ss), {}, s, span_name.c_str(), true);
     if(s && s->root_span){
       s->root_span->SetTag("gateway", "s3");
       s->root_span->SetTag("success", true);
@@ -3539,7 +3589,9 @@ int RGWPutACLs_ObjStore_S3::get_params()
 {
   #ifdef WITH_JAEGER
     span_structure ss;
-    start_trace(std::move(ss), {}, s, "rgw_rest_s3.cc RGWPutACLs_ObjStore_S3::get_params", true);
+    string span_name = "";
+    span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
+    start_trace(std::move(ss), {}, s, span_name.c_str(), true);
     if(s && s->root_span)
       s->root_span->SetTag("gateway", "s3");
   #endif
@@ -3568,7 +3620,9 @@ int RGWPutACLs_ObjStore_S3::get_policy_from_state(rgw::sal::RGWRadosStore *store
 {
   #ifdef WITH_JAEGER
     span_structure ss_1;
-    start_trace(std::move(ss_1), {}, s, "rgw_rest_s3.cc RGWPutACLs_ObjStore_S3::get_policy_from_state", true);
+    string span_name = "";
+    span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
+    start_trace(std::move(ss_1), {}, s, span_name.c_str(), true);
     if(s && s->root_span)
       s->root_span->SetTag("gateway", "s3");
   #endif
@@ -3593,7 +3647,9 @@ void RGWPutACLs_ObjStore_S3::send_response()
 {
   #ifdef WITH_JAEGER
     span_structure ss;
-    start_trace(std::move(ss), {}, s, "rgw_rest_s3.cc RGWPutACLs_ObjStore_S3::send_response", true);
+    string span_name = "";
+    span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
+    start_trace(std::move(ss), {}, s, span_name.c_str(), true);
     if(s && s->root_span)
       s->root_span->SetTag("success", true);
   #endif
@@ -3885,7 +3941,9 @@ int RGWInitMultipart_ObjStore_S3::get_params()
 {
   #ifdef WITH_JAEGER
     span_structure ss_1;
-    start_trace(std::move(ss_1), {}, s, "rgw_rest_s3.cc RGWInitMultipart_ObjStore_S3::get_params", true);
+    string span_name = "";
+    span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
+    start_trace(std::move(ss_1), {}, s, span_name.c_str(), true);
     if(s && s->root_span)
       s->root_span->SetTag("gateway", "s3");
   #endif
@@ -3903,7 +3961,9 @@ void RGWInitMultipart_ObjStore_S3::send_response()
 {
   #ifdef WITH_JAEGER
     span_structure ss_1;
-    start_trace(std::move(ss_1), {}, s, "rgw_rest_s3.cc RGWInitMultipart_ObjStore_S3::send_response", true);
+    string span_name = "";
+    span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
+    start_trace(std::move(ss_1), {}, s, span_name.c_str(), true);
     if(s && s->root_span)
       s->root_span->SetTag("success", true);
   #endif
@@ -3937,7 +3997,9 @@ int RGWInitMultipart_ObjStore_S3::prepare_encryption(map<string, bufferlist>& at
 {
   #ifdef WITH_JAEGER
     span_structure ss_1;
-    start_trace(std::move(ss_1), {}, s, "rgw_rest_s3.cc RGWInitMultipart_ObjStore_S3::prepare_encryption", true);
+    string span_name = "";
+    span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
+    start_trace(std::move(ss_1), {}, s, span_name.c_str(), true);
   #endif
   int res = 0;
   res = rgw_s3_prepare_encrypt(s, attrs, nullptr, nullptr, crypt_http_responses);
@@ -3948,7 +4010,9 @@ int RGWCompleteMultipart_ObjStore_S3::get_params()
 {
   #ifdef WITH_JAEGER
     span_structure ss;
-    start_trace(std::move(ss), {}, s, "rgw_rest_s3.cc RGWCompleteMultipart_ObjStore_S3::get_params", true);
+    string span_name = "";
+    span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
+    start_trace(std::move(ss), {}, s, span_name.c_str(), true);
     if(s && s->root_span)
       s->root_span->SetTag("gateway", "s3");
   #endif
@@ -3966,7 +4030,9 @@ void RGWCompleteMultipart_ObjStore_S3::send_response()
 {
   #ifdef WITH_JAEGER
     span_structure ss;
-    start_trace(std::move(ss), {}, s, "rgw_rest_s3.cc RGWCompleteMultipart_ObjStore_S3::send_response", true);
+    string span_name = "";
+    span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
+    start_trace(std::move(ss), {}, s, span_name.c_str(), true);
     if(s && s->root_span)
       s->root_span->SetTag("success", true);
   #endif
@@ -4006,7 +4072,9 @@ void RGWAbortMultipart_ObjStore_S3::send_response()
 {
   #ifdef WITH_JAEGER
     span_structure ss;
-    start_trace(std::move(ss), {}, s, "rgw_rest_s3.cc RGWAbortMultipart_ObjStore_S3::send_response", true);
+    string span_name = "";
+    span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
+    start_trace(std::move(ss), {}, s, span_name.c_str(), true);
     if(s && s->root_span)
       s->root_span->SetTag("gateway", "s3");
       s->root_span->SetTag("success", true);
@@ -4076,7 +4144,9 @@ void RGWListBucketMultiparts_ObjStore_S3::send_response()
 {
   #ifdef WITH_JAEGER
     span_structure ss;
-    start_trace(std::move(ss), {}, s, "rgw_rest_s3.cc RGWListBucketMultiparts_ObjStore_S3::send_response", true);
+    string span_name = "";
+    span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
+    start_trace(std::move(ss), {}, s, span_name.c_str(), true);
     if(s && s->root_span){
       s->root_span->SetTag("success", true);
       s->root_span->SetTag("gateway", "s3");
