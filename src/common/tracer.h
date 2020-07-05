@@ -20,14 +20,11 @@
 #define SIGNED_RIGHT_SHIFT_IS 1
 #define ARITHMETIC_RIGHT_SHIFT 1
 
-<<<<<<< HEAD
-#include <yaml-cpp/yaml.h>
-#include <jaegertracing/Tracer.h>
-=======
->>>>>>> bf4d643676... 1.Changed tracing_2 to tracing
 #include <arpa/inet.h>
 #include <yaml-cpp/yaml.h>
 #include <jaegertracing/Tracer.h>
+//forward declaration of req_state defined /rgw/rgw_common.h
+struct req_state;
 
 typedef std::unique_ptr<opentracing::Span> Span;
 
@@ -67,5 +64,14 @@ class Jager_Tracer{
   }
 private:
   std::shared_ptr<opentracing::v2::Tracer> tracer = NULL;
+};
+//
+// structure to manage spans to trace functions who have access to req_state in /rgw/*
+struct span_structure{
+    req_state* req_state_span = nullptr;
+    bool is_inserted = false;
+    void set_req_state(req_state* _s);
+    void set_span(Span& span);
+    ~span_structure();
 };
 #endif
