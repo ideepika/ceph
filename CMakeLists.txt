@@ -357,7 +357,7 @@ if(WITH_BLKIN)
   include_directories(SYSTEM src/blkin/blkin-lib)
 endif(WITH_BLKIN)
 
-option(WITH_JAEGER "Use jaeger to create tracepoints and display it on Jaeger UI" OFF)
+option(WITH_JAEGER "Use jaeger to create tracepoints and display it on JaegerUI" ON)
 if(WITH_JAEGER)
   set(HAVE_JAEGER TRUE)
 endif()
