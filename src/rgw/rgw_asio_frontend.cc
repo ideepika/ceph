@@ -47,7 +47,7 @@ auto make_stack_allocator() {
   return boost::context::protected_fixedsize_stack{512*1024};
 }
 
-std::once_flag jager_initialzer;
+std::once_flag jaeger_initialzer;
 
 template <typename Stream>
 class StreamIO : public rgw::asio::ClientIO {
@@ -140,10 +140,10 @@ void handle_connection(boost::asio::io_context& context,
                        boost::system::error_code& ec,
                        spawn::yield_context yield)
 {
-  #ifdef WITH_JAGER
+  #ifdef WITH_JAEGER
     try{
-      std::call_once(jager_initialzer,[](){
-        tracer.init_tracer("RGW_Client_Process","/home/abhinav/GSOC/ceph/src/tracerConfig.yaml");
+      std::call_once(jaeger_initialzer,[](){
+        tracer.init_tracer("RGW_Client_Process","../src/jaegertracing/tracer_config.yaml");
       });
     }catch(...){}
   #endif

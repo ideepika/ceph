@@ -403,7 +403,7 @@ set(ceph_common_objs
   $<TARGET_OBJECTS:common_mountcephfs_objs>
   $<TARGET_OBJECTS:crush_objs>)
   
-if(WITH_JAGER)
+if(WITH_JAEGER)
   set(ceph_common_deps
     json_spirit erasure_code arch crc32
     ${LIB_RESOLV}

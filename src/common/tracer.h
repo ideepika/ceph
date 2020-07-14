@@ -31,10 +31,10 @@ struct req_state;
 
 typedef std::unique_ptr<opentracing::Span> Span;
 
-class Jager_Tracer{
+class Jaeger_Tracer{
   public:
-    Jager_Tracer(){}
-    ~Jager_Tracer(){
+    Jaeger_Tracer(){}
+    ~Jaeger_Tracer(){
       if(this->tracer)
         this->tracer->Close();
     }
