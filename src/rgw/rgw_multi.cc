@@ -210,7 +210,7 @@ int abort_multipart_upload(rgw::sal::RGWRadosStore *store, CephContext *cct,
 			   RGWMPObj& mp_obj, optional_span* parent_span)
 {
   #ifdef WITH_JAEGER
-    Span span_1;
+    jspan span_1;
     string span_name = "";
     span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
     if(parent_span)
@@ -232,7 +232,7 @@ int abort_multipart_upload(rgw::sal::RGWRadosStore *store, CephContext *cct,
   uint64_t parts_accounted_size = 0;
 
   do {
-    Span span_2;
+    jspan span_2;
     trace(span_2, this_parent_span, "rgw_multi.cc : list_multipart_parts");
     ret = list_multipart_parts(store, bucket_info, cct,
 			       mp_obj.get_upload_id(), mp_obj.get_meta(),
@@ -257,7 +257,7 @@ int abort_multipart_upload(rgw::sal::RGWRadosStore *store, CephContext *cct,
         if (ret < 0 && ret != -ENOENT)
           return ret;
       } else {
-        Span span_3;
+        jspan span_3;
         trace(span_3, this_parent_span, "rgw_rados.cc : RGWRados::update_gc_chain");
         store->getRados()->update_gc_chain(meta_obj, obj_part.manifest, &chain);
         finish_trace(span_3);
@@ -277,7 +277,7 @@ int abort_multipart_upload(rgw::sal::RGWRadosStore *store, CephContext *cct,
   } while (truncated);
 
   /* use upload id as tag and do it synchronously */
-  Span span_4;
+  jspan span_4;
   trace(span_4, this_parent_span, "rgw_rados.cc : RGWRados::send_chain_to_gc");
   ret = store->getRados()->send_chain_to_gc(chain, mp_obj.get_upload_id());
   finish_trace(span_4);
@@ -318,7 +318,7 @@ int list_bucket_multiparts(rgw::sal::RGWRadosStore *store, RGWBucketInfo& bucket
 			   map<string, bool> *common_prefixes, bool *is_truncated, optional_span* parent_span)
 {
   #ifdef WITH_JAEGER
-    Span span_1;
+    jspan span_1;
     string span_name = "";
     span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
     if(parent_span)
@@ -348,7 +348,7 @@ int abort_bucket_multiparts(rgw::sal::RGWRadosStore *store, CephContext *cct, RG
 				string& prefix, string& delim, optional_span* parent_span)
 {
   #ifdef WITH_JAEGER
-    Span span_1;
+    jspan span_1;
     string span_name = "";
     span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
     if(parent_span)

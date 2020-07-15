@@ -47,7 +47,7 @@
   #define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
   #include "common/tracer.h"
 #else
-  typedef char Span;
+  typedef char jspan;
 #endif
 
 namespace ceph {
@@ -290,8 +290,8 @@ enum HostStyle {
 /** Optional Paramter to function which will be traced */
 struct optional_span{
   #ifdef WITH_JAEGER
-    const Span& span;
-    optional_span(const Span& _span) : span(_span) {}
+    const jspan& span;
+    optional_span(const jspan& _span) : span(_span) {}
   #endif
 };
 
@@ -1651,8 +1651,8 @@ struct req_state : DoutPrefixProvider {
   int bucket_instance_shard_id{-1};
   string redirect_zone_endpoint;
   #ifdef WITH_JAEGER
-    std::stack<Span> stack_span;
-    Span root_span;
+    std::stack<jspan> stack_span;
+    jspan root_span;
   #endif
 
   string redirect;
@@ -2455,9 +2455,9 @@ int decode_bl(bufferlist& bl, T& t)
 }
 
 #ifdef WITH_JAEGER
-static inline void start_trace(req_state_span&& ss, Span&& sp, req_state* const s, const char* name, bool should_store = true)
+static inline void start_trace(req_state_span&& ss, jspan&& sp, req_state* const s, const char* name, bool should_store = true)
 {
-    Span span;
+    jspan span;
     if(s && !s->stack_span.empty()){
       span = tracer.child_span(name, s->stack_span.top());
       ss.set_req_state(s);
@@ -2471,7 +2471,7 @@ static inline void start_trace(req_state_span&& ss, Span&& sp, req_state* const 
 }
 #endif
 
-static inline void trace(Span& span, const optional_span& parent_span, const char* span_name)
+static inline void trace(jspan& span, const optional_span& parent_span, const char* span_name)
 {
   #ifdef WITH_JAEGER
     if(parent_span.span)
@@ -2481,11 +2481,11 @@ static inline void trace(Span& span, const optional_span& parent_span, const cha
   #endif
 }
 
-static inline void finish_trace(Span& span)
+static inline void finish_trace(jspan& span)
 {
   #ifdef WITH_JAEGER
     if(span){
-      Span s = std::move(span);
+      jspan s = std::move(span);
       s->Finish();
     }
   #endif

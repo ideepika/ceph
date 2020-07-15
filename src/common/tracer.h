@@ -29,7 +29,7 @@
 //forward declaration of req_state defined /rgw/rgw_common.h
 struct req_state;
 
-typedef std::unique_ptr<opentracing::Span> Span;
+typedef std::unique_ptr<opentracing::Span> jspan;
 
 class Jaeger_Tracer{
   public:
@@ -59,16 +59,16 @@ class Jaeger_Tracer{
       if(this->tracer)
       	this->tracer->Close();
     }
-    Span new_span(const char* spanName)const{
-      Span span=opentracing::Tracer::Global()->StartSpan(spanName);
+   jspan new_span(const char* spanName)const{
+      jspan span=opentracing::Tracer::Global()->StartSpan(spanName);
       return std::move(span);
     }
-    Span child_span(const char* spanName,const Span& parentSpan)const{
-      Span span = opentracing::Tracer::Global()->StartSpan(spanName, {opentracing::ChildOf(&parentSpan->context())});
+    jspan child_span(const char* spanName,const jspan& parentSpan)const{
+      jspan span = opentracing::Tracer::Global()->StartSpan(spanName, {opentracing::ChildOf(&parentSpan->context())});
       return std::move(span);
     }
-    Span followup_span(const char *spanName, const Span& parentSpan)const{
-    Span span = opentracing::Tracer::Global()->StartSpan(spanName, {opentracing::FollowsFrom(&parentSpan->context())});
+    jspan followup_span(const char *spanName, const jspan& parentSpan)const{
+    jspan span = opentracing::Tracer::Global()->StartSpan(spanName, {opentracing::FollowsFrom(&parentSpan->context())});
     return std::move(span);
   }
 private:
@@ -80,7 +80,7 @@ struct req_state_span{
     req_state* state = nullptr;
     bool is_inserted = false;
     void set_req_state(req_state* _s);
-    void set_span(Span& span);
+    void set_span(jspan& span);
     ~req_state_span();
 };
 

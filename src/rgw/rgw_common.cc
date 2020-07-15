@@ -2175,7 +2175,7 @@ bool RGWBucketInfo::empty_sync_policy() const
 #ifdef WITH_JAEGER
   Jaeger_Tracer tracer;
 
-  void req_state_span::set_span(Span& span){
+  void req_state_span::set_span(jspan& span){
     this->state->stack_span.push(std::move(span));
   }
   void req_state_span::set_req_state(req_state* _s){

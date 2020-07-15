@@ -42,7 +42,7 @@ int RGWSI_BucketIndex_RADOS::open_bucket_index_pool(const RGWBucketInfo& bucket_
                                                     RGWSI_RADOS::Pool *index_pool, optional_span* parent_span)
 {
   #ifdef WITH_JAEGER
-    Span span_1;
+    jspan span_1;
     string span_name = "";
     span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
     if(parent_span) 
@@ -55,7 +55,7 @@ int RGWSI_BucketIndex_RADOS::open_bucket_index_pool(const RGWBucketInfo& bucket_
   const rgw_pool& explicit_pool = bucket_info.bucket.explicit_placement.index_pool;
 
   if (!explicit_pool.empty()) {
-    Span span_2;
+    jspan span_2;
     trace(span_2, this_parent_span, "svc_bi_rados.cc RGWSI_BucketIndex_RADOS::open_pool");
     return open_pool(explicit_pool, index_pool, false);
   }
@@ -72,7 +72,7 @@ int RGWSI_BucketIndex_RADOS::open_bucket_index_pool(const RGWBucketInfo& bucket_
     ldout(cct, 0) << "could not find placement rule " << *rule << " within zonegroup " << dendl;
     return -EINVAL;
   }
-  Span span_2;
+  jspan span_2;
   trace(span_2, this_parent_span, "svc_bi_rados.cc RGWSI_BucketIndex_RADOS::open_bucket_index_pool");
   int r = open_pool(iter->second.index_pool, index_pool, true);
   finish_trace(span_2);
@@ -186,7 +186,7 @@ int RGWSI_BucketIndex_RADOS::open_bucket_index(const RGWBucketInfo& bucket_info,
   int shard_id = _shard_id.value_or(-1);
   string bucket_oid_base;
   #ifdef WITH_JAEGER
-    Span span_1;
+    jspan span_1;
     string span_name = "";
     span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
     if(parent_span)
@@ -343,7 +343,7 @@ int RGWSI_BucketIndex_RADOS::cls_bucket_head(const RGWBucketInfo& bucket_info,
 int RGWSI_BucketIndex_RADOS::init_index(RGWBucketInfo& bucket_info, optional_span* parent_span)
 {
   RGWSI_RADOS::Pool index_pool;
-  Span span_1;
+  jspan span_1;
   #ifdef WITH_JAEGER
     string span_name = "";
     span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;

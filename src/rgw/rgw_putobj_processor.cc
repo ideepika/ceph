@@ -203,7 +203,7 @@ int AtomicObjectProcessor::process_first_chunk(bufferlist&& data,
 int AtomicObjectProcessor::prepare(optional_yield y, optional_span* parent_span)
 {
   #ifdef WITH_JAEGER
-    Span span_1;
+    jspan span_1;
     string span_name = "";
     span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
     if(parent_span)
@@ -218,14 +218,14 @@ int AtomicObjectProcessor::prepare(optional_yield y, optional_span* parent_span)
   uint64_t alignment;
   rgw_pool head_pool;
 
-  Span span_2;
+  jspan span_2;
   trace(span_2, this_parent_span, "rgw_rados.cc : RGWRados::get_obj_data_pool");
   if (!store->getRados()->get_obj_data_pool(bucket_info.placement_rule, head_obj, &head_pool)) {
     return -EIO;
   }
   finish_trace(span_2);
   int r;
-  Span span_3;
+  jspan span_3;
   trace(span_3, this_parent_span, "rgw_rados.cc : RGWRados::get_max_chunk_size");
   r = store->getRados()->get_max_chunk_size(head_pool, &max_head_chunk_size, &alignment);
   finish_trace(span_3);
@@ -237,7 +237,7 @@ int AtomicObjectProcessor::prepare(optional_yield y, optional_span* parent_span)
   
   if (bucket_info.placement_rule != tail_placement_rule) {
     rgw_pool tail_pool;
-    Span span_4;
+    jspan span_4;
     trace(span_4, this_parent_span, "rgw_rados.cc : RGWRados::get_obj_data_pool");
     if (!store->getRados()->get_obj_data_pool(tail_placement_rule, head_obj, &tail_pool)) {
       return -EIO;
@@ -245,7 +245,7 @@ int AtomicObjectProcessor::prepare(optional_yield y, optional_span* parent_span)
     finish_trace(span_4);
     if (tail_pool != head_pool) {
       same_pool = false;
-      Span span_5;
+      jspan span_5;
       trace(span_5, this_parent_span, "rgw_rados.cc : RGWRados::get_max_chunk_size");
       r = store->getRados()->get_max_chunk_size(tail_pool, &chunk_size);
       finish_trace(span_5);
@@ -264,13 +264,13 @@ int AtomicObjectProcessor::prepare(optional_yield y, optional_span* parent_span)
 
   uint64_t stripe_size;
   const uint64_t default_stripe_size = store->ctx()->_conf->rgw_obj_stripe_size;
-  Span span_6;
+  jspan span_6;
   trace(span_6, this_parent_span, "rgw_rados.cc : RGWRados::get_max_aligned_size");
   store->getRados()->get_max_aligned_size(default_stripe_size, alignment, &stripe_size);
   finish_trace(span_6);
 
   manifest.set_trivial_rule(head_max_size, stripe_size);
-  Span span_7;
+  jspan span_7;
   trace(span_7, this_parent_span, "rgw_obj_manifest.cc : RGWObjManifest::generator::create_begin");
   r = manifest_gen.create_begin(store->ctx(), &manifest,
                                 bucket_info.placement_rule,
@@ -308,7 +308,7 @@ int AtomicObjectProcessor::complete(size_t accounted_size,
                                     bool *pcanceled, optional_yield y, optional_span* parent_span)
 {
   #ifdef WITH_JAEGER
-    Span span_1;
+    jspan span_1;
     string span_name = "";
     span_name = span_name+__FILENAME__+" function:"+__PRETTY_FUNCTION__;
     if(parent_span)
