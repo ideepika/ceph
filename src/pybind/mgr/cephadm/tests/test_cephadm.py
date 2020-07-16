@@ -382,6 +382,7 @@ class TestCephadm(object):
             assert out == set()
 
     @mock.patch("cephadm.module.CephadmOrchestrator._run_cephadm", _run_cephadm('{}'))
+    @mock.patch("cephadm.services.cephadmservice.RgwService.create_realm_zonegroup_zone", lambda _,__,___: None)
     def test_rgw_update(self, cephadm_module):
         with with_host(cephadm_module, 'host1'):
             with with_host(cephadm_module, 'host2'):
@@ -431,6 +432,7 @@ class TestCephadm(object):
         ]
     )
     @mock.patch("cephadm.module.CephadmOrchestrator._run_cephadm", _run_cephadm('{}'))
+    @mock.patch("cephadm.services.cephadmservice.RgwService.create_realm_zonegroup_zone", lambda _,__,___: None)
     def test_daemon_add(self, spec: ServiceSpec, meth, cephadm_module):
         with with_host(cephadm_module, 'test'):
             spec.placement = PlacementSpec(hosts=['test'], count=1)
