@@ -17,6 +17,9 @@
 #include "osd/osd_op_util.h"
 #include "osd/osd_types.h"
 #include "common/TrackedOp.h"
+#ifdef WITH_JAEGER
+#include "common/tracer.h"
+#endif
 
 /**
  * The OpRequest takes in a Message* and takes over a single reference
@@ -88,6 +91,11 @@ public:
   epoch_t min_epoch = 0;      ///< min epoch needed to handle this msg
 
   bool hitset_inserted;
+#ifdef WITH_JAEGER
+  jspan osd_parent_span;
+  jspan marker_span;
+  void set_osd_parent_span(jspan& span ) { osd_parent_span = move(span); }
+#endif
 
   template<class T>
   const T* get_req() const { return static_cast<const T*>(request); }
