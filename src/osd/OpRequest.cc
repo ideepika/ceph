@@ -22,6 +22,9 @@
 #else
 #define tracepoint(...)
 #endif
+#ifdef WITH_JAEGER
+#include "common/tracer.h"
+#endif
 
 using std::ostream;
 using std::set;
@@ -126,6 +129,14 @@ void OpRequest::mark_flag_point(uint8_t flag, const char *s) {
   tracepoint(oprequest, mark_flag_point, reqid.name._type,
 	     reqid.name._num, reqid.tid, reqid.inc, op_info.get_flags(),
 	     flag, s, old_flags, hit_flag_points);
+#ifdef WITH_JAEGER
+  OpRequest::marker_span = opentracing::Tracer::Global()->StartSpan(
+      s, {opentracing::v2::ChildOf(&(OpRequest::osd_parent_span)->context())});
+  OpRequest::marker_span->Log({
+      {"hit_flag_points", hit_flag_points},
+      });
+  OpRequest::marker_span->Finish();
+#endif
 }
 
 void OpRequest::mark_flag_point_string(uint8_t flag, const string& s) {
@@ -138,6 +149,15 @@ void OpRequest::mark_flag_point_string(uint8_t flag, const string& s) {
   tracepoint(oprequest, mark_flag_point, reqid.name._type,
 	     reqid.name._num, reqid.tid, reqid.inc, op_info.get_flags(),
 	     flag, s.c_str(), old_flags, hit_flag_points);
+#ifdef WITH_JAEGER
+  OpRequest::marker_span = opentracing::Tracer::Global()->StartSpan(
+      s, {opentracing::v2::ChildOf(&(OpRequest::osd_parent_span)->context())});
+  OpRequest::marker_span->Log({
+      {"hit_flag_points", hit_flag_points},
+      {"mark_event", s}
+      });
+  OpRequest::marker_span->Finish();
+#endif
 }
 
 bool OpRequest::filter_out(const set<string>& filters)

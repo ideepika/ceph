@@ -1644,6 +1644,14 @@ void OSDService::reply_op_error(OpRequestRef op, int err, eversion_t v,
 				       !m->has_flag(CEPH_OSD_FLAG_RETURNVEC));
   reply->set_reply_versions(v, uv);
   reply->set_op_returns(op_returns);
+#ifdef WITH_JAEGER
+  jspan op_error_span = opentracing::Tracer::Global()->StartSpan(
+      "reply_op_error",{opentracing::v2::ChildOf(&(op->osd_parent_span)->context())});
+  op_error_span->Log({
+      {"type", m->get_type()},
+      {"err code", err}
+      });
+#endif
   m->get_connection()->send_message(reply);
 }
 
@@ -7021,7 +7029,7 @@ void OSD::ms_fast_dispatch(Message *m)
 {
 
 #ifdef WITH_JAEGER
-  JTracer::setUpTracer("osd-service");
+  JTracer::setUpTracer("osd-services");
 #endif
   FUNCTRACE(cct);
   if (service.is_stopping()) {
@@ -7083,13 +7091,22 @@ void OSD::ms_fast_dispatch(Message *m)
     tracepoint(osd, ms_fast_dispatch, reqid.name._type,
         reqid.name._num, reqid.tid, reqid.inc);
   }
-
+#ifdef WITH_JAEGER
+  jspan dispatch_span = opentracing::Tracer::Global()->StartSpan("op-request-created");
+  op->set_osd_parent_span(dispatch_span);
+#endif
   if (m->trace)
     op->osd_trace.init("osd op", &trace_endpoint, &m->trace);
 
   // note sender epoch, min req's epoch
   op->sent_epoch = static_cast<MOSDFastDispatchOp*>(m)->get_map_epoch();
   op->min_epoch = static_cast<MOSDFastDispatchOp*>(m)->get_min_epoch();
+#ifdef WITH_JAEGER
+  op->osd_parent_span->Log({
+      {"sent epoch by op", op->sent_epoch},
+      {"min epoch for op", op->min_epoch}
+      });
+#endif
   ceph_assert(op->min_epoch <= op->sent_epoch); // sanity check!
 
   service.maybe_inject_dispatch_delay();
@@ -9631,6 +9648,16 @@ void OSD::enqueue_op(spg_t pg, OpRequestRef&& op, epoch_t epoch)
   op->osd_trace.event("enqueue op");
   op->osd_trace.keyval("priority", priority);
   op->osd_trace.keyval("cost", cost);
+#ifdef WITH_JAEGER
+    jspan enqueue_op_span = opentracing::Tracer::Global()->StartSpan(
+      "enqueue_op",{opentracing::v2::ChildOf(&(op->osd_parent_span)->context())});
+  enqueue_op_span->Log({
+      {"priority", priority},
+      {"cost", cost},
+      {"epoch", epoch},
+      {"owner", owner} //Not got owner in UI
+      });
+#endif
   op->mark_queued_for_pg();
   logger->tinc(l_osd_op_before_queue_op_lat, latency);
   op_shardedwq.queue(
