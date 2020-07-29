@@ -36,11 +36,6 @@ namespace JTracer {
 	serviceToTrace, config, jaegertracing::logging::consoleLogger());
     opentracing::Tracer::InitGlobal(
 	std::static_pointer_cast<opentracing::Tracer>(tracer));
-  auto parent_span = tracer->StartSpan("parent");
-  assert(parent_span);
-
-  parent_span->Finish();
-  tracer->Close();
 }
 }
 #endif
