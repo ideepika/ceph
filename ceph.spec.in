@@ -198,10 +198,10 @@ BuildRequires:	bison
 BuildRequires:	flex
 BuildRequires:	git
 %if 0%{?fedora} || 0%{?rhel}
-BuildRequires: json-devel
+BuildRequires:  json-devel
 %endif
 %if 0%{?suse_version}
-BuildRequires: nlohmann_json-devel
+BuildRequires:  nlohmann_json-devel
 %endif
 BuildRequires:	libevent-devel
 BuildRequires:  yaml-cpp-devel
