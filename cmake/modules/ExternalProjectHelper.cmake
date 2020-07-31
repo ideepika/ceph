@@ -4,6 +4,7 @@ function (set_library_properties_for_external_project _target _lib)
   set(_includepath "${CMAKE_BINARY_DIR}/external/include")
   message(STATUS "Configuring ${_target} with ${_libpath}")
 
+  target_include_directories(${_target} INTERFACE {_includepath})
   file(MAKE_DIRECTORY "${_includepath}")
   set_target_properties(${_target} PROPERTIES
     INTERFACE_LINK_LIBRARIES "${_libpath}"
