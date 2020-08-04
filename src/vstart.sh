@@ -165,6 +165,7 @@ rgw_compression=""
 lockdep=${LOCKDEP:-1}
 spdk_enabled=0 #disable SPDK by default
 zoned_enabled=0
+with_jaeger=0
 
 with_mgr_dashboard=true
 if [[ "$(get_cmake_variable WITH_MGR_DASHBOARD_FRONTEND)" != "ON" ]] ||
@@ -234,6 +235,7 @@ usage=$usage"\t--bluestore-zoned: blockdevs listed by --bluestore-devs are zoned
 usage=$usage"\t--inc-osd: append some more osds into existing vcluster\n"
 usage=$usage"\t--cephadm: enable cephadm orchestrator with ~/.ssh/id_rsa[.pub]\n"
 usage=$usage"\t--no-parallel: dont start all OSDs in parallel\n"
+usage=$usage"\t--jaeger: use jaegertracing for tracing osd and rgw\n"
 
 usage_exit() {
     printf "$usage"
@@ -444,6 +446,11 @@ case $1 in
         ;;
     --bluestore-zoned )
         zoned_enabled=1
+        shift
+        ;;
+    --jaeger )
+        with_jaeger=1
+        shift
         ;;
     * )
         usage_exit
