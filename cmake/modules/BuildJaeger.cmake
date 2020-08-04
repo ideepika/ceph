@@ -56,7 +56,6 @@ function(build_jaeger)
     list(APPEND dependencies "yaml-cpp")
   endif()
 
-  message(STATUS "DEPENDENCIES ${dependencies}")
   if(CMAKE_MAKE_PROGRAM MATCHES "make")
     # try to inherit command line arguments passed by parent "make" job
     set(make_cmd $(MAKE))

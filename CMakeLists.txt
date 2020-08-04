@@ -357,12 +357,6 @@ if(WITH_BLKIN)
   include_directories(SYSTEM src/blkin/blkin-lib)
 endif(WITH_BLKIN)
 
-option(WITH_JAEGER "Use jaeger to create tracepoints and display it on Jaeger
-UI" ON)
-if(WITH_JAEGER)
-  set(HAVE_JAEGER TRUE)
-endif()
-
 option(WITH_BOOST_CONTEXT "Enable boost::asio stackful coroutines" ON)
 if(WITH_BOOST_CONTEXT)
   set(HAVE_BOOST_CONTEXT ON)
@@ -615,6 +609,13 @@ else()
     COMPONENTS ${BOOST_COMPONENTS} ${BOOST_HEADER_COMPONENTS})
 endif()
 include_directories(BEFORE SYSTEM ${Boost_INCLUDE_DIRS})
+
+option(WITH_JAEGER "Use jaeger to create tracepoints and display it on Jaeger
+UI" ON)
+if(WITH_JAEGER)
+  set(HAVE_JAEGER TRUE)
+  include(IncludeJaeger)
+endif()
 
 # dashboard angular2 frontend
 option(WITH_MGR_DASHBOARD_FRONTEND "Build the mgr/dashboard frontend using `npm`" ON)
