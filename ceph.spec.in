@@ -199,8 +199,10 @@ BuildRequires:	flex
 BuildRequires:	git
 %if 0%{?fedora} || 0%{?rhel}
 BuildRequires:  json-devel
+BuildRequires:	git
 %endif
 %if 0%{?suse_version}
+BuildRequires:	git-core
 BuildRequires:  nlohmann_json-devel
 %endif
 BuildRequires:	libevent-devel
