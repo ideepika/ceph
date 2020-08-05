@@ -301,6 +301,7 @@ add_subdirectory(json_spirit)
 
 include_directories(SYSTEM "${CMAKE_SOURCE_DIR}/src/xxHash")
 include_directories(SYSTEM "${CMAKE_SOURCE_DIR}/src/rapidjson/include")
+include_directories(SYSTEM "${CMAKE_BINARY_DIR}/external/include")
 
 find_package(fmt 5.2.1 QUIET)
 if(fmt_FOUND)
@@ -380,6 +381,11 @@ set(libcommon_files
 set_source_files_properties(ceph_ver.c
   APPEND PROPERTY OBJECT_DEPENDS ${CMAKE_BINARY_DIR}/src/include/ceph_ver.h)
 add_library(common-objs OBJECT ${libcommon_files})
+add_dependencies(common-objs
+  yaml-cpp::yaml-cpp
+  opentracing::libopentracing
+  thrift::libthrift
+  jaegertracing::libjaegertracing)
 
 CHECK_C_COMPILER_FLAG("-fvar-tracking-assignments" HAS_VTA)
 add_subdirectory(auth)
