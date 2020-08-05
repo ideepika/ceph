@@ -1516,6 +1516,15 @@ if [ "$CEPH_NUM_RGW" -gt 0 ]; then
     do_rgw
 fi
 
+pick_container_service(){
+}
+echo ""
+if [ "$with_jaeger" -eq 1 ]; then
+    echo "try using podman to deploy jaegerUI..."
+    
+
+
+
 debug echo "vstart cluster complete. Use stop.sh to stop. See out/* (e.g. 'tail -f out/????') for debug output."
 
 echo ""
