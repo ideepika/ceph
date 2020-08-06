@@ -24,7 +24,7 @@ function(build_thrift)
 			 -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/external
 			 -DCMAKE_INSTALL_LIBDIR=${CMAKE_BINARY_DIR}/external/lib)
 
-  if(EXISTS "/opt/ceph/include/boost/")
+  if(WITH_SYSTEM_BOOST)
     message(STATUS "thrift will be using system boost")
     set(dependencies "")
     list(APPEND thrift_CMAKE_ARGS -DBOOST_ROOT=/opt/ceph)

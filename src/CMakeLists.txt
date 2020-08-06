@@ -281,10 +281,6 @@ if (WITH_BLKIN)
   add_subdirectory(blkin/blkin-lib)
 endif(WITH_BLKIN)
 
-if(WITH_JAEGER)
-  include(IncludeJaeger)
-endif()
-
 # Common infrastructure
 configure_file(
   ${CMAKE_SOURCE_DIR}/src/ceph_ver.h.in.cmake
@@ -386,6 +382,24 @@ set_source_files_properties(ceph_ver.c
   APPEND PROPERTY OBJECT_DEPENDS ${CMAKE_BINARY_DIR}/src/include/ceph_ver.h)
 add_library(common-objs OBJECT ${libcommon_files})
 
+if(WITH_JAEGER)
+  include(IncludeJaeger)
+  add_library(jaeger-base INTERFACE)
+  add_dependencies(common-objs
+  yaml-cpp::yaml-cpp
+  opentracing::libopentracing
+  thrift::libthrift
+  jaegertracing::libjaegertracing)
+  target_link_libraries(jaeger-base INTERFACE
+  yaml-cpp::yaml-cpp
+  opentracing::libopentracing
+  thrift::libthrift
+  jaegertracing::libjaegertracing)
+  include_directories(${CMAKE_BINARY_DIR}/external/include)
+  #with CMake 3.12+ the following can be replaced by:
+  #target_link_libraries(common-objs jaeger-base)
+endif()
+
 CHECK_C_COMPILER_FLAG("-fvar-tracking-assignments" HAS_VTA)
 add_subdirectory(auth)
 add_subdirectory(common)
@@ -447,11 +461,7 @@ if(WITH_DPDK)
 endif()
 
 if(WITH_JAEGER)
-  list(APPEND ceph_common_deps
-  yaml-cpp::yaml-cpp
-  opentracing::libopentracing
-  thrift::libthrift
-  jaegertracing::libjaegertracing)
+  list(APPEND ceph_common_deps jaeger-base)
 endif()
 
 if(WIN32)
@@ -561,6 +571,7 @@ add_subdirectory(cephadm)
 
 # Monitor
 add_subdirectory(mon)
+
 set(ceph_mon_srcs
   ceph_mon.cc)
 add_executable(ceph-mon ${ceph_mon_srcs}
