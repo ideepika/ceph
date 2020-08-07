@@ -124,8 +124,16 @@ target_compile_definitions(crimson-common PRIVATE
   "CEPH_DATADIR=\"${CEPH_INSTALL_DATADIR}\"")
 
 set(crimson_common_deps
-  Boost::iostreams
-  Boost::random)
+  Boost::random
+  json_spirit)
+
+if(WITH_JAEGER)
+  list(APPEND crimson_common_deps
+    yaml-cpp::yaml-cpp
+    opentracing::libopentracing
+    thrift::libthrift
+    jaegertracing::libjaegertracing)
+endif()
 
 if(NOT WITH_SYSTEM_BOOST)
   list(APPEND crimson_common_deps ${ZLIB_LIBRARIES})
@@ -133,11 +141,10 @@ endif()
 
 target_link_libraries(crimson-common
   PUBLIC
-    json_spirit
     crimson::cflags
+    ${crimson_common_deps}
   PRIVATE
     crc32
-    ${crimson_common_deps}
     OpenSSL::Crypto)
 
 set(crimson_auth_srcs

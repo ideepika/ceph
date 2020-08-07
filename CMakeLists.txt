@@ -599,7 +599,7 @@ if(WITH_SYSTEM_BOOST)
   if(BOOST_ROOT AND CMAKE_LIBRARY_ARCHITECTURE)
     set(BOOST_LIBRARYDIR "${BOOST_ROOT}/lib/${CMAKE_LIBRARY_ARCHITECTURE}")
   endif()
-  find_package(Boost 1.67 COMPONENTS ${BOOST_COMPONENTS} REQUIRED)
+  find_package(Boost 1.67 COMPONENTS ${BOOST_COMPONENTS} REQUIRED filesystem system)
 else()
   set(BOOST_J 1 CACHE STRING
     "max jobs for Boost build") # override w/-DBOOST_J=<n>
