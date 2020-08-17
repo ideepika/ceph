@@ -1351,6 +1351,12 @@ rm -rf %{buildroot}
 %{_libdir}/libos_tp.so*
 %{_libdir}/libosd_tp.so*
 %endif
+#will have to change with find_package method
+%if %{with jaeger}
+%{buildroot}/external/lib/libjaegertracing.so*
+%{buildroot}/external/lib/libthrift.so*
+%{buildroot}/external/lib/libopentracing.so*
+%endif
 %config(noreplace) %{_sysconfdir}/logrotate.d/ceph
 %if 0%{?fedora} || 0%{?rhel}
 %config(noreplace) %{_sysconfdir}/sysconfig/ceph

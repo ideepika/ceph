@@ -18,7 +18,6 @@
 # cmake/modules/BuildBoost.cmake
 
 function(build_jaeger)
-  set(Jaeger_DOWNLOAD_DIR "${CMAKE_SOURCE_DIR}/src/jaegertracing")
   set(Jaeger_SOURCE_DIR "${CMAKE_SOURCE_DIR}/src/jaegertracing/jaeger-client-cpp")
   set(Jaeger_INSTALL_DIR "${CMAKE_BINARY_DIR}/external")
   set(Jaeger_BINARY_DIR "${Jaeger_INSTALL_DIR}/Jaeger")
@@ -67,12 +66,9 @@ function(build_jaeger)
 
   include(ExternalProject)
   ExternalProject_Add(Jaeger
-    GIT_REPOSITORY https://github.com/ideepika/jaeger-client-cpp.git
-    GIT_TAG "hunter-disabled"
+    SOURCE_DIR ${Jaeger_SOURCE_DIR}
     UPDATE_COMMAND ""
     INSTALL_DIR "${CMAKE_BINARY_DIR}/external"
-    DOWNLOAD_DIR ${Jaeger_DOWNLOAD_DIR}
-    SOURCE_DIR ${Jaeger_SOURCE_DIR}
     PREFIX ${Jaeger_INSTALL_DIR}
     CMAKE_ARGS ${Jaeger_CMAKE_ARGS}
     BINARY_DIR ${Jaeger_BINARY_DIR}

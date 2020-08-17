@@ -10,7 +10,6 @@
 ################################################################################
 
 function(build_opentracing)
-  set(OpenTracing_DOWNLOAD_DIR "${CMAKE_SOURCE_DIR}/src/jaegertracing")
   set(OpenTracing_SOURCE_DIR "${CMAKE_SOURCE_DIR}/src/jaegertracing/opentracing-cpp")
   set(OpenTracing_BINARY_DIR "${CMAKE_BINARY_DIR}/external/opentracing-cpp")
 
