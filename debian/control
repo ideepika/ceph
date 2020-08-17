@@ -584,7 +584,8 @@ Description: debugging symbols for rbd-nbd
 
 Package: ceph-common
 Architecture: linux-any
-Depends: librbd1 (= ${binary:Version}),
+Depends: libjaeger (= ${binary:Version}),
+	  librbd1 (= ${binary:Version}),
          python3-cephfs (= ${binary:Version}),
          python3-ceph-argparse (= ${binary:Version}),
          python3-ceph-common (= ${binary:Version}),
@@ -760,6 +761,13 @@ Description: RADOS block device client library
  in RADOS, a reliable, autonomic distributed object storage cluster
  developed as part of the Ceph distributed storage system.  This is a
  shared library allowing applications to manage these block devices.
+
+Package: libjaeger
+Architecture: linux-any
+Section: libs
+Depends: ${misc:Depends},
+         ${shlibs:Depends},
+Description: tracing library for jaegertracing packages
 
 Package: librbd1-dbg
 Architecture: linux-any
