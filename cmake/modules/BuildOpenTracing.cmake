@@ -31,12 +31,9 @@ function(build_opentracing)
 
   include(ExternalProject)
   ExternalProject_Add(OpenTracing
-    GIT_REPOSITORY "https://github.com/opentracing/opentracing-cpp.git"
-    GIT_TAG "v1.5.0"
+    SOURCE_DIR ${OpenTracing_SOURCE_DIR}
     UPDATE_COMMAND ""
     INSTALL_DIR "${CMAKE_BINARY_DIR}/external"
-    DOWNLOAD_DIR ${OpenTracing_DOWNLOAD_DIR}
-    SOURCE_DIR ${OpenTracing_SOURCE_DIR}
     PREFIX "${CMAKE_BINARY_DIR}/external/opentracing-cpp"
     CMAKE_ARGS ${OpenTracing_CMAKE_ARGS}
     BUILD_IN_SOURCE 1
