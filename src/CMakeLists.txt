@@ -508,12 +508,12 @@ endif()
 
 if(MINGW)
   install(
-    TARGETS ceph-common
+    TARGETS ceph-common jaeger-base
     RUNTIME
     DESTINATION ${CEPH_INSTALL_PKGLIBDIR})
 else()
   install(
-    TARGETS ceph-common
+    TARGETS ceph-common jaeger-base
     LIBRARY
     DESTINATION ${CEPH_INSTALL_PKGLIBDIR}
     NAMELINK_SKIP)

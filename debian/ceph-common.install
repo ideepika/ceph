@@ -42,6 +42,6 @@ usr/share/ceph/id_rsa_drop.ceph.com
 usr/share/ceph/id_rsa_drop.ceph.com.pub
 etc/ceph/rbdmap
 lib/udev/rules.d/50-rbd.rules
-$(DESTDIR)/obj-x86_64-linux-gnu/external/lib/libjaegertracing.so* /usr/lib/
-$(DESTDIR)/obj-x86_64-linux-gnu/external/lib/libthrift.so* /usr/lib/
-$(DESTDIR)/obj-x86_64-linux-gnu/external/lib/libopentracing.so* /usr/lib/
+/usr/lib/libopentracing.so*
+/usr/lib/libthrift.so*
+/usr/lib/libjaegertracing.so*
