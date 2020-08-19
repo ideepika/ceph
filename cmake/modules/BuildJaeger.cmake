@@ -58,7 +58,7 @@ function(build_jaeger)
   message(STATUS "DEPENDENCIES ${dependencies}")
   if(CMAKE_MAKE_PROGRAM MATCHES "make")
     # try to inherit command line arguments passed by parent "make" job
-    set(make_cmd $(MAKE))
+    set(make_cmd $(MAKE) Jaeger)
   else()
     set(make_cmd ${CMAKE_COMMAND} --build <BINARY_DIR> --config $<CONFIG> --target Jaeger)
   endif()
@@ -68,7 +68,7 @@ function(build_jaeger)
   ExternalProject_Add(Jaeger
     SOURCE_DIR ${Jaeger_SOURCE_DIR}
     UPDATE_COMMAND ""
-    INSTALL_DIR "${CMAKE_BINARY_DIR}/external"
+    INSTALL_DIR "external"
     PREFIX ${Jaeger_INSTALL_DIR}
     CMAKE_ARGS ${Jaeger_CMAKE_ARGS}
     BINARY_DIR ${Jaeger_BINARY_DIR}

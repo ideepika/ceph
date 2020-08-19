@@ -398,6 +398,11 @@ if(WITH_JAEGER)
   include_directories(${CMAKE_BINARY_DIR}/external/include)
   #with CMake 3.12+ the following can be replaced by:
   #target_link_libraries(common-objs jaeger-base)
+  install(
+    DIRECTORY ${CMAKE_BINARY_DIR}/external
+    RUNTIME
+    DESTINATION ${CEPH_INSTALL_PKGLIBDIR})
+  message(STATUS "ceph pkglibdir ${CEPH_INSTALL_PKGLIBDIR}")
 endif()
 
 CHECK_C_COMPILER_FLAG("-fvar-tracking-assignments" HAS_VTA)
@@ -508,12 +513,12 @@ endif()
 
 if(MINGW)
   install(
-    TARGETS ceph-common jaeger-base
+    TARGETS ceph-common
     RUNTIME
     DESTINATION ${CEPH_INSTALL_PKGLIBDIR})
 else()
   install(
-    TARGETS ceph-common jaeger-base
+    TARGETS ceph-common
     LIBRARY
     DESTINATION ${CEPH_INSTALL_PKGLIBDIR}
     NAMELINK_SKIP)
