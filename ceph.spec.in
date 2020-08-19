@@ -1351,6 +1351,9 @@ rm -rf %{buildroot}
 %{_libdir}/libos_tp.so*
 %{_libdir}/libosd_tp.so*
 %endif
+%{_libdir}/ceph/external/libopentracing.so*
+%{_libdir}/ceph/external/libthrift.so*
+%{_libdir}/ceph/external/libjaegertracing.so*
 #will have to change with find_package method
 %if %{with jaeger}
 %{_libdir}/libopentracing.so*

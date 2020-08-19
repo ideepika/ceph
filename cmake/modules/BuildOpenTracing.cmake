@@ -23,7 +23,7 @@ function(build_opentracing)
 
   if(CMAKE_MAKE_PROGRAM MATCHES "make")
     # try to inherit command line arguments passed by parent "make" job
-    set(make_cmd "$(MAKE)")
+    set(make_cmd $(MAKE) OpenTracing)
   else()
     set(make_cmd ${CMAKE_COMMAND} --build <BINARY_DIR> --target OpenTracing)
   endif()
@@ -33,8 +33,8 @@ function(build_opentracing)
   ExternalProject_Add(OpenTracing
     SOURCE_DIR ${OpenTracing_SOURCE_DIR}
     UPDATE_COMMAND ""
-    INSTALL_DIR "${CMAKE_BINARY_DIR}/external"
-    PREFIX "${CMAKE_BINARY_DIR}/external/opentracing-cpp"
+    INSTALL_DIR "external"
+    PREFIX "external/opentracing-cpp"
     CMAKE_ARGS ${OpenTracing_CMAKE_ARGS}
     BUILD_IN_SOURCE 1
     BUILD_COMMAND ${make_cmd}
