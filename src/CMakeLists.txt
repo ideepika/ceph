@@ -347,6 +347,15 @@ if(WITH_SEASTAR)
   file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/seastar/gen/include")
   add_subdirectory(crimson)
 endif()
+if(WITH_JAEGER)
+  include(BuildJaeger)
+  build_jaeger()
+  add_library(jaeger-base INTERFACE)
+  target_link_libraries(jaeger-base INTERFACE
+  yaml-cpp::yaml-cpp
+  opentracing-static
+  jaeger-static)
+endif()
 
 set(libcommon_files
   ${CMAKE_BINARY_DIR}/src/include/ceph_ver.h
@@ -381,28 +390,18 @@ set(libcommon_files
 set_source_files_properties(ceph_ver.c
   APPEND PROPERTY OBJECT_DEPENDS ${CMAKE_BINARY_DIR}/src/include/ceph_ver.h)
 add_library(common-objs OBJECT ${libcommon_files})
-
 if(WITH_JAEGER)
-  include(IncludeJaeger)
-  add_library(jaeger-base INTERFACE)
+target_include_directories(common-objs PUBLIC
+  $<TARGET_PROPERTY:yaml-cpp::yaml-cpp,INTERFACE_INCLUDE_DIRECTORIES>
+  $<TARGET_PROPERTY:opentracing-static,INTERFACE_INCLUDE_DIRECTORIES>
+  $<TARGET_PROPERTY:jaeger-static,INTERFACE_INCLUDE_DIRECTORIES>)
+#see comment below this is hack to overcome link issue
   add_dependencies(common-objs
   yaml-cpp::yaml-cpp
-  opentracing::libopentracing
-  thrift::libthrift
-  jaegertracing::libjaegertracing)
-  target_link_libraries(jaeger-base INTERFACE
-  yaml-cpp::yaml-cpp
-  opentracing::libopentracing
-  thrift::libthrift
-  jaegertracing::libjaegertracing)
-  include_directories(${CMAKE_BINARY_DIR}/external/include)
+  opentracing-static
+  jaeger-static)
   #with CMake 3.12+ the following can be replaced by:
   #target_link_libraries(common-objs jaeger-base)
-  install(
-    DIRECTORY ${CMAKE_BINARY_DIR}/external
-    RUNTIME
-    DESTINATION ${CEPH_INSTALL_PKGLIBDIR})
-  message(STATUS "ceph pkglibdir ${CEPH_INSTALL_PKGLIBDIR}")
 endif()
 
 CHECK_C_COMPILER_FLAG("-fvar-tracking-assignments" HAS_VTA)

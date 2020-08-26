@@ -17,9 +17,6 @@
 #include "osd/osd_op_util.h"
 #include "osd/osd_types.h"
 #include "common/TrackedOp.h"
-#ifdef WITH_JAEGER
-#include "common/tracer.h"
-#endif
 
 /**
  * The OpRequest takes in a Message* and takes over a single reference

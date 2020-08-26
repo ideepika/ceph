@@ -21,7 +21,7 @@
 #define SIGNED_RIGHT_SHIFT_IS 1
 #define ARITHMETIC_RIGHT_SHIFT 1
 #include <yaml-cpp/yaml.h>
-#include <jaegertracing/Tracer.h>
+#include "jaegertracing/Tracer.h"
 
 using namespace opentracing;
 

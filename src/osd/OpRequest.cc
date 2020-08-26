@@ -22,9 +22,6 @@
 #else
 #define tracepoint(...)
 #endif
-#ifdef WITH_JAEGER
-#include "common/tracer.h"
-#endif
 
 using std::ostream;
 using std::set;

@@ -10,7 +10,7 @@
 ################################################################################
 #
 # This module builds Jaeger after it's dependencies are installed and discovered
-# OpenTracing: is built using cmake/modules/BuildOpenTracing.cmake
+# opentracing: is built using cmake/modules/Buildopentracing.cmake
 # Thrift: build using cmake/modules/Buildthrift.cmake
 # yaml-cpp, nlhomann-json: are installed locally and then discovered using
 # Find<package>.cmake
@@ -18,62 +18,77 @@
 # cmake/modules/BuildBoost.cmake
 
 function(build_jaeger)
-  set(Jaeger_SOURCE_DIR "${CMAKE_SOURCE_DIR}/src/jaegertracing/jaeger-client-cpp")
-  set(Jaeger_INSTALL_DIR "${CMAKE_BINARY_DIR}/external")
-  set(Jaeger_BINARY_DIR "${Jaeger_INSTALL_DIR}/Jaeger")
+  set(jaeger_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/jaegertracing/jaeger-client-cpp")
+  set(jaeger_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/jaeger")
 
-  file(MAKE_DIRECTORY "${Jaeger_INSTALL_DIR}")
-  set(Jaeger_CMAKE_ARGS -DCMAKE_POSITION_INDEPENDENT_CODE=ON
-                        -DBUILD_SHARED_LIBS=ON
+  set(jaeger_CMAKE_ARGS -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+		        -DBUILD_SHARED_LIBS=OFF
                         -DHUNTER_ENABLED=OFF
                         -DBUILD_TESTING=OFF
                         -DJAEGERTRACING_BUILD_EXAMPLES=OFF
-                        -DCMAKE_PREFIX_PATH=${CMAKE_BINARY_DIR}/external
-                        -DCMAKE_INSTALL_RPATH=${CMAKE_BINARY_DIR}/external
-			 -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=TRUE
-                        -DOpenTracing_DIR=${CMAKE_SOURCE_DIR}/src/jaegertracing/opentracing-cpp
-                        -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/external
-                        -Dyaml-cpp_HOME=${CMAKE_BINARY_DIR}/external
-                        -Dthrift_HOME=${CMAKE_BINARY_DIR}/external
-                        -DOpenTracing_HOME=${CMAKE_BINARY_DIR}/external
-                        -DCMAKE_FIND_ROOT_PATH=${CMAKE_SOURCE_DIR}/debian/tmp${CMAKE_BINARY_DIR}/external
-                        -DCMAKE_INSTALL_LIBDIR=${CMAKE_BINARY_DIR}/external/lib)
+                        -DCMAKE_PREFIX_PATH=${CMAKE_CURRENT_BINARY_DIR}
+			-DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/jaeger
+			-Dyaml-cpp_HOME=${CMAKE_CURRENT_BINARY_DIR}
+			-Dthrift_HOME=${CMAKE_CURRENT_BINARY_DIR}
+			-Dopentracing_HOME=${CMAKE_CURRENT_BINARY_DIR}/opentracing
+			-DCMAKE_FIND_ROOT_PATH=${CMAKE_CURRENT_BINARY_DIR}/opentracing)
 
-  set(dependencies OpenTracing thrift)
+  set(dependencies opentracing)
   include(BuildOpenTracing)
+  set(dependencies opentracing)
   build_opentracing()
-  include(Buildthrift)
-  build_thrift()
+  find_package(thrift 0.11.0)
+  if(NOT thrift_FOUND)
+    include(Buildthrift)
+    build_thrift()
+    list(APPEND dependencies thrift)
+  endif()
   find_package(yaml-cpp 0.6.0)
   if(NOT yaml-cpp_FOUND)
     include(Buildyaml-cpp)
     build_yamlcpp()
-    add_library(yaml-cpp::yaml-cpp SHARED IMPORTED)
-    add_dependencies(yaml-cpp::yaml-cpp yaml-cpp)
-    set_library_properties_for_external_project(yaml-cpp::yaml-cpp
-      yaml-cpp)
     list(APPEND dependencies "yaml-cpp")
   endif()
 
+  CHECK_C_COMPILER_FLAG("-Wno-stringop-truncation" HAS_WARNING_STRINGOP_TRUNCATION)
+  if(HAS_WARNING_STRINGOP_TRUNCATION)
+    list(APPEND jaeger_CMAKE_ARGS -DCMAKE_C_FLAGS=-Wno-stringop-truncation)
+  endif()
+  include(CheckCXXCompilerFlag)
+  check_cxx_compiler_flag("-Wno-deprecated-copy" HAS_WARNING_DEPRECATED_COPY)
+  if(HAS_WARNING_DEPRECATED_COPY)
+    set(jaeger_CXX_FLAGS -Wno-deprecated-copy)
+  endif()
+  check_cxx_compiler_flag("-Wno-pessimizing-move" HAS_WARNING_PESSIMIZING_MOVE)
+  if(HAS_WARNING_PESSIMIZING_MOVE)
+    set(jaeger_CXX_FLAGS "${jaeger_CXX_FLAGS} -Wno-pessimizing-move")
+  endif()
   message(STATUS "DEPENDENCIES ${dependencies}")
   if(CMAKE_MAKE_PROGRAM MATCHES "make")
     # try to inherit command line arguments passed by parent "make" job
-    set(make_cmd $(MAKE) Jaeger)
+    set(make_cmd $(MAKE))
   else()
-    set(make_cmd ${CMAKE_COMMAND} --build <BINARY_DIR> --config $<CONFIG> --target Jaeger)
+    set(make_cmd ${CMAKE_COMMAND} --build <BINARY_DIR> --config $<CONFIG> --target jaeger)
   endif()
-  set(install_cmd $(MAKE) install DESTDIR=)
 
   include(ExternalProject)
-  ExternalProject_Add(Jaeger
-    SOURCE_DIR ${Jaeger_SOURCE_DIR}
+  ExternalProject_Add(jaeger
+    SOURCE_DIR ${jaeger_SOURCE_DIR}
     UPDATE_COMMAND ""
-    INSTALL_DIR "external"
-    PREFIX ${Jaeger_INSTALL_DIR}
-    CMAKE_ARGS ${Jaeger_CMAKE_ARGS}
-    BINARY_DIR ${Jaeger_BINARY_DIR}
+    CMAKE_ARGS ${jaeger_CMAKE_ARGS}
+    BINARY_DIR ${jaeger_BINARY_DIR}
     BUILD_COMMAND ${make_cmd}
-    INSTALL_COMMAND ${install_cmd}
     DEPENDS "${dependencies}"
     )
+
+add_library(jaeger-static STATIC IMPORTED)
+add_dependencies(jaeger-static jaeger)
+set(jaeger_INCLUDE_DIR ${jaeger_SOURCE_DIR}/src/)
+set(jaeger_LIBRARY ${jaeger_BINARY_DIR}/libjaegertracing.a)
+include_directories(jaeger_INCLUDE_DIR)
+set_target_properties(jaeger-static PROPERTIES
+  INTERFACE_LINK_LIBRARIES "${jaeger_LIBRARY}"
+  IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
+  IMPORTED_LOCATION "${jaeger_LIBRARY}"
+  INTERFACE_INCLUDE_DIRECTORIES "${jaeger_INCLUDE_DIR}")
 endfunction()
