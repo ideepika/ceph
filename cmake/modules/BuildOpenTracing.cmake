@@ -32,7 +32,8 @@ function(build_opentracing)
   ExternalProject_Add(opentracing
     SOURCE_DIR ${opentracing_SOURCE_DIR}
     UPDATE_COMMAND ""
-    BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/opentracing"
+    #BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/opentracing"
+    BUILD_IN_SOURCE
     PREFIX "${CMAKE_CURRENT_BINARY_DIR}/opentracing"
     CMAKE_ARGS ${opentracing_CMAKE_ARGS}
     BUILD_COMMAND ${make_cmd}
