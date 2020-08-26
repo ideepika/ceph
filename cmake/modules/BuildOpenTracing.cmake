@@ -18,9 +18,7 @@ function(build_opentracing)
 			      -DBUILD_SHARED_LIBS=OFF
 			      -DBUILD_DYNAMIC_LOADING=OFF
 			      -DENABLE_LINTING=OFF
-			      -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/opentracing
-			      -DCMAKE_RUNTIME_OUTPUT_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR}
-			      -DCMAKE_LIBRARY_OUTPUT_DIRECTORY=${CMAKE_CURRENT_BINARY_DIR})
+			      -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/opentracing)
 
   if(CMAKE_MAKE_PROGRAM MATCHES "make")
     # try to inherit command line arguments passed by parent "make" job
@@ -34,6 +32,7 @@ function(build_opentracing)
   ExternalProject_Add(opentracing
     SOURCE_DIR ${opentracing_SOURCE_DIR}
     UPDATE_COMMAND ""
+    BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/opentracing"
     PREFIX "${CMAKE_CURRENT_BINARY_DIR}/opentracing"
     CMAKE_ARGS ${opentracing_CMAKE_ARGS}
     BUILD_COMMAND ${make_cmd}
