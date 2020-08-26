@@ -203,6 +203,7 @@ BuildRequires:	flex
 BuildRequires:	git
 %if 0%{?fedora} || 0%{?rhel}
 BuildRequires: json-devel
+BuildRequires: thrift-devel >= 0.11.0
 %endif
 %if 0%{?suse_version}
 BuildRequires: nlohmann_json-devel

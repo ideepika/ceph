@@ -18,6 +18,7 @@ function(build_thrift)
 			 -DBUILD_PYTHON=OFF
 			 -DBUILD_TESTING=OFF
 			 -DBUILD_TUTORIALS=OFF
+			 -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/thrift
 			 )
 
   if(WITH_SYSTEM_BOOST)
@@ -32,19 +33,6 @@ function(build_thrift)
     get_target_property(Boost_INCLUDE_DIRS Boost INTERFACE_INCLUDE_DIRECTORIES)
     list(APPEND thrift_CMAKE_ARGS  -DCMAKE_PREFIX_PATH=${Boost_INCLUDE_DIRS})
   endif()
-  CHECK_C_COMPILER_FLAG("-Wno-stringop-truncation" HAS_WARNING_STRINGOP_TRUNCATION)
-  if(HAS_WARNING_STRINGOP_TRUNCATION)
-    list(APPEND thrift_CMAKE_ARGS -DCMAKE_C_FLAGS=-Wno-stringop-truncation)
-  endif()
-  include(CheckCXXCompilerFlag)
-  check_cxx_compiler_flag("-Wno-deprecated-copy" HAS_WARNING_DEPRECATED_COPY)
-  if(HAS_WARNING_DEPRECATED_COPY)
-    set(thrift_CXX_FLAGS -Wno-deprecated-copy)
-  endif()
-  check_cxx_compiler_flag("-Wno-pessimizing-move" HAS_WARNING_PESSIMIZING_MOVE)
-  if(HAS_WARNING_PESSIMIZING_MOVE)
-    set(thrift_CXX_FLAGS "${thrift_CXX_FLAGS} -Wno-pessimizing-move")
-  endif()
 
   if(CMAKE_MAKE_PROGRAM MATCHES "make")
     # try to inherit command line arguments passed by parent "make" job
@@ -52,6 +40,7 @@ function(build_thrift)
   else()
     set(make_cmd ${CMAKE_COMMAND} --build <BINARY_DIR> --target thrift)
   endif()
+  set(install_cmd $(MAKE) install DESTDIR=)
 
   set(thrift_LIBRARY ${CMAKE_CURRENT_BINARY_DIR}/libthrift.a)
   include(ExternalProject)
@@ -61,6 +50,17 @@ function(build_thrift)
     BINARY_DIR ${thrift_BINARY_DIR}
     BUILD_COMMAND ${make_cmd}
     BUILD_BYPRODUCTS "${thrift_LIBRARY}"
+    INSTALL_COMMAND ${install_cmd}
     DEPENDS ${dependencies}
     )
+add_library(thrift-static STATIC IMPORTED)
+add_dependencies(thrift-static thrift)
+set(thrift_INCLUDE_DIR ${thrift_SOURCE_DIR}/include
+  ${thrift_SOURCE_DIR}/3rd_party/include/)
+
+set_target_properties(thrift-static PROPERTIES
+  INTERFACE_LINK_LIBRARIES "${thrift_LIBRARY}"
+  IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
+  IMPORTED_LOCATION "${thrift_LIBRARY}"
+  INTERFACE_INCLUDE_DIRECTORIES "${thrift_INCLUDE_DIR}")
 endfunction()
