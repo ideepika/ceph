@@ -22,10 +22,6 @@
 #include "include/spinlock.h"
 #include "msg/Message.h"
 
-#ifdef WITH_JAEGER
-#include "common/tracer.h"
-#endif
-
 #define OPTRACKER_PREALLOC_EVENTS 20
 
 class TrackedOp;

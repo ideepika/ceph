@@ -11,7 +11,7 @@
 
 function(build_opentracing)
   set(opentracing_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/jaegertracing/opentracing-cpp")
-  set(opentracing_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/opentracing-cpp")
+  set(opentracing_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/opentracing")
 
   set(opentracing_CMAKE_ARGS  -DCMAKE_POSITION_INDEPENDENT_CODE=ON
                               -DBUILD_MOCKTRACER=OFF
@@ -27,13 +27,13 @@ function(build_opentracing)
     set(make_cmd ${CMAKE_COMMAND} --build <BINARY_DIR> --target opentracing)
   endif()
 
-  set(opentracing_LIBRARY "${opentracing_BINARY_DIR}/libopentracing.a")
+  set(opentracing_LIBRARY "${opentracing_BINARY_DIR}/lib/libopentracing.a")
   include(ExternalProject)
   ExternalProject_Add(opentracing
     SOURCE_DIR ${opentracing_SOURCE_DIR}
     UPDATE_COMMAND ""
     #BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/opentracing"
-    BUILD_IN_SOURCE
+    BUILD_IN_SOURCE 1
     PREFIX "${CMAKE_CURRENT_BINARY_DIR}/opentracing"
     CMAKE_ARGS ${opentracing_CMAKE_ARGS}
     BUILD_COMMAND ${make_cmd}
@@ -48,4 +48,6 @@ set_target_properties(opentracing-static PROPERTIES
   IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
   IMPORTED_LOCATION "${opentracing_LIBRARY}"
   INTERFACE_INCLUDE_DIRECTORIES "${opentracing_INCLUDE_DIR}")
+
 endfunction()
+
