@@ -42,7 +42,7 @@ function(build_thrift)
   endif()
   set(install_cmd $(MAKE) install DESTDIR=)
 
-  set(thrift_LIBRARY ${CMAKE_CURRENT_BINARY_DIR}/libthrift.a)
+  set(thrift_LIBRARY ${thrift_BINARY_DIR}/lib/libthrift.a)
   include(ExternalProject)
   ExternalProject_Add(thrift
     SOURCE_DIR ${thrift_SOURCE_DIR}
@@ -55,8 +55,7 @@ function(build_thrift)
     )
 add_library(thrift-static STATIC IMPORTED)
 add_dependencies(thrift-static thrift)
-set(thrift_INCLUDE_DIR ${thrift_SOURCE_DIR}/include
-  ${thrift_SOURCE_DIR}/3rd_party/include/)
+set(thrift_INCLUDE_DIR ${thrift_SOURCE_DIR}/include)
 
 set_target_properties(thrift-static PROPERTIES
   INTERFACE_LINK_LIBRARIES "${thrift_LIBRARY}"
