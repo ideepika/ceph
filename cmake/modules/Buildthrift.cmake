@@ -13,12 +13,12 @@ function(build_thrift)
   set(thrift_SOURCE_DIR "${CMAKE_SOURCE_DIR}/src/jaegertracing/thrift")
   set(thrift_BINARY_DIR "${CMAKE_CURRENT_BINARY_DIR}/thrift")
 
-  set(thrift_CMAKE_ARGS  -DCMAKE_POSITION_INDEPENDENT_CODE=OFF
-			 -DBUILD_JAVA=OFF
+  set(thrift_CMAKE_ARGS  -DBUILD_JAVA=OFF
 			 -DBUILD_PYTHON=OFF
 			 -DBUILD_TESTING=OFF
 			 -DBUILD_TUTORIALS=OFF
 			 -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/thrift
+			 -DCMAKE_POSITION_INDEPENDENT_CODE=ON
 			 )
 
   if(WITH_SYSTEM_BOOST)
@@ -34,15 +34,17 @@ function(build_thrift)
     list(APPEND thrift_CMAKE_ARGS  -DCMAKE_PREFIX_PATH=${Boost_INCLUDE_DIRS})
   endif()
 
+  set(cxx_flags  -Wno-deprecated)
+  list(APPEND thrift_CMAKE_ARGS ${cxx_flags})
+
   if(CMAKE_MAKE_PROGRAM MATCHES "make")
     # try to inherit command line arguments passed by parent "make" job
     set(make_cmd $(MAKE) thrift)
   else()
     set(make_cmd ${CMAKE_COMMAND} --build <BINARY_DIR> --target thrift)
   endif()
-  set(install_cmd $(MAKE) install DESTDIR=)
 
-  set(thrift_LIBRARY ${CMAKE_CURRENT_BINARY_DIR}/libthrift.a)
+  set(thrift_LIBRARY ${thrift_BINARY_DIR}/lib/libthrift.so)
   include(ExternalProject)
   ExternalProject_Add(thrift
     SOURCE_DIR ${thrift_SOURCE_DIR}
@@ -50,13 +52,12 @@ function(build_thrift)
     BINARY_DIR ${thrift_BINARY_DIR}
     BUILD_COMMAND ${make_cmd}
     BUILD_BYPRODUCTS "${thrift_LIBRARY}"
-    INSTALL_COMMAND ${install_cmd}
+    INSTALL_COMMAND cmake -E echo "Skipping install step."
     DEPENDS ${dependencies}
     )
 add_library(thrift-static STATIC IMPORTED)
 add_dependencies(thrift-static thrift)
-set(thrift_INCLUDE_DIR ${thrift_SOURCE_DIR}/include
-  ${thrift_SOURCE_DIR}/3rd_party/include/)
+set(thrift_INCLUDE_DIR ${thrift_SOURCE_DIR}/include)
 
 set_target_properties(thrift-static PROPERTIES
   INTERFACE_LINK_LIBRARIES "${thrift_LIBRARY}"

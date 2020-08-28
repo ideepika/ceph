@@ -29,7 +29,7 @@ function(build_jaeger)
                         -DCMAKE_PREFIX_PATH=${CMAKE_CURRENT_BINARY_DIR}
 			-DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/jaeger
 			-Dyaml-cpp_HOME=${CMAKE_CURRENT_BINARY_DIR}
-			-Dthrift_HOME=${CMAKE_CURRENT_BINARY_DIR}
+			-Dthrift_HOME=${CMAKE_CURRENT_BINARY_DIR}/thrift
 			-Dopentracing_HOME=${CMAKE_CURRENT_BINARY_DIR}/opentracing
 			-DCMAKE_FIND_ROOT_PATH=${CMAKE_CURRENT_BINARY_DIR}/opentracing)
 
@@ -37,7 +37,7 @@ function(build_jaeger)
   include(BuildOpenTracing)
   set(dependencies opentracing)
   build_opentracing()
-  find_package(thrift 0.11.0)
+  #find_package(thrift 0.11.0)
   if(NOT thrift_FOUND)
     include(Buildthrift)
     build_thrift()

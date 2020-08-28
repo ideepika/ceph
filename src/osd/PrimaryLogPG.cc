@@ -1188,7 +1188,7 @@ void PrimaryLogPG::do_pg_op(OpRequestRef op)
 
 #ifdef WITH_JAEGER
   jspan do_pg_op_span = opentracing::Tracer::Global()->StartSpan(
-      "do_pg_op",{opentracing::v2::ChildOf(&(op->osd_parent_span)->context())});
+      "do_pg_op",{opentracing::v3::ChildOf(&(op->osd_parent_span)->context())});
 #endif
   op->mark_started();
 
@@ -1664,7 +1664,7 @@ void PrimaryLogPG::do_request(
   }
 #ifdef WITH_JAEGER
   jspan do_request_span = opentracing::Tracer::Global()->StartSpan(
-      "do request init",{opentracing::v2::ChildOf(&(op->osd_parent_span)->context())});
+      "do request init",{opentracing::v3::ChildOf(&(op->osd_parent_span)->context())});
 #endif
   // make sure we have a new enough map
   auto p = waiting_for_map.find(op->get_source());

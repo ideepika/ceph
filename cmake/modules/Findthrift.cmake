@@ -29,7 +29,7 @@ find_path(thrift_INCLUDE_DIR
 # prefer the thrift version supplied in thrift_HOME
 find_library(thrift_LIBRARIES
     NAMES
-        thrift libthrift
+        thrift.a libthrift.a
     HINTS
         ${thrift_HOME}
         ENV thrift_HOME
@@ -87,6 +87,13 @@ if (thrift_COMPILER)
     endfunction()
 endif ()
 
+
+add_library(thrift-static STATIC IMPORTED)
+set_target_properties(thrift-static PROPERTIES
+  INTERFACE_LINK_LIBRARIES "${thrift_LIBRARIES}"
+  IMPORTED_LINK_INTERFACE_LANGUAGES "CXX"
+  IMPORTED_LOCATION "${thrift_LIBRARY}"
+  INTERFACE_INCLUDE_DIRECTORIES "${thrift_INCLUDE_DIR}")
 
 include(FindPackageHandleStandardArgs)
 FIND_PACKAGE_HANDLE_STANDARD_ARGS(thrift DEFAULT_MSG thrift_LIBRARIES thrift_INCLUDE_DIR thrift_COMPILER)

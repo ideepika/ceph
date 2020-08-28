@@ -1646,7 +1646,7 @@ void OSDService::reply_op_error(OpRequestRef op, int err, eversion_t v,
   reply->set_op_returns(op_returns);
 #ifdef WITH_JAEGER
   jspan op_error_span = opentracing::Tracer::Global()->StartSpan(
-      "reply_op_error",{opentracing::v2::ChildOf(&(op->osd_parent_span)->context())});
+      "reply_op_error",{opentracing::v3::ChildOf(&(op->osd_parent_span)->context())});
   op_error_span->Log({
       {"type", m->get_type()},
       {"err code", err}
@@ -9650,7 +9650,7 @@ void OSD::enqueue_op(spg_t pg, OpRequestRef&& op, epoch_t epoch)
   op->osd_trace.keyval("cost", cost);
 #ifdef WITH_JAEGER
     jspan enqueue_op_span = opentracing::Tracer::Global()->StartSpan(
-      "enqueue_op",{opentracing::v2::ChildOf(&(op->osd_parent_span)->context())});
+      "enqueue_op",{opentracing::v3::ChildOf(&(op->osd_parent_span)->context())});
   enqueue_op_span->Log({
       {"priority", priority},
       {"cost", cost},

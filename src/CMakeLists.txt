@@ -354,6 +354,7 @@ if(WITH_JAEGER)
   target_link_libraries(jaeger-base INTERFACE
   yaml-cpp::yaml-cpp
   opentracing-static
+  thrift-static
   jaeger-static)
 endif()
 
@@ -394,11 +395,13 @@ if(WITH_JAEGER)
 target_include_directories(common-objs PUBLIC
   $<TARGET_PROPERTY:yaml-cpp::yaml-cpp,INTERFACE_INCLUDE_DIRECTORIES>
   $<TARGET_PROPERTY:opentracing-static,INTERFACE_INCLUDE_DIRECTORIES>
+  $<TARGET_PROPERTY:thrift-static,INTERFACE_INCLUDE_DIRECTORIES>
   $<TARGET_PROPERTY:jaeger-static,INTERFACE_INCLUDE_DIRECTORIES>)
 #see comment below this is hack to overcome link issue
   add_dependencies(common-objs
   yaml-cpp::yaml-cpp
   opentracing-static
+  thrift-static
   jaeger-static)
   #with CMake 3.12+ the following can be replaced by:
   #target_link_libraries(common-objs jaeger-base)
