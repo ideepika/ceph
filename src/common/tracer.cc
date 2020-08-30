@@ -1,11 +1,10 @@
 #include "tracer.h"
 
-Jager_Tracer tracer;
-std::atomic<bool> jager_initialized(false);
+Jaeger_Tracer tracer;
 
-Jager_Tracer::~Jager_Tracer()
+Jaeger_Tracer::~Jaeger_Tracer()
 {
     if(this->tracer)
         this->tracer->Close();
-    jager_initialized = false;
+    jaeger_initialized = false;
 }

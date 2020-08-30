@@ -378,8 +378,8 @@ set(libcommon_files
   ${mds_files})
 
 if(WITH_JAEGER)
-  file(GLOB jager_tracing_file "common/tracer.cc")
-  list(APPEND libcommon_files ${jager_tracing_file})
+  file(GLOB jaeger_tracing_file "common/tracer.cc")
+  list(APPEND libcommon_files ${jaeger_tracing_file})
 endif()
 
 set_source_files_properties(ceph_ver.c
