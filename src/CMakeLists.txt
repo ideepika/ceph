@@ -354,8 +354,10 @@ if(WITH_JAEGER)
   target_link_libraries(jaeger-base INTERFACE
   yaml-cpp::yaml-cpp
   opentracing-static
+  jaeger-static
   thrift-static
-  jaeger-static)
+  jaeger-static
+  thrift-static)
 endif()
 
 set(libcommon_files

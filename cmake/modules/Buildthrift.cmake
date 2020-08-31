@@ -19,6 +19,7 @@ function(build_thrift)
 			 -DBUILD_TUTORIALS=OFF
 			 -DCMAKE_INSTALL_PREFIX=${CMAKE_CURRENT_BINARY_DIR}/thrift
 			 -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+			 -DBUILD_SHARED_LIBS=OFF
 			 )
 
   if(WITH_SYSTEM_BOOST)
@@ -44,7 +45,7 @@ function(build_thrift)
     set(make_cmd ${CMAKE_COMMAND} --build <BINARY_DIR> --target thrift)
   endif()
 
-  set(thrift_LIBRARY ${thrift_BINARY_DIR}/lib/libthrift.so)
+  set(thrift_LIBRARY ${thrift_BINARY_DIR}/lib/libthrift.a)
   include(ExternalProject)
   ExternalProject_Add(thrift
     SOURCE_DIR ${thrift_SOURCE_DIR}
@@ -57,7 +58,7 @@ function(build_thrift)
     )
 add_library(thrift-static STATIC IMPORTED)
 add_dependencies(thrift-static thrift)
-set(thrift_INCLUDE_DIR ${thrift_SOURCE_DIR}/include)
+set(thrift_INCLUDE_DIR ${thrift_SOURCE_DIR}/lib/cpp/src/thrift/)
 
 set_target_properties(thrift-static PROPERTIES
   INTERFACE_LINK_LIBRARIES "${thrift_LIBRARY}"
