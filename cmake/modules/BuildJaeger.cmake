@@ -30,8 +30,9 @@ function(build_jaeger)
                         -DJAEGERTRACING_BUILD_EXAMPLES=OFF
                         -DCMAKE_PREFIX_PATH=${CMAKE_BINARY_DIR}/external
                         -DCMAKE_INSTALL_RPATH=${CMAKE_BINARY_DIR}/external
-			 -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=TRUE
+			-DCMAKE_INSTALL_RPATH_USE_LINK_PATH=TRUE
                         -Dopentracing_DIR=${CMAKE_SOURCE_DIR}/src/jaegertracing/opentracing-cpp
+			-Dnlohmann_json_DIR=/usr/lib
                         -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/external
                         -Dyaml-cpp_HOME=${CMAKE_BINARY_DIR}/external
                         -Dthrift_HOME=${CMAKE_BINARY_DIR}/external
