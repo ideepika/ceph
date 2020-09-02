@@ -80,4 +80,4 @@
 [submodule "src/jaegertracing/thrift"]
 	path = src/jaegertracing/thrift
 	url = https://github.com/apache/thrift.git
-	branch = 0.11.0
+	branch = 0.13.0

@@ -10,7 +10,7 @@
 ################################################################################
 #
 # This module builds Jaeger after it's dependencies are installed and discovered
-# OpenTracing: is built using cmake/modules/BuildOpenTracing.cmake
+# opentracing: is built using cmake/modules/Buildopentracing.cmake
 # Thrift: build using cmake/modules/Buildthrift.cmake
 # yaml-cpp, nlhomann-json: are installed locally and then discovered using
 # Find<package>.cmake
@@ -31,15 +31,15 @@ function(build_jaeger)
                         -DCMAKE_PREFIX_PATH=${CMAKE_BINARY_DIR}/external
                         -DCMAKE_INSTALL_RPATH=${CMAKE_BINARY_DIR}/external
 			 -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=TRUE
-                        -DOpenTracing_DIR=${CMAKE_SOURCE_DIR}/src/jaegertracing/opentracing-cpp
+                        -Dopentracing_DIR=${CMAKE_SOURCE_DIR}/src/jaegertracing/opentracing-cpp
                         -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/external
                         -Dyaml-cpp_HOME=${CMAKE_BINARY_DIR}/external
                         -Dthrift_HOME=${CMAKE_BINARY_DIR}/external
-                        -DOpenTracing_HOME=${CMAKE_BINARY_DIR}/external
+                        -Dopentracing_HOME=${CMAKE_BINARY_DIR}/external
                         -DCMAKE_FIND_ROOT_PATH=${CMAKE_SOURCE_DIR}/debian/tmp${CMAKE_BINARY_DIR}/external
                         -DCMAKE_INSTALL_LIBDIR=${CMAKE_BINARY_DIR}/external/lib)
 
-  set(dependencies OpenTracing thrift)
+  set(dependencies opentracing thrift)
   include(BuildOpenTracing)
   build_opentracing()
   include(Buildthrift)
@@ -58,7 +58,7 @@ function(build_jaeger)
   message(STATUS "DEPENDENCIES ${dependencies}")
   if(CMAKE_MAKE_PROGRAM MATCHES "make")
     # try to inherit command line arguments passed by parent "make" job
-    set(make_cmd $(MAKE) Jaeger)
+    set(make_cmd $(MAKE))
   else()
     set(make_cmd ${CMAKE_COMMAND} --build <BINARY_DIR> --config $<CONFIG> --target Jaeger)
   endif()

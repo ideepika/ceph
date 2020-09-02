@@ -17,7 +17,7 @@ include(ExternalProjectHelper)
 build_jaeger()
 
 add_library(opentracing::libopentracing SHARED IMPORTED)
-add_dependencies(opentracing::libopentracing OpenTracing)
+add_dependencies(opentracing::libopentracing opentracing)
 add_library(jaegertracing::libjaegertracing SHARED IMPORTED)
 add_dependencies(jaegertracing::libjaegertracing Jaeger)
 add_library(thrift::libthrift SHARED IMPORTED)
