@@ -10,7 +10,6 @@
 ################################################################################
 
 function(build_thrift)
-  set(thrift_DOWNLOAD_DIR "${CMAKE_SOURCE_DIR}/src/jaegertracing")
   set(thrift_SOURCE_DIR "${CMAKE_SOURCE_DIR}/src/jaegertracing/thrift")
   set(thrift_BINARY_DIR "${CMAKE_BINARY_DIR}/external/thrift")
 
@@ -18,8 +17,8 @@ function(build_thrift)
 			 -DBUILD_JAVA=OFF
 			 -DBUILD_PYTHON=OFF
 			 -DBUILD_TESTING=OFF
-       		 -DBUILD_TUTORIALS=OFF
-       		 -DCMAKE_INSTALL_RPATH=${CMAKE_BINARY_DIR}/external/lib
+			 -DBUILD_TUTORIALS=OFF
+			 -DCMAKE_INSTALL_RPATH=${CMAKE_BINARY_DIR}/external/lib
 			 -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=TRUE
 			 -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/external
 			 -DCMAKE_INSTALL_LIBDIR=${CMAKE_BINARY_DIR}/external/lib)
@@ -47,10 +46,6 @@ function(build_thrift)
 
   include(ExternalProject)
   ExternalProject_Add(thrift
-    URL http://archive.apache.org/dist/thrift/0.11.0/thrift-0.11.0.tar.gz
-    URL_HASH SHA1=bdf159ef455c6d3c71e95dba15a6d05f6aaca2a9
-    INSTALL_DIR "${CMAKE_BINARY_DIR}/external"
-    DOWNLOAD_DIR ${thrift_DOWNLOAD_DIR}
     SOURCE_DIR ${thrift_SOURCE_DIR}
     PREFIX "${CMAKE_BINARY_DIR}/external/thrift"
     CMAKE_ARGS ${thrift_CMAKE_ARGS}

@@ -399,7 +399,7 @@ if(WITH_JAEGER)
   #with CMake 3.12+ the following can be replaced by:
   #target_link_libraries(common-objs jaeger-base)
   install(
-    DIRECTORY ${CMAKE_BINARY_DIR}/external
+    TARGETS jaeger-base
     RUNTIME
     DESTINATION ${CEPH_INSTALL_PKGLIBDIR})
   message(STATUS "ceph pkglibdir ${CEPH_INSTALL_PKGLIBDIR}")
