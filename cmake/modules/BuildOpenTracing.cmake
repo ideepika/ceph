@@ -1,6 +1,9 @@
 function(build_opentracing)
-  find_package(OpenTracing)
+ # find_package(OpenTracing)
+  set(OpenTracing_FOUND false)
   if(NOT ${OpenTracing_FOUND})
+    set(OpenTracing_INCLUDE_DIRS false PARENT_SCOPE)
+    set(OpenTracing_LIBRARIES false PARENT_SCOPE)
     set(OpenTracing_FOUND false PARENT_SCOPE)
     set(OpenTracing_DOWNLOAD_DIR "${CMAKE_SOURCE_DIR}/src/jaegertracing")
     set(OpenTracing_SOURCE_DIR "${CMAKE_SOURCE_DIR}/src/jaegertracing/opentracing-cpp")
@@ -25,7 +28,7 @@ function(build_opentracing)
     include(ExternalProject)
     ExternalProject_Add(OpenTracing
       GIT_REPOSITORY "https://github.com/opentracing/opentracing-cpp.git"
-      GIT_TAG "v1.5.0"
+      GIT_TAG "v1.5.x"
       UPDATE_COMMAND ""
       INSTALL_DIR "${CMAKE_BINARY_DIR}/external"
       DOWNLOAD_DIR ${OpenTracing_DOWNLOAD_DIR}

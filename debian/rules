@@ -42,7 +42,7 @@ else
 endif
 
 %:
-	dh $@ --buildsystem=cmake --with javahelper,python3,systemd --parallel
+	dh $@ --buildsystem=cmake --with python3,systemd --parallel
 
 override_dh_auto_configure:
 	env | sort

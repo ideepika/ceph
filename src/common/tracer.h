@@ -24,11 +24,11 @@ struct Jaeger_Tracer{
 
 //will be used throughout ceph to create spans
 extern Jaeger_Tracer tracer;
-extern std::atomic<bool> jaeger_initialized(false);
+extern std::atomic<bool> jaeger_initialized;
 
 
 static inline void init_tracer(const char* tracerName,const char* filePath){
-      if(jaeger_initialized.load()) return;
+      if(jaeger_initialized) return;
 
       try{
           auto yaml = YAML::LoadFile(filePath);

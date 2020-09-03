@@ -7,7 +7,7 @@
     #define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
     //jaeger initializer
     static inline void init_jaeger(){
-        init_tracer("RGW_Client_Process","/home/abhinav/Desktop/tracerConfig.yaml");
+        init_tracer("RGW_Client_Process","../src/jaegertracing/config.yml");
     }
 #else
     #define __FILENAME__ ""
