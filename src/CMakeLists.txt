@@ -398,11 +398,16 @@ if(WITH_JAEGER)
   include_directories(${CMAKE_BINARY_DIR}/external/include)
   #with CMake 3.12+ the following can be replaced by:
   #target_link_libraries(common-objs jaeger-base)
-  install(
-    DIRECTORY ${CMAKE_BINARY_DIR}/external
-    RUNTIME
-    DESTINATION ${CEPH_INSTALL_PKGLIBDIR})
-  message(STATUS "ceph pkglibdir ${CEPH_INSTALL_PKGLIBDIR}")
+  install(DIRECTORY ${CMAKE_BINARY_DIR}/external/include
+     DESTINATION include)
+  install(DIRECTORY ${CMAKE_BINARY_DIR}/external/lib
+    DESTINATION ${CEPH_INSTALL_PKGLIBDIR}
+    FILES_MATCHING PATTERN "*.so*"
+		   PATTERN "*.a")
+   #install(
+   # TARGETS opentracing::libopentracing jaegertracing::libjaegertracing thrift::libthrift
+   # LIBRARY DESTINATION ${CEPH_INSTALL_PKGLIBDIR}
+   # INCLUDES DESTINATION ${CEPH_INSTALL_INCLUDEDIR})
 endif()
 
 CHECK_C_COMPILER_FLAG("-fvar-tracking-assignments" HAS_VTA)
