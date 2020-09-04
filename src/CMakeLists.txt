@@ -399,9 +399,9 @@ if(WITH_JAEGER)
   #with CMake 3.12+ the following can be replaced by:
   #target_link_libraries(common-objs jaeger-base)
   install(DIRECTORY ${CMAKE_BINARY_DIR}/external/include
-     DESTINATION include)
+     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
   install(DIRECTORY ${CMAKE_BINARY_DIR}/external/lib
-    DESTINATION ${CEPH_INSTALL_PKGLIBDIR}
+    DESTINATION ${CMAKE_INSTALL_LIBDIR}
     FILES_MATCHING PATTERN "*.so*"
 		   PATTERN "*.a")
    #install(
