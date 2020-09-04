@@ -13,7 +13,8 @@ function(build_thrift)
   set(thrift_SOURCE_DIR "${CMAKE_SOURCE_DIR}/src/jaegertracing/thrift")
   set(thrift_BINARY_DIR "${CMAKE_BINARY_DIR}/external/thrift")
 
-  set(thrift_CMAKE_ARGS  -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+  set(thrift_CMAKE_ARGS  -DCMAKE_BUILD_TYPE=Release
+			 -DCMAKE_POSITION_INDEPENDENT_CODE=ON
 			 -DBUILD_JAVA=OFF
 			 -DBUILD_PYTHON=OFF
 			 -DBUILD_TESTING=OFF

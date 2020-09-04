@@ -9,7 +9,8 @@ set(CEPH_INSTALL_DATADIR ${CMAKE_INSTALL_FULL_DATADIR}/${PROJECT_NAME})
 # so libceph-common can be found
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 if(NOT CMAKE_INSTALL_RPATH)
-  set(CMAKE_INSTALL_RPATH "${CEPH_INSTALL_FULL_PKGLIBDIR}")
+  set(CMAKE_INSTALL_RPATH
+    "${CEPH_INSTALL_FULL_PKGLIBDIR}:${CMAKE_BINARY_DIR}/external/lib")
 endif()
 
 # to be compatible with configure_files shared with autoconfig

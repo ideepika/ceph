@@ -33,11 +33,8 @@ function(build_jaeger)
 			-DCMAKE_INSTALL_RPATH_USE_LINK_PATH=TRUE
                         -Dopentracing_DIR=${CMAKE_SOURCE_DIR}/src/jaegertracing/opentracing-cpp
 			-Dnlohmann_json_DIR=/usr/lib
-                        -DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/external
-                        -Dyaml-cpp_HOME=${CMAKE_BINARY_DIR}/external
-                        -Dthrift_HOME=${CMAKE_BINARY_DIR}/external
-                        -Dopentracing_HOME=${CMAKE_BINARY_DIR}/external
-                        -DCMAKE_FIND_ROOT_PATH=${CMAKE_SOURCE_DIR}/debian/tmp${CMAKE_BINARY_DIR}/external
+			-DCMAKE_INSTALL_PREFIX=${CMAKE_BINARY_DIR}/external
+			-DCMAKE_FIND_ROOT_PATH="${CMAKE_SOURCE_DIR}/debian/tmp${CMAKE_BINARY_DIR}/external;${CMAKE_SOURCE_DIR}/external"
                         -DCMAKE_INSTALL_LIBDIR=${CMAKE_BINARY_DIR}/external/lib)
 
   set(dependencies opentracing thrift)
