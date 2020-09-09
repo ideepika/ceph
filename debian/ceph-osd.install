@@ -23,3 +23,6 @@ usr/share/man/man8/ceph-osd.8
 usr/share/man/man8/ceph-bluestore-tool.8
 etc/sysctl.d/30-ceph-osd.conf
 etc/sudoers.d/ceph-osd-smartctl
+usr/lib/lib/libopentracing.so*
+usr/lib/lib/libjaegertracing.so*
+usr/lib/lib/libthrift.so*

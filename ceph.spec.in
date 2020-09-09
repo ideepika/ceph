@@ -458,6 +458,7 @@ Group:		System/Filesystems
 %endif
 Provides:	ceph-test:/usr/bin/ceph-monstore-tool
 Requires:	ceph-base = %{_epoch_prefix}%{version}-%{release}
+Requires:	ceph-common = %{_epoch_prefix}%{version}-%{release}
 %description mon
 ceph-mon is the cluster monitor daemon for the Ceph distributed file
 system. One or more instances of ceph-mon form a Paxos part-time
@@ -1353,16 +1354,6 @@ rm -rf %{buildroot}
 %{_libdir}/libos_tp.so*
 %{_libdir}/libosd_tp.so*
 %endif
-#will have to change with find_package method
-%if %{with jaeger}
-%{_includedir}/thrift
-%{_includedir}/jaegertracing
-%{_includedir}/opentracing
-%{_libdir}/lib/libopentracing.so*
-%{_libdir}/lib/libthrift.so*
-%{_libdir}/lib/libjaegertracing.so*
-%{_libdir}/lib/libjaegertracing.so*
-%endif
 %config(noreplace) %{_sysconfdir}/logrotate.d/ceph
 %if 0%{?fedora} || 0%{?rhel}
 %config(noreplace) %{_sysconfdir}/sysconfig/ceph
@@ -1512,6 +1503,16 @@ exit 0
 %{_udevrulesdir}/50-rbd.rules
 %attr(3770,ceph,ceph) %dir %{_localstatedir}/log/ceph/
 %attr(750,ceph,ceph) %dir %{_localstatedir}/lib/ceph/
+#will have to change with find_package method
+%if %{with jaeger}
+%{_includedir}/thrift
+%{_includedir}/jaegertracing
+%{_includedir}/opentracing
+%attr(750,ceph,ceph) %{_libdir}/lib/libopentracing.so*
+%attr(750,ceph,ceph) %{_libdir}/lib/libthrift.so*
+%attr(750,ceph,ceph) %{_libdir}/lib/libjaegertracing.so*
+%attr(750,ceph,ceph) %{_libdir}/lib/libjaegertracing.so*
+%endif
 
 %pre common
 CEPH_GROUP_ID=167
