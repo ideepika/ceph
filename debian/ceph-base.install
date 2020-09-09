@@ -20,6 +20,6 @@ usr/share/man/man8/crushtool.8
 usr/share/man/man8/monmaptool.8
 usr/share/man/man8/osdmaptool.8
 usr/share/man/man8/ceph-kvstore-tool.8
-usr/lib/lib/libopentracing.so*
-usr/lib/lib/libjaegertracing.so*
-usr/lib/lib/libthrift.so*
+usr/lib/lib/libopentracing.so* /usr/lib
+usr/lib/lib/libjaegertracing.so* /usr/lib
+usr/lib/lib/libthrift.so* /usr/lib

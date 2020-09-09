@@ -1505,6 +1505,7 @@ exit 0
 %attr(750,ceph,ceph) %dir %{_localstatedir}/lib/ceph/
 #will have to change with find_package method
 %if %{with jaeger}
+%dir %{_libdir}/lib/
 %{_includedir}/thrift
 %{_includedir}/jaegertracing
 %{_includedir}/opentracing
