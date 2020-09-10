@@ -954,7 +954,6 @@ Summary:	Ceph distributed file system headers
 Group:		Development/Libraries/C and C++
 %endif
 Requires:	libjaeger = %{_epoch_prefix}%{version}-%{release}
-Provides:	libjaeger-devel = %{_epoch_prefix}%{version}-%{release}
 Obsoletes:	libjaeger-devel < %{_epoch_prefix}%{version}-%{release}
 %description -n libjaeger-devel
 This package contains libraries and headers needed to develop programs
@@ -2195,15 +2194,17 @@ fi
 %files -n libjaeger
 #will have to change with find_package method
 %dir %{_libdir}/lib/
-%attr(750,ceph,ceph) %{_libdir}/lib/libopentracing.so*
-%attr(750,ceph,ceph) %{_libdir}/lib/libthrift.so*
-%attr(750,ceph,ceph) %{_libdir}/lib/libjaegertracing.so*
-%attr(750,ceph,ceph) %{_libdir}/lib/libjaegertracing.so*
+%attr(750,ceph,ceph) %{_libdir}/lib/libopentracing.so.*
+%attr(750,ceph,ceph) %{_libdir}/lib/libthrift.so.*
+%attr(750,ceph,ceph) %{_libdir}/lib/libjaegertracing.so.*
 
 %files -n libjaeger-devel
 %{_includedir}/thrift
 %{_includedir}/jaegertracing
 %{_includedir}/opentracing
+%{_libdir}/lib/libopentracing.so*
+%{_libdir}/lib/libthrift.so*
+%{_libdir}/lib/libjaegertracing.so*
 %endif
 
 %files -n python%{python3_pkgversion}-cephfs
