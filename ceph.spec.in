@@ -90,6 +90,8 @@
 # disable dwz which compresses the debuginfo
 %global _find_debuginfo_dwz_opts %{nil}
 
+# for jaeger testing
+%define _unpackaged_files_terminate_build 0
 #################################################################################
 # main package definition
 #################################################################################
