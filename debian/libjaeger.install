@@ -1,0 +1,3 @@
+usr/lib/lib/libopentracing.so.* /usr/lib
+usr/lib/lib/libjaegertracing.so.* /usr/lib
+usr/lib/lib/libthrift.so.* /usr/lib

@@ -762,13 +762,6 @@ Description: RADOS block device client library
  developed as part of the Ceph distributed storage system.  This is a
  shared library allowing applications to manage these block devices.
 
-Package: libjaeger
-Architecture: linux-any
-Section: libs
-Depends: ${misc:Depends},
-         ${shlibs:Depends},
-Description: tracing library for jaegertracing packages
-
 Package: librbd1-dbg
 Architecture: linux-any
 Section: debug
@@ -876,7 +869,7 @@ Section: debug
 Priority: extra
 Depends: librgw2 (= ${binary:Version}),
          ${misc:Depends},
-Description: debugging symbols for librbd1
+Description: debugging symbols for librgw2
  RADOS is a distributed object store used by the Ceph distributed
  storage system.  This package provides a REST gateway to the
  object store that aims to implement a superset of Amazon's S3
@@ -928,6 +921,22 @@ Description: debugging symbols for radosgw
  service as well as the OpenStack Object Storage ("Swift") API.
  .
  This package contains debugging symbols for radosgw.
+
+Package: libjaeger
+Architecture: linux-any
+Section: libs
+Depends: ${misc:Depends},
+         ${shlibs:Depends},
+Description: tracing library for jaegertracing packages
+
+Package: libjaeger-dev
+Architecture: linux-any
+Section: libdevel
+Depends: libjaeger (= ${binary:Version}),
+         ${misc:Depends},
+Description: tracing library for jaegertracing packages
+ This package contains development files needed for building applications that
+ link against librbd1.
 
 Package: ceph-test
 Architecture: linux-any
