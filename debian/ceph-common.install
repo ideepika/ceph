@@ -45,3 +45,4 @@ lib/udev/rules.d/50-rbd.rules
 usr/lib/lib/libopentracing.so* /usr/lib
 usr/lib/lib/libjaegertracing.so* /usr/lib
 usr/lib/lib/libthrift.so* /usr/lib
+usr/lib/libyaml-cpp.so*
