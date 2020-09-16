@@ -9,7 +9,7 @@ set(CEPH_INSTALL_DATADIR ${CMAKE_INSTALL_FULL_DATADIR}/${PROJECT_NAME})
 # so libceph-common can be found
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 if(NOT CMAKE_INSTALL_RPATH)
-  set(CMAKE_INSTALL_RPATH  "${CEPH_INSTALL_FULL_PKGLIBDIR};${CMAKE_INSTALL_FULL_LIBDIR}/lib")
+  set(CMAKE_INSTALL_RPATH  "${CEPH_INSTALL_FULL_PKGLIBDIR};${CMAKE_INSTALL_FULL_LIBDIR}")
 endif()
 
 # to be compatible with configure_files shared with autoconfig
@@ -383,6 +383,7 @@ set_source_files_properties(ceph_ver.c
 add_library(common-objs OBJECT ${libcommon_files})
 
 if(WITH_JAEGER)
+  find_package(yaml-cpp 0.6.0)
   include(IncludeJaeger)
   add_library(jaeger-base INTERFACE)
   add_dependencies(common-objs
@@ -402,14 +403,24 @@ if(WITH_JAEGER)
     ${CMAKE_BINARY_DIR}/external/include/opentracing
     ${CMAKE_BINARY_DIR}/external/include/thrift
      DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-  install(FILES
+   set(jaeger_libs
     ${CMAKE_BINARY_DIR}/external/lib/libjaegertracing.so
+    ${CMAKE_BINARY_DIR}/external/lib/libjaegertracing.so.0
     ${CMAKE_BINARY_DIR}/external/lib/libjaegertracing.so.0.6.1
     ${CMAKE_BINARY_DIR}/external/lib/libopentracing.so
+    ${CMAKE_BINARY_DIR}/external/lib/libopentracing.so.1
     ${CMAKE_BINARY_DIR}/external/lib/libopentracing.so.1.6.0
     ${CMAKE_BINARY_DIR}/external/lib/libthrift.so
-    ${CMAKE_BINARY_DIR}/external/lib/libthrift.so.0.13.0
+    ${CMAKE_BINARY_DIR}/external/lib/libthrift.so.0.13.0)
+  if(NOT yaml-cpp_FOUND)
+    list(APPEND jaeger_libs
+      ${CMAKE_BINARY_DIR}/external/lib/libyaml-cpp.so.0.6.2
+      ${CMAKE_BINARY_DIR}/external/lib/libyaml-cpp.so.0.6
+      ${CMAKE_BINARY_DIR}/external/lib/libyaml-cpp.so)
+  endif()
+  install(FILES ${jaeger_libs}
     DESTINATION ${CMAKE_INSTALL_LIBDIR})
+  message(STATUS "jaeger_libs ${jaeger_libs}")
 endif()
 
 CHECK_C_COMPILER_FLAG("-fvar-tracking-assignments" HAS_VTA)

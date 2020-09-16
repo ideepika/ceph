@@ -2198,17 +2198,17 @@ fi
 
 %files -n libjaeger
 #will have to change with find_package method
-%{_libdir}libopentracing.so.*
-%{_libdir}libthrift.so.*
-%{_libdir}libjaegertracing.so.*
+%{_libdir}/libopentracing.so.*
+%{_libdir}/libthrift.so.*
+%{_libdir}/libjaegertracing.so.*
 
 %files -n libjaeger-devel
 %{_includedir}/thrift
 %{_includedir}/jaegertracing
 %{_includedir}/opentracing
-%{_libdir}libopentracing.so
-%{_libdir}libthrift.so
-%{_libdir}libjaegertracing.so
+%{_libdir}/libopentracing.so
+%{_libdir}/libthrift.so
+%{_libdir}/libjaegertracing.so
 %endif
 
 %files -n python%{python3_pkgversion}-cephfs
