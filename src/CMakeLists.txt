@@ -402,8 +402,14 @@ if(WITH_JAEGER)
     ${CMAKE_BINARY_DIR}/external/include/opentracing
     ${CMAKE_BINARY_DIR}/external/include/thrift
      DESTINATION ${CMAKE_INSTALL_INCLUDEDIR})
-   install(DIRECTORY ${CMAKE_BINARY_DIR}/external/lib
-   DESTINATION ${CMAKE_INSTALL_LIBDIR})
+  install(FILES
+    ${CMAKE_BINARY_DIR}/external/lib/libjaegertracing.so
+    ${CMAKE_BINARY_DIR}/external/lib/libjaegertracing.so.0.6.1
+    ${CMAKE_BINARY_DIR}/external/lib/libopentracing.so
+    ${CMAKE_BINARY_DIR}/external/lib/libopentracing.so.1.6.0
+    ${CMAKE_BINARY_DIR}/external/lib/libthrift.so
+    ${CMAKE_BINARY_DIR}/external/lib/libthrift.so.0.13.0
+    DESTINATION ${CMAKE_INSTALL_LIBDIR})
 endif()
 
 CHECK_C_COMPILER_FLAG("-fvar-tracking-assignments" HAS_VTA)
