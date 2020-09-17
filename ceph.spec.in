@@ -2193,14 +2193,14 @@ fi
 %{_libdir}/libcephfs.so
 
 %if %{with jaeger}
-%post -n libjaeger -p /sbin/ldconfig
-%postun -n libjaeger -p /sbin/ldconfig
-
 %files -n libjaeger
 #will have to change with find_package method
 %{_libdir}/libopentracing.so.*
 %{_libdir}/libthrift.so.*
 %{_libdir}/libjaegertracing.so.*
+
+%post -n libjaeger -p /sbin/ldconfig
+%postun -n libjaeger -p /sbin/ldconfig
 
 %files -n libjaeger-devel
 %{_includedir}/thrift
