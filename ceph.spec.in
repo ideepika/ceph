@@ -943,7 +943,6 @@ Summary:	Ceph distributed file system client library
 %if 0%{?suse_version}
 Group:		System/Libraries
 %endif
-Provides:	libjaeger = %{_epoch_prefix}%{version}-%{release}
 Obsoletes:	libjaeger < %{_epoch_prefix}%{version}-%{release}
 %description -n libjaeger
 Ceph is a distributed network file system designed to provide excellent
@@ -1274,6 +1273,10 @@ popd
 # package crimson-osd with the name of ceph-osd
 install -m 0755 %{buildroot}%{_bindir}/crimson-osd %{buildroot}%{_bindir}/ceph-osd
 %endif
+
+#%if 0%{with jaeger}
+#install -m 0755 %{build}/external/lib/* %{buildroot}%{_libdir}
+#%endif
 
 install -m 0644 -D src/etc-rbdmap %{buildroot}%{_sysconfdir}/ceph/rbdmap
 %if 0%{?fedora} || 0%{?rhel}
