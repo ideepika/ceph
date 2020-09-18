@@ -383,7 +383,7 @@ set_source_files_properties(ceph_ver.c
 add_library(common-objs OBJECT ${libcommon_files})
 
 if(WITH_JAEGER)
-  find_package(yaml-cpp 0.6.0)
+  #  find_package(yaml-cpp 0.6.0)
   include(IncludeJaeger)
   add_library(jaeger-base INTERFACE)
   add_dependencies(common-objs
