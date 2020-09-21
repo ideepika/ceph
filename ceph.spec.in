@@ -944,6 +944,9 @@ Summary:	Ceph distributed file system client library
 Group:		System/Libraries
 %endif
 Obsoletes:	libjaeger < %{_epoch_prefix}%{version}-%{release}
+Provides: 	libjaegertracing.so
+Provides:	libopentracing.so
+Provides:	libthrift.so
 %description -n libjaeger
 Ceph is a distributed network file system designed to provide excellent
 performance, reliability, and scalability.
@@ -2197,7 +2200,6 @@ fi
 
 %if %{with jaeger}
 %files -n libjaeger
-#will have to change with find_package method
 %{_libdir}/libopentracing.so.*
 %{_libdir}/libthrift.so.*
 %{_libdir}/libjaegertracing.so.*
