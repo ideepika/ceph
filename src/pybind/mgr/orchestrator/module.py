@@ -809,7 +809,7 @@ Usage:
 
     @_cli_write_command(
         'orch daemon add',
-        'name=daemon_type,type=CephChoices,strings=mon|mgr|rbd-mirror|crash|alertmanager|grafana|node-exporter|prometheus,req=false '
+        'name=daemon_type,type=CephChoices,strings=mon|mgr|rbd-mirror|crash|alertmanager|grafana|node-exporter|prometheus|jaeger-agent|jaeger-collector|jaeger-query,req=false '
         'name=placement,type=CephString,req=false',
         'Add daemon(s)')
     def _daemon_add_misc(self,
@@ -846,6 +846,12 @@ Usage:
             completion = self.add_node_exporter(spec)
         elif daemon_type == 'prometheus':
             completion = self.add_prometheus(spec)
+        elif daemon_type == 'jaeger-agent':
+            completion = self.add_jaeger_agent(spec)
+        elif daemon_type == 'jaeger-collector':
+            completion = self.add_jaeger_collector(spec)
+        elif daemon_type == 'jaeger-query':
+            completion = self.add_jaeger_query(spec)
         elif daemon_type == 'mds':
             completion = self.add_mds(spec)
         elif daemon_type == 'rgw':
@@ -1048,7 +1054,7 @@ Usage:
 
     @_cli_write_command(
         'orch apply',
-        'name=service_type,type=CephChoices,strings=mon|mgr|rbd-mirror|crash|alertmanager|grafana|node-exporter|prometheus,req=false '
+        'name=service_type,type=CephChoices,strings=mon|mgr|rbd-mirror|crash|alertmanager|grafana|node-exporter|prometheus|jaeger-agent|jaeger-collector|jaeger-query,req=false '
         'name=placement,type=CephString,req=false '
         'name=dry_run,type=CephBool,req=false '
         'name=format,type=CephChoices,strings=plain|json|json-pretty|yaml,req=false '

@@ -67,7 +67,7 @@ if(WITH_MANPAGE)
   endif(NOT SPHINX_BUILD)
 endif(WITH_MANPAGE)
 
-include_directories(
+include_directories( SYSTEM
   ${PROJECT_BINARY_DIR}/src/include
   ${PROJECT_SOURCE_DIR}/src)
 

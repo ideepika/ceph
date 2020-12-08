@@ -198,7 +198,7 @@ Example to find Boost headers only::
 
   find_package(Boost 1.36.0)
   if(Boost_FOUND)
-    include_directories(${Boost_INCLUDE_DIRS})
+    include_directories(SYSTEM ${Boost_INCLUDE_DIRS})
     add_executable(foo foo.cc)
   endif()
 

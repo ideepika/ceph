@@ -157,7 +157,9 @@ class Monitoring(object):
         "node-exporter": [9100],
         "grafana": [3000],
         "alertmanager": [9093, 9094],
-        "jaegertracing": [5775, 6831, 6832, 5778, 16686, 14268, 14250],
+        "jaeger-agent": [5775, 6831, 6832, 5778],
+        "jaeger-collector": [14269, 14268, 14250],
+        "jaeger-query": [16686, 16687],
     }
 
     components = {
@@ -209,13 +211,32 @@ class Monitoring(object):
                 "peers",
             ],
         },
-        "jaegertracing": {
-            "image": "docker.io/jaegertracing/all-in-one",
+        "jaeger-agent": {
+            "image": "docker.io/jaegertracing/jaeger-agent:1.20",
             "cpus": "2",
             "memory": "2GB",
-            "args": [
-                "-e COLLECTOR_ZIPKIN_HTTP_PORT=9411",
-                ],
+            "args": [],
+            "config-json-files": [
+                "jaeger-agent.yml",
+            ],
+        },
+        "jaeger-collector": {
+            "image": "docker.io/jaegertracing/jaeger-collector:1.20",
+            "cpus": "2",
+            "memory": "2GB",
+            "args": [],
+            "config-json-files": [
+                "jaeger-collector.yml",
+            ],
+        },
+         "jaeger-query": {
+            "image": "docker.io/jaegertracing/jaeger-query:1.20",
+            "cpus": "2",
+            "memory": "2GB",
+            "args": [],
+            "config-json-files": [
+                "jaeger-query.yml",
+            ],
         },
     }  # type: ignore
 
@@ -1755,6 +1776,7 @@ def create_daemon_dirs(fsid, daemon_type, daemon_id, uid, gid,
     # type: (str, str, Union[int, str], int, int, Optional[str], Optional[str]) ->  None
     data_dir = make_data_dir(fsid, daemon_type, daemon_id, uid=uid, gid=gid)
     make_log_dir(fsid, uid=uid, gid=gid)
+    jaeger_pattern = re.compile("^(jaeger-)*")
 
     if config:
         config_path = os.path.join(data_dir, 'config')
@@ -1794,9 +1816,9 @@ def create_daemon_dirs(fsid, daemon_type, daemon_id, uid, gid,
             config_dir = 'etc/alertmanager'
             makedirs(os.path.join(data_dir_root, config_dir), uid, gid, 0o755)
             makedirs(os.path.join(data_dir_root, config_dir, 'data'), uid, gid, 0o755)
-        elif daemon_type == 'jaegertracing':
+        elif jaeger_pattern.match(daemon_type):
             data_dir_root = get_data_dir(fsid, daemon_type, daemon_id)
-            config_dir = 'etc/jaegertracing'
+            config_dir = 'etc/jaeger'
             makedirs(os.path.join(data_dir_root, config_dir), uid, gid, 0o755)
             makedirs(os.path.join(data_dir_root, config_dir, 'data'), uid, gid, 0o755)
 
@@ -1942,6 +1964,7 @@ def get_container_mounts(fsid, daemon_type, daemon_id,
                 mounts[ceph_folder + '/src/python-common/ceph'] = '/usr/lib/python3.6/site-packages/ceph'
                 mounts[ceph_folder + '/monitoring/grafana/dashboards'] = '/etc/grafana/dashboards/ceph-dashboard'
                 mounts[ceph_folder + '/monitoring/prometheus/alerts'] = '/etc/prometheus/ceph'
+                mounts[ceph_folder + '/monitoring/jaeger/'] = '/etc/jaeger'
             else:
                 logger.error('{}{}{}'.format(termcolor.red,
                 'Ceph shared source folder does not exist.',
@@ -1950,6 +1973,7 @@ def get_container_mounts(fsid, daemon_type, daemon_id,
         pass
 
     if daemon_type in Monitoring.components and daemon_id:
+        jaeger_pattern = re.compile("^(jaeger-)*")
         data_dir = get_data_dir(fsid, daemon_type, daemon_id)
         if daemon_type == 'prometheus':
             mounts[os.path.join(data_dir, 'etc/prometheus')] = '/etc/prometheus:Z'
@@ -1964,6 +1988,8 @@ def get_container_mounts(fsid, daemon_type, daemon_id,
             mounts[os.path.join(data_dir, 'etc/grafana/certs')] = '/etc/grafana/certs:Z'
         elif daemon_type == 'alertmanager':
             mounts[os.path.join(data_dir, 'etc/alertmanager')] = '/etc/alertmanager:Z'
+        elif jaeger_pattern.match(daemon_type):
+            mounts[os.path.join(data_dir, 'etc/jaeger')] = '/etc/jaeger:Z'
 
     if daemon_type == NFSGanesha.daemon_type:
         assert daemon_id
@@ -3209,9 +3235,18 @@ def command_bootstrap():
         if not args.skip_monitoring_stack:
             logger.info('Enabling mgr prometheus module...')
             cli(['mgr', 'module', 'enable', 'prometheus'])
-            for t in ['prometheus', 'grafana', 'node-exporter', 'alertmanager', 'jaegertracing']:
+            for t in ['prometheus', 'grafana', 'node-exporter', 'alertmanager']:
                 logger.info('Deploying %s service with default placement...' % t)
                 cli(['orch', 'apply', t])
+        
+        if not args.skip_tracing:
+            logger.info('Enabling mgr jaeger module...')
+            #cli(['mgr', 'module', 'enable', 'jaeger'])
+            for t in ['jaeger-agent', 'jaeger-collector', 'jaeger-query']:
+                logger.info('Deploying %s service with default placement...' % t)
+                cli(['orch', 'apply', t])
+        
+
 
     if args.registry_url and args.registry_username and args.registry_password:
         cli(['config', 'set', 'mgr', 'mgr/cephadm/registry_url', args.registry_url, '--force'])
@@ -3353,8 +3388,9 @@ def extract_uid_gid_monitoring(daemon_type):
         uid, gid = extract_uid_gid(file_path='/var/lib/grafana')
     elif daemon_type == 'alertmanager':
         uid, gid = extract_uid_gid(file_path='/etc/alertmanager')
-    elif daemon_type == 'jaegertracing':
-        uid, gid = extract_uid_gid(file_path=['/etc/jaegertracing'])
+#    jaeger_pattern = re.compile("^(jaeger-)*")
+#    elif jaeger_pattern.match(daemon_type):
+#        uid, gid = extract_uid_gid(file_path=['/etc/jaeger'])
     else:
         raise Error("{} not implemented yet".format(daemon_type))
     return uid, gid
@@ -3862,7 +3898,9 @@ def list_daemons(detail=True, legacy_dir=None):
                                 elif daemon_type in ['prometheus',
                                                      'alertmanager',
                                                      'node-exporter',
-                                                     'jaegertracing']:
+                                                     'jaeger-agent',
+                                                     'jaeger-collector',
+                                                     'jaeger-query']:
                                     cmd = daemon_type.replace('-', '_')
                                     out, err, code = call(
                                         [container_path, 'exec', container_id,
@@ -3951,8 +3989,6 @@ def command_adopt():
         raise Error('adoption of node-exporter not implemented')
     elif daemon_type == 'alertmanager':
         command_adopt_alertmanager(daemon_id, fsid)
-    elif daemon_type == 'jaegertracing':
-        command_adopt_jaegertracing(daemon_id, fsid)
     else:
         raise Error('daemon type %s not recognized' % daemon_type)
 
@@ -4269,6 +4305,34 @@ def command_adopt_alertmanager(daemon_id, fsid):
     deploy_daemon(fsid, daemon_type, daemon_id, c, uid, gid)
     update_firewalld(daemon_type)
 
+#def command_adopt_jaegertracing(daemon_id, fsid):
+#    # type: (str, str) -> None
+#
+#    daemon_type = 'alertmanager'
+#    (uid, gid) = extract_uid_gid_monitoring(daemon_type)
+#
+#    _stop_and_disable('prometheus-alertmanager')
+#
+#    data_dir_dst = make_data_dir(fsid, daemon_type, daemon_id,
+#                                     uid=uid, gid=gid)
+#
+#    # config
+#    config_src = '/etc/prometheus/alertmanager.yml'
+#    config_src = os.path.abspath(args.legacy_dir + config_src)
+#    config_dst = os.path.join(data_dir_dst, 'etc/alertmanager')
+#    makedirs(config_dst, uid, gid, 0o755)
+#    copy_files([config_src], config_dst, uid=uid, gid=gid)
+#
+#    # data
+#    data_src = '/var/lib/prometheus/alertmanager/'
+#    data_src = os.path.abspath(args.legacy_dir + data_src)
+#    data_dst = os.path.join(data_dir_dst, 'etc/alertmanager/data')
+#    copy_tree([data_src], data_dst, uid=uid, gid=gid)
+#
+#    make_var_run(fsid, uid, gid)
+#    c = get_container(fsid, daemon_type, daemon_id)
+#    deploy_daemon(fsid, daemon_type, daemon_id, c, uid, gid)
+#    update_firewalld(daemon_type)
 
 def _adjust_grafana_ini(filename):
     # type: (str) -> None
@@ -5566,6 +5630,42 @@ def command_gather_facts():
     host = HostFacts()
     print(host.dump())
 
+def command_init_tracing():
+    
+    global container_path
+
+    ports = ['5775/udp', '6831/udp', '6832/udp', '5778', '16686', '14268', '14250']
+       
+    
+    c = CephContainer(
+        image='jaegertracing/all-in-one:1.20',
+        entrypoint='doesnotmatter',
+        cname='jaeger',
+        container_args=['-p', '5775:5775/udp',
+        '-p', '6831:6831/udp',
+        '-p', '6832:6832/udp',
+        '-p', '5778:5778',
+        '-p', '16686:16686',
+        '-p', '14268:14268',
+        '-p', '14250:14250',
+        '-p', '9411:9411'],
+        host_network=False)
+    try:
+        #remove any container existing with name jaeger
+        out, _, _ = call_throws(c.rm_cmd(), verbose=False)
+    except:
+        pass
+    fw = Firewalld()
+    fw.open_ports(ports)
+    fw.apply_rules()
+    
+    out, err, code = call_throws(c.run_cmd(), verbose=True)
+    if not code:
+        print(out)
+        logger.info('Jaegertracing available at:\n\n'
+                    '\t Jaeger Frontend URL: https://%s:16686/\n'
+                    '\t serve config: https://%s:5778/\n'
+                        % (get_fqdn(), get_fqdn()))
 
 ##################################
 
@@ -5951,6 +6051,10 @@ def _get_parser():
         '--skip-monitoring-stack',
         action='store_true',
         help='Do not automatically provision monitoring stack (prometheus, grafana, alertmanager, node-exporter, jaegertracing)')
+    parser_bootstrap.add_argument(
+        '--skip-tracing',
+        action='store_true',
+        help='Do not automatically provision tracing stack (jaeger-agent, jaeger-collector, jaeger-query)')
     parser_bootstrap.add_argument(
         '--apply-spec',
         help='Apply cluster spec after bootstrap (copy ssh key, add hosts and apply services)')

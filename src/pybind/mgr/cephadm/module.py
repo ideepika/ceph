@@ -45,7 +45,7 @@ from .services.iscsi import IscsiService
 from .services.nfs import NFSService
 from .services.osd import RemoveUtil, OSDQueue, OSDService, OSD, NotFoundError
 from .services.monitoring import GrafanaService, AlertmanagerService, PrometheusService, \
-    NodeExporterService
+    NodeExporterService, JaegerAgentService, JaegerCollectorService, JaegerQueryService
 from .schedule import HostAssignment
 from .inventory import Inventory, SpecStore, HostCache, EventStore
 from .upgrade import CEPH_UPGRADE_ORDER, CephadmUpgrade
@@ -181,6 +181,22 @@ class CephadmOrchestrator(orchestrator.Orchestrator, MgrModule,
             'default': 'docker.io/prom/node-exporter:v0.18.1',
             'desc': 'Prometheus container image',
         },
+        {
+            'name': 'container_image_jaeger_agent',
+            'default': 'docker.io/jaegertracing/jaeger-agent:1.20',
+            'desc': 'Jaeger component container image',
+        },
+        {
+            'name': 'container_image_jaeger_collector',
+            'default': 'docker.io/jaegertracing/jaeger-collector:1.20',
+            'desc': 'Jaeger component container image',
+        },
+        {
+            'name': 'container_image_jaeger_query',
+            'default': 'docker.io/jaegertracing/jaeger-query:1.20',
+            'desc': 'Jaeger component container image',
+        },
+        
         {
             'name': 'warn_on_stray_hosts',
             'type': 'bool',
@@ -378,6 +394,9 @@ class CephadmOrchestrator(orchestrator.Orchestrator, MgrModule,
         self.alertmanager_service = AlertmanagerService(self)
         self.prometheus_service = PrometheusService(self)
         self.node_exporter_service = NodeExporterService(self)
+        self.jaeger_agent_service = JaegerAgentService(self)
+        self.jaeger_collector_service = JaegerCollectorService(self)
+        self.jaeger_query_service = JaegerQueryService(self)
         self.crash_service = CrashService(self)
         self.iscsi_service = IscsiService(self)
         self.container_service = CustomContainerService(self)
@@ -393,6 +412,9 @@ class CephadmOrchestrator(orchestrator.Orchestrator, MgrModule,
             'alertmanager': self.alertmanager_service,
             'prometheus': self.prometheus_service,
             'node-exporter': self.node_exporter_service,
+            'jaeger-agent': self.jaeger_agent_service,
+            'jaeger-collector': self.jaeger_collector_service,
+            'jaeger-query': self.jaeger_query_service,
             'crash': self.crash_service,
             'iscsi': self.iscsi_service,
             'container': self.container_service,
@@ -519,7 +541,7 @@ class CephadmOrchestrator(orchestrator.Orchestrator, MgrModule,
         """
         suffix = daemon_type not in [
             'mon', 'crash', 'nfs',
-            'prometheus', 'node-exporter', 'grafana', 'alertmanager',
+            'prometheus', 'node-exporter', 'grafana', 'alertmanager', 'jaeger-agent', 'jaeger-collector', 'jaeger-query',
             'container'
         ]
         if forcename:
@@ -1054,6 +1076,12 @@ To check that the host is reachable:
             image = self.container_image_alertmanager
         elif daemon_type == 'node-exporter':
             image = self.container_image_node_exporter
+        elif daemon_type == 'jaeger-agent':
+            image = self.container_image_jaeger_agent
+        elif daemon_type == 'jaeger-collector':
+            image = self.container_image_jaeger_collector
+        elif daemon_type == 'jaeger-query':
+            image = self.container_image_jaeger_query
         elif daemon_type == CustomContainerService.TYPE:
             # The image can't be resolved, the necessary information
             # is only available when a container is deployed (given
@@ -1690,6 +1718,9 @@ To check that the host is reachable:
             'prometheus': ['mgr', 'alertmanager', 'node-exporter'],
             'grafana': ['prometheus'],
             'alertmanager': ['mgr', 'alertmanager'],
+            'jaeger-agent': ['mgr'],
+            'jaeger-collector': ['mgr', 'jaeger-agent', 'jaeger-query'],
+            'jaeger-query': ['mgr']
         }
         deps = []
         for dep_type in need.get(daemon_type, []):
@@ -1968,6 +1999,9 @@ To check that the host is reachable:
                 'prometheus': PlacementSpec(count=1),
                 'node-exporter': PlacementSpec(host_pattern='*'),
                 'crash': PlacementSpec(host_pattern='*'),
+                'jaeger-agent': PlacementSpec(host_pattern='*'),
+                'jaeger-collector': PlacementSpec(host_pattern='*'),
+                'jaeger-query': PlacementSpec(host_pattern='*'),
                 'container': PlacementSpec(count=1),
             }
             spec.placement = defaults[spec.service_type]
@@ -2061,6 +2095,36 @@ To check that the host is reachable:
 
     @trivial_completion
     def apply_node_exporter(self, spec) -> str:
+        return self._apply(spec)
+    
+    @trivial_completion
+    def add_jaeger_agent(self, spec):
+        # type: (ServiceSpec) -> List[str]
+        return self._add_daemon('jaeger-agent', spec,
+                                self.jaeger_agent_service.prepare_create)
+
+    @trivial_completion
+    def apply_jaeger_agent(self, spec) -> str:
+        return self._apply(spec)
+    
+    @trivial_completion
+    def add_jaeger_collector(self, spec):
+        # type: (ServiceSpec) -> List[str]
+        return self._add_daemon('jaeger-collector', spec,
+                                self.jaeger_collector_service.prepare_create)
+
+    @trivial_completion
+    def apply_jaeger_collector(self, spec) -> str:
+        return self._apply(spec)
+
+    @trivial_completion
+    def add_jaeger_query(self, spec):
+        # type: (ServiceSpec) -> List[str]
+        return self._add_daemon('jaeger-query', spec,
+                                self.jaeger_query_service.prepare_create)
+
+    @trivial_completion
+    def apply_jaeger_query(self, spec) -> str:
         return self._apply(spec)
 
     @trivial_completion

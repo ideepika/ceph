@@ -22,7 +22,8 @@ import yaml
 
 from ceph.deployment import inventory
 from ceph.deployment.service_spec import ServiceSpec, NFSServiceSpec, RGWSpec, \
-    ServiceSpecValidationError, IscsiServiceSpec
+    ServiceSpecValidationError, IscsiServiceSpec, JaegerAgentSpec, JaegerCollectorSpec, \
+    JaegerQuerySpec
 from ceph.deployment.drive_group import DriveGroupSpec
 from ceph.deployment.hostspec import HostSpec
 
@@ -869,6 +870,9 @@ class Orchestrator(object):
             'crash': self.apply_crash,
             'grafana': self.apply_grafana,
             'iscsi': self.apply_iscsi,
+            'jaeger-agent': self.apply_jaeger_agent,
+            'jaeger-collector': self.apply_jaeger_collector,
+            'jaeger-query': self.apply_jaeger_query,
             'mds': self.apply_mds,
             'mgr': self.apply_mgr,
             'mon': self.apply_mon,
@@ -1067,13 +1071,38 @@ class Orchestrator(object):
         """Update iscsi cluster"""
         raise NotImplementedError()
 
-    def add_prometheus(self, spec: ServiceSpec) -> Completion[List[str]]:
+    def apply_jaeger_agent(self, spec: JaegerAgentSpec) -> Completion[str]:
+        """Update existing a Jaeger-Agent daemon(s)"""
+        raise NotImplementedError()
+
+    def add_jaeger_agent(self, spec: JaegerAgentSpec) -> Completion[List[str]]:
         """Create new prometheus daemon"""
+        raise NotImplementedError()
+
+    def apply_jaeger_collector(self, spec: JaegerCollectorSpec) -> Completion[str]:
+        """Update existing a Jaeger-Agent daemon(s)"""
+        raise NotImplementedError()
+    
+    def add_jaeger_collector(self, spec: JaegerCollectorSpec) -> Completion[List[str]]:
+        """Create new Jaeger-Collector daemon"""
+        raise NotImplementedError()
+
+    def apply_jaeger_query(self, spec: JaegerQuerySpec) -> Completion[str]:
+        """Update existing a Jaeger-Query daemon(s)"""
+        raise NotImplementedError()
+    
+    def add_jaeger_query(self, spec: JaegerQuerySpec) -> Completion[List[str]]:
+        """Create new Jaeger-Query daemon"""
         raise NotImplementedError()
 
     def apply_prometheus(self, spec: ServiceSpec) -> Completion[str]:
         """Update prometheus cluster"""
         raise NotImplementedError()
+
+    def add_prometheus(self, spec: ServiceSpec) -> Completion[List[str]]:
+        """Create new prometheus daemon"""
+        raise NotImplementedError()
+
 
     def add_node_exporter(self, spec: ServiceSpec) -> Completion[List[str]]:
         """Create a new Node-Exporter service"""

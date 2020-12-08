@@ -9,6 +9,7 @@ import yaml
 
 from ceph.deployment.hostspec import HostSpec
 from ceph.deployment.utils import unwrap_ipv6
+from pybind.mgr.cephadm.services.monitoring import JaegerAgentService
 
 
 class ServiceSpecValidationError(Exception):
@@ -379,7 +380,8 @@ class ServiceSpec(object):
     start the services.
 
     """
-    KNOWN_SERVICE_TYPES = 'alertmanager crash grafana iscsi mds mgr mon nfs ' \
+    KNOWN_SERVICE_TYPES = 'alertmanager crash grafana iscsi jaeger-agent jaeger-collector ' \
+                          'jaeger-query mds mgr mon nfs ' \
                           'node-exporter osd prometheus rbd-mirror rgw ' \
                           'container'.split()
     REQUIRES_SERVICE_ID = 'iscsi mds nfs osd rgw container'.split()
@@ -389,12 +391,15 @@ class ServiceSpec(object):
         from ceph.deployment.drive_group import DriveGroupSpec
 
         ret = {
-            'rgw': RGWSpec,
-            'nfs': NFSServiceSpec,
-            'osd': DriveGroupSpec,
-            'iscsi': IscsiServiceSpec,
             'alertmanager': AlertManagerSpec,
             'container': CustomContainerSpec,
+            'iscsi': IscsiServiceSpec,
+            'jaeger-agent': JaegerAgentSpec,
+            'jaeger-collector': JaegerCollectorSpec,
+            'jaeger-query': JaegerQuerySpec,
+            'nfs': NFSServiceSpec,
+            'osd': DriveGroupSpec,
+            'rgw': RGWSpec,
         }.get(service_type, cls)
         if ret == ServiceSpec and not service_type:
             raise ServiceSpecValidationError('Spec needs a "service_type" key.')
@@ -779,6 +784,107 @@ class AlertManagerSpec(ServiceSpec):
 
 yaml.add_representer(AlertManagerSpec, ServiceSpec.yaml_representer)
 
+class JaegerAgentSpec(ServiceSpec):
+    def __init__(self,
+                 service_type: str = 'jaeger-agent',
+                 service_id: Optional[str] = None,
+                 placement: Optional[PlacementSpec] = None,
+                 unmanaged: bool = False,
+                 preview_only: bool = False,
+                 user_data: Optional[Dict[str, Any]] = None,
+                 ):
+        assert service_type == 'jaeger-agent'
+        super(JaegerAgentSpec, self).__init__(
+            'jaeger-agent', service_id=service_id,
+            placement=placement, unmanaged=unmanaged,
+            preview_only=preview_only)
+
+        # Custom configuration.
+        #
+        # Example:
+        # service_type: jaeger-agent
+        # service_id: xyz
+        # user_data:
+        #   default_webhook_urls:
+        #   - "https://foo"
+        #   - "https://bar"
+        #
+        # Documentation:
+        # default_webhook_urls - A list of additional URL's that are
+        #                        added to the default receivers'
+        #                        <webhook_configs> configuration.
+        self.user_data = user_data or {}
+
+
+yaml.add_representer(JaegerAgentSpec, ServiceSpec.yaml_representer)
+
+class JaegerCollectorSpec(ServiceSpec):
+    def __init__(self,
+                 service_type: str = 'jaeger-collector',
+                 service_id: Optional[str] = None,
+                 placement: Optional[PlacementSpec] = None,
+                 unmanaged: bool = False,
+                 preview_only: bool = False,
+                 user_data: Optional[Dict[str, Any]] = None,
+                 ):
+        assert service_type == 'jaeger-collector'
+        super(JaegerCollectorSpec, self).__init__(
+            'jaeger-collector', service_id=service_id,
+            placement=placement, unmanaged=unmanaged,
+            preview_only=preview_only)
+
+        # Custom configuration.
+        #
+        # Example:
+        # service_type: jaeger-collector
+        # service_id: xyz
+        # user_data:
+        #   default_webhook_urls:
+        #   - "https://foo"
+        #   - "https://bar"
+        #
+        # Documentation:
+        # default_webhook_urls - A list of additional URL's that are
+        #                        added to the default receivers'
+        #                        <webhook_configs> configuration.
+        self.user_data = user_data or {}
+
+
+yaml.add_representer(JaegerCollectorSpec, ServiceSpec.yaml_representer)
+
+class JaegerQuerySpec(ServiceSpec):
+    def __init__(self,
+                 service_type: str = 'jaeger-query',
+                 service_id: Optional[str] = None,
+                 placement: Optional[PlacementSpec] = None,
+                 unmanaged: bool = False,
+                 preview_only: bool = False,
+                 user_data: Optional[Dict[str, Any]] = None,
+                 ):
+        assert service_type == 'jaeger-query'
+        super(JaegerQuerySpec, self).__init__(
+            'jaeger-query', service_id=service_id,
+            placement=placement, unmanaged=unmanaged,
+            preview_only=preview_only)
+
+        # Custom configuration.
+        #
+        # Example:
+        # service_type: jaeger-query
+        # service_id: xyz
+        # user_data:
+        #   default_webhook_urls:
+        #   - "https://foo"
+        #   - "https://bar"
+        #
+        # Documentation:
+        # default_webhook_urls - A list of additional URL's that are
+        #                        added to the default receivers'
+        #                        <webhook_configs> configuration.
+        self.user_data = user_data or {}
+
+
+yaml.add_representer(JaegerQuerySpec, ServiceSpec.yaml_representer)
 
 class CustomContainerSpec(ServiceSpec):
     def __init__(self,

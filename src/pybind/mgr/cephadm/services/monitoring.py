@@ -265,3 +265,38 @@ class NodeExporterService(CephadmService):
     def generate_config(self, daemon_spec: CephadmDaemonSpec) -> Tuple[Dict[str, Any], List[str]]:
         assert self.TYPE == daemon_spec.daemon_type
         return {}, []
+
+class JaegerAgentService(CephadmService):
+    TYPE = 'jaeger-agent'
+
+    def prepare_create(self, daemon_spec: CephadmDaemonSpec) -> CephadmDaemonSpec:
+        assert self.TYPE == daemon_spec.daemon_type
+        return daemon_spec
+
+    def generate_config(self, daemon_spec: CephadmDaemonSpec) -> Tuple[Dict[str, Any], List[str]]:
+        assert self.TYPE == daemon_spec.daemon_type
+        return {}, []
+
+
+class JaegerCollectorService(CephadmService):
+    TYPE = 'jaeger-collector'
+
+    def prepare_create(self, daemon_spec: CephadmDaemonSpec) -> CephadmDaemonSpec:
+        assert self.TYPE == daemon_spec.daemon_type
+        return daemon_spec
+
+    def generate_config(self, daemon_spec: CephadmDaemonSpec) -> Tuple[Dict[str, Any], List[str]]:
+        assert self.TYPE == daemon_spec.daemon_type
+        return {}, []
+
+
+class JaegerQueryService(CephadmService):
+    TYPE = 'jaeger-query'
+
+    def prepare_create(self, daemon_spec: CephadmDaemonSpec) -> CephadmDaemonSpec:
+        assert self.TYPE == daemon_spec.daemon_type
+        return daemon_spec
+
+    def generate_config(self, daemon_spec: CephadmDaemonSpec) -> Tuple[Dict[str, Any], List[str]]:
+        assert self.TYPE == daemon_spec.daemon_type
+        return {}, []
