@@ -18,7 +18,7 @@ overrides:
         rbd cache: true
       global:
         ms inject socket failures: 5000
-        mon client directed command retry: 5
+        mon client directed command retry: 2
 tasks:
 - ceph:
     fs: xfs
