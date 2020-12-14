@@ -3240,7 +3240,7 @@ def command_bootstrap():
                 cli(['orch', 'apply', t])
         
         if not args.skip_tracing:
-            logger.info('Enabling mgr jaeger module...')
+            #logger.info('Enabling mgr jaeger module...')
             #cli(['mgr', 'module', 'enable', 'jaeger'])
             for t in ['jaeger-agent', 'jaeger-collector', 'jaeger-query']:
                 logger.info('Deploying %s service with default placement...' % t)

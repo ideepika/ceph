@@ -798,25 +798,10 @@ class JaegerAgentSpec(ServiceSpec):
             'jaeger-agent', service_id=service_id,
             placement=placement, unmanaged=unmanaged,
             preview_only=preview_only)
-
-        # Custom configuration.
-        #
-        # Example:
-        # service_type: jaeger-agent
-        # service_id: xyz
-        # user_data:
-        #   default_webhook_urls:
-        #   - "https://foo"
-        #   - "https://bar"
-        #
-        # Documentation:
-        # default_webhook_urls - A list of additional URL's that are
-        #                        added to the default receivers'
-        #                        <webhook_configs> configuration.
         self.user_data = user_data or {}
 
-
 yaml.add_representer(JaegerAgentSpec, ServiceSpec.yaml_representer)
+
 
 class JaegerCollectorSpec(ServiceSpec):
     def __init__(self,
@@ -832,21 +817,6 @@ class JaegerCollectorSpec(ServiceSpec):
             'jaeger-collector', service_id=service_id,
             placement=placement, unmanaged=unmanaged,
             preview_only=preview_only)
-
-        # Custom configuration.
-        #
-        # Example:
-        # service_type: jaeger-collector
-        # service_id: xyz
-        # user_data:
-        #   default_webhook_urls:
-        #   - "https://foo"
-        #   - "https://bar"
-        #
-        # Documentation:
-        # default_webhook_urls - A list of additional URL's that are
-        #                        added to the default receivers'
-        #                        <webhook_configs> configuration.
         self.user_data = user_data or {}
 
 
