@@ -276,7 +276,7 @@ BuildRequires:  json-devel
 BuildRequires:  nlohmann_json-devel
 %endif
 BuildRequires:  libevent-devel
-BuildRequires:  yaml-cpp-devel
+BuildRequires:  yaml-cpp-devel >= 0.6.0
 %endif
 %if 0%{with system_pmdk}
 BuildRequires:  libpmem-devel
@@ -2159,6 +2159,18 @@ fi
 
 %endif
 
+%if %{with jaeger}
+%files -n libjaeger
+%{_libdir}/libopentracing.so.*
+%{_libdir}/libthrift.so.*
+%{_libdir}/libjaegertracing.so.*
+%{buildroot}%{_libdir}/libopentracing.so.*
+%{buildroot}%{_libdir}/libthrift.so.*
+%{buildroot}%{_libdir}/libjaegertracing.so.*
+%post -n libjaeger -p /sbin/ldconfig
+%postun -n libjaeger -p /sbin/ldconfig
+%endif
+
 %files -n librados2
 %{_libdir}/librados.so.*
 %dir %{_libdir}/ceph
@@ -2289,15 +2301,6 @@ fi
 %dir %{_includedir}/cephfs/metrics
 %{_includedir}/cephfs/metrics/Types.h
 %{_libdir}/libcephfs.so
-
-%if %{with jaeger}
-%files -n libjaeger
-%{_libdir}/libopentracing.so.*
-%{_libdir}/libthrift.so.*
-%{_libdir}/libjaegertracing.so.*
-%post -n libjaeger -p /sbin/ldconfig
-%postun -n libjaeger -p /sbin/ldconfig
-%endif
 
 %files -n python%{python3_pkgversion}-cephfs
 %{python3_sitearch}/cephfs.cpython*.so
