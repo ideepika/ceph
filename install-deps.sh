@@ -30,20 +30,22 @@ function munge_ceph_spec_in {
     shift
     local for_make_check=$1
     shift
+    local with_jaeger=$1
+    shift
     local OUTFILE=$1
     sed -e 's/@//g' < ceph.spec.in > $OUTFILE
     # http://rpm.org/user_doc/conditional_builds.html
     if $with_seastar; then
         sed -i -e 's/%bcond_with seastar/%bcond_without seastar/g' $OUTFILE
     fi
-    if $with_jaeger; then
-        sed -i -e 's/%bcond_with jaeger/%bcond_without jaeger/g' $OUTFILE
-    fi
     if $with_zbd; then
         sed -i -e 's/%bcond_with zbd/%bcond_without zbd/g' $OUTFILE
     fi
     if $for_make_check; then
         sed -i -e 's/%bcond_with make_check/%bcond_without make_check/g' $OUTFILE
+    fi
+    if $with_jaeger; then
+        sed -i -e 's/%bcond_with jaeger/%bcond_without jaeger/g' $OUTFILE
     fi
 }
 
@@ -53,6 +55,8 @@ function munge_debian_control {
     local with_seastar=$1
     shift
     local for_make_check=$1
+    shift
+    local with_jaeger=$1
     shift
     local control=$1
     case "$version" in
@@ -64,12 +68,13 @@ function munge_debian_control {
     if $with_seastar; then
 	sed -i -e 's/^# Crimson[[:space:]]//g' $control
     fi
-    if $with_jaeger; then
-	sed -i -e 's/^# Jaeger[[:space:]]//g' $control
-	sed -i -e 's/^# Crimson      libyaml-cpp-dev,/d' $control
-    fi
     if $for_make_check; then
         sed -i 's/^# Make-Check[[:space:]]/             /g' $control
+    fi
+    if $with_jaeger; then
+	sed -i -e 's/^# Jaeger[[:space:]]/           /g' $control
+	sed -i -e '/^# Crimson[[:space:]]*libyaml-cpp-dev,/d' $control
+	sed -i -e 's/^[[:space:]]*Built-Using:/Built-Using:/g' $control
     fi
     echo $control
 }
@@ -279,7 +284,7 @@ if [ x$(uname)x = xFreeBSDx ]; then
     exit
 else
     [ $WITH_SEASTAR ] && with_seastar=true || with_seastar=false
-    [ $WITH_JAEGER ] && export with_jaeger=true || with_jaeger=false
+    [ $WITH_JAEGER ] && with_jaeger=true || with_jaeger=false
     [ $WITH_ZBD ] && with_zbd=true || with_zbd=false
     source /etc/os-release
     case "$ID" in
@@ -304,7 +309,7 @@ else
         touch $DIR/status
 
 	backports=""
-	control=$(munge_debian_control "$VERSION" "$with_seastar" "$for_make_check" "debian/control")
+	control=$(munge_debian_control "$VERSION" "$with_seastar" "$for_make_check" "$with_jaeger" "debian/control")
         case "$VERSION" in
             *squeeze*|*wheezy*)
                 backports="-t $codename-backports"
@@ -345,7 +350,7 @@ else
                 fi
                 ;;
         esac
-        munge_ceph_spec_in $with_seastar $with_zbd $for_make_check $DIR/ceph.spec
+        munge_ceph_spec_in $with_seastar $with_zbd $for_make_check $with_jaeger $DIR/ceph.spec
         # for python3_pkgversion macro defined by python-srpm-macros, which is required by python3-devel
         $SUDO dnf install -y python3-devel
         $SUDO $builddepcmd $DIR/ceph.spec 2>&1 | tee $DIR/yum-builddep.out
@@ -357,7 +362,7 @@ else
         echo "Using zypper to install dependencies"
         zypp_install="zypper --gpg-auto-import-keys --non-interactive install --no-recommends"
         $SUDO $zypp_install systemd-rpm-macros rpm-build || exit 1
-        munge_ceph_spec_in $with_seastar false $for_make_check $DIR/ceph.spec
+        munge_ceph_spec_in $with_seastar false $for_make_check $with_jaeger $DIR/ceph.spec
         $SUDO $zypp_install $(rpmspec -q --buildrequires $DIR/ceph.spec) || exit 1
         ;;
     *)
