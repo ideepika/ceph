@@ -279,7 +279,7 @@ if [ x$(uname)x = xFreeBSDx ]; then
     exit
 else
     [ $WITH_SEASTAR ] && with_seastar=true || with_seastar=false
-    [ $WITH_JAEGER ] && with_jaeger=true || with_jaeger=false
+    [ $WITH_JAEGER ] && export with_jaeger=true || with_jaeger=false
     [ $WITH_ZBD ] && with_zbd=true || with_zbd=false
     source /etc/os-release
     case "$ID" in
