@@ -274,9 +274,12 @@ class JaegerAgentService(CephadmService):
         return daemon_spec
 
     def generate_config(self, daemon_spec: CephadmDaemonSpec) -> Tuple[Dict[str, Any], List[str]]:
-        assert self.TYPE == daemon_spec.daemon_type
-        return {}, []
-
+         deps: List[str] = []
+         return {
+            "files": {
+                "jaeger_agent.yml": self.mgr.template.render('services/jaeger/jaeger_agent.yml', context)
+            }
+        }, sorted(deps)
 
 class JaegerCollectorService(CephadmService):
     TYPE = 'jaeger-collector'
@@ -287,7 +290,12 @@ class JaegerCollectorService(CephadmService):
 
     def generate_config(self, daemon_spec: CephadmDaemonSpec) -> Tuple[Dict[str, Any], List[str]]:
         assert self.TYPE == daemon_spec.daemon_type
-        return {}, []
+        deps: List[str] = []
+         return {
+            "files": {
+                "jaeger_collector.yml": self.mgr.template.render('services/jaeger/jaeger_collector.yml', context)
+            }
+        }, sorted(deps)
 
 
 class JaegerQueryService(CephadmService):
@@ -299,4 +307,9 @@ class JaegerQueryService(CephadmService):
 
     def generate_config(self, daemon_spec: CephadmDaemonSpec) -> Tuple[Dict[str, Any], List[str]]:
         assert self.TYPE == daemon_spec.daemon_type
-        return {}, []
+        deps: List[str] = []
+         return {
+            "files": {
+                "jaeger_query_service.yml": self.mgr.template.render('services/jaeger/jaeger_query_service.yml', context)
+            }
+        }, sorted(deps)

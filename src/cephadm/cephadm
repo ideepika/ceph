@@ -157,9 +157,9 @@ class Monitoring(object):
         "node-exporter": [9100],
         "grafana": [3000],
         "alertmanager": [9093, 9094],
-        "jaeger-agent": [5775, 6831, 6832, 5778],
-        "jaeger-collector": [14269, 14268, 14250],
-        "jaeger-query": [16686, 16687],
+        "jaeger-agent": ["6831/udp", 5778], #5778 : configure me
+        "jaeger-collector": [14267],
+        "jaeger-query": [16686], #16687 : health check default port
     }
 
     components = {
@@ -215,31 +215,40 @@ class Monitoring(object):
             "image": "docker.io/jaegertracing/jaeger-agent:1.20",
             "cpus": "2",
             "memory": "2GB",
-            "args": [],
-            "config-json-files": [
-                "jaeger-agent.yml",
-            ],
+            "args": [
+                "--config-file /etc/jaeger/jaeger_agent.yml",
+                "-p{0}:{0}".format(port_map['jaeger-agent'][0]),
+                "-p5778:5778/tcp",
+                "-it",
+                ],
         },
         "jaeger-collector": {
             "image": "docker.io/jaegertracing/jaeger-collector:1.20",
             "cpus": "2",
             "memory": "2GB",
-            "args": [],
-            "config-json-files": [
-                "jaeger-collector.yml",
-            ],
+            "args": [
+                "--config-file /etc/jaeger/jaeger_collector.yml",
+                "-e SPAN_STORAGE_TYPE=elasticsearch",
+                "-e ES_SERVER_URLS=http://localhost:9200",
+                "-e ES_TAGS_AS_FIELDS_ALL=true",
+                "-it",
+                ],
         },
          "jaeger-query": {
             "image": "docker.io/jaegertracing/jaeger-query:1.20",
             "cpus": "2",
             "memory": "2GB",
-            "args": [],
-            "config-json-files": [
-                "jaeger-query.yml",
-            ],
+            "args": [
+                "--config-file /etc/jaeger/jaeger_query.yml",
+                "-e SPAN_STORAGE_TYPE=elasticsearch",
+                "-e ES_SERVER_URLS=http://localhost:9200",
+                "--log-level=debug"
+                "-it",
+                ],
         },
     }  # type: ignore
 
+#TODO: port address when 2 agents wants to use same port jaeger
 ##################################
 
 
@@ -718,6 +727,7 @@ def attempt_bind(s, address, port):
     try:
         s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         s.bind((address, port))
+        #add extra udp check
     except (socket.error, OSError) as e:  # py2 and py3
         msg = 'Cannot bind to IP %s port %d: %s' % (address, port, e)
         logger.warning(msg)
@@ -728,16 +738,21 @@ def attempt_bind(s, address, port):
     finally:
         s.close()
 
-
 def port_in_use(port_num):
     # type: (int) -> bool
+    # TODO: add udp check for jaeger ports
     """Detect whether a port is in use on the local machine - IPv4 and IPv6"""
     logger.info('Verifying port %d ...' % port_num)
     try:
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        socket_type = socket.SOCK_STREAM
+        if isinstance(port_num, str):
+            port_num = int(port_num.strip("/udp"))
+            socket_type = socket.SOCK_DGRAM
+        
+        s = socket.socket(socket.AF_INET, socket_type)
         attempt_bind(s, '0.0.0.0', port_num)
 
-        s = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+        s = socket.socket(socket.AF_INET6, socket_type)
         attempt_bind(s, '::', port_num)
     except OSError:
         return True
@@ -2111,11 +2126,19 @@ def extract_uid_gid(img='', file_path='/var/lib/ceph'):
 
     for fp in paths:
         try:
-            out = CephContainer(
+            if "jaeger" in img:
+                logger.debug("2130")
+                out = CephContainer(
                 image=img,
-                entrypoint='stat',
+                entrypoint='',
                 args=['-c', '%u %g', fp]
             ).run()
+            else:
+                out = CephContainer(
+                    image=img,
+                    entrypoint='stat',
+                    args=['-c', '%u %g', fp]
+                ).run()
             uid, gid = out.split(' ')
             return int(uid), int(gid)
         except RuntimeError:
@@ -2129,10 +2152,11 @@ def deploy_daemon(fsid, daemon_type, daemon_id, c, uid, gid,
                   reconfig=False,
                   ports=None):
     # type: (str, str, Union[int, str], CephContainer, int, int, Optional[str], Optional[str], Optional[str], Optional[bool], Optional[List[int]]) -> None
-
+    logger.debug("2150")
     ports = ports or []
     if any([port_in_use(port) for port in ports]):
-        raise Error("TCP Port(s) '{}' required for {} already in use".format(",".join(map(str, ports)), daemon_type))
+        logger.info("port")
+        raise Error("Port(s) '{}' required for {} already in use".format(",".join(map(str, ports)), daemon_type))
 
     data_dir = get_data_dir(fsid, daemon_type, daemon_id)
     if reconfig and not os.path.exists(data_dir):
@@ -2275,6 +2299,12 @@ def deploy_daemon_units(fsid, uid, gid, daemon_type, daemon_id, c,
             ceph_iscsi = CephIscsi.init(fsid, daemon_id)
             tcmu_container = ceph_iscsi.get_tcmu_runner_container()
             _write_container_cmd_to_bash(f, tcmu_container, 'iscsi tcmu-runnter container', background=True)
+        elif daemon_type in ["jaeger-agent", "jaeger-collector", "jaeger-query"]:
+            out = CephContainer(
+            image=args.image,
+            entrypoint='doesnotmatter',
+            cname='ceph-%s-%s.%s'% (fsid, daemon_type, daemon_id),
+            ).run()
 
         _write_container_cmd_to_bash(f, c, '%s.%s' % (daemon_type, str(daemon_id)))
         os.fchmod(f.fileno(), 0o600)
@@ -2396,16 +2426,17 @@ class Firewalld(object):
             return
 
         for port in fw_ports:
-            tcp_port = str(port) + '/tcp'
-            out, err, ret = call([self.cmd, '--permanent', '--query-port', tcp_port], verbose_on_failure=False)
+            if not isinstance(port, str):
+                port = str(port) + '/tcp'
+            out, err, ret = call([self.cmd, '--permanent', '--query-port', port], verbose_on_failure=False)
             if ret:
-                logger.info('Enabling firewalld port %s in current zone...' % tcp_port)
-                out, err, ret = call([self.cmd, '--permanent', '--add-port', tcp_port])
+                logger.info('Enabling firewalld port %s in current zone...' % port)
+                out, err, ret = call([self.cmd, '--permanent', '--add-port', port])
                 if ret:
                     raise RuntimeError('unable to add port %s to current zone: %s' %
-                                    (tcp_port, err))
+                                    (port, err))
             else:
-                logger.debug('firewalld port %s is enabled in current zone' % tcp_port)
+                logger.debug('firewalld port %s is enabled in current zone' % port)
 
     def apply_rules(self):
         # type: () -> None
@@ -3238,14 +3269,10 @@ def command_bootstrap():
             for t in ['prometheus', 'grafana', 'node-exporter', 'alertmanager']:
                 logger.info('Deploying %s service with default placement...' % t)
                 cli(['orch', 'apply', t])
-        
+
         if not args.skip_tracing:
-            #logger.info('Enabling mgr jaeger module...')
-            #cli(['mgr', 'module', 'enable', 'jaeger'])
-            for t in ['jaeger-agent', 'jaeger-collector', 'jaeger-query']:
-                logger.info('Deploying %s service with default placement...' % t)
-                cli(['orch', 'apply', t])
-        
+            logger.info('Enabling jaeger module...')
+            logger.info('Deploying %s service with default placement...' % t)
 
 
     if args.registry_url and args.registry_username and args.registry_password:
@@ -3388,9 +3415,12 @@ def extract_uid_gid_monitoring(daemon_type):
         uid, gid = extract_uid_gid(file_path='/var/lib/grafana')
     elif daemon_type == 'alertmanager':
         uid, gid = extract_uid_gid(file_path='/etc/alertmanager')
-#    jaeger_pattern = re.compile("^(jaeger-)*")
-#    elif jaeger_pattern.match(daemon_type):
-#        uid, gid = extract_uid_gid(file_path=['/etc/jaeger'])
+    elif daemon_type == 'jaeger-agent':
+        uid, gid = extract_uid_gid()
+    elif daemon_type == 'jaeger-collector':
+        uid, gid = extract_uid_gid()
+    elif daemon_type == 'jaeger-query':
+        uid, gid = extract_uid_gid()
     else:
         raise Error("{} not implemented yet".format(daemon_type))
     return uid, gid
@@ -3412,6 +3442,7 @@ def command_deploy():
     (_, state, _) = check_unit(unit_name)
     if state == 'running':
         redeploy = True
+        logger.info("systemctl state running")
 
     if args.reconfig:
         logger.info('%s daemon %s ...' % ('Reconfig', args.name))
@@ -3457,8 +3488,11 @@ def command_deploy():
                 raise Error("{} deployment requires config-json which must "
                             "contain arg for {}".format(daemon_type.capitalize(), ', '.join(required_args)))
 
-        uid, gid = extract_uid_gid_monitoring(daemon_type)
+    #    uid, gid = extract_uid_gid_monitoring(daemon_type)
+        logger.debug("line 3478")
         c = get_container(args.fsid, daemon_type, daemon_id)
+        logger.debug(c)
+        uid, gid = 1000, 1000
         deploy_daemon(args.fsid, daemon_type, daemon_id, c, uid, gid,
                       reconfig=args.reconfig,
                       ports=daemon_ports)
@@ -4304,35 +4338,6 @@ def command_adopt_alertmanager(daemon_id, fsid):
     c = get_container(fsid, daemon_type, daemon_id)
     deploy_daemon(fsid, daemon_type, daemon_id, c, uid, gid)
     update_firewalld(daemon_type)
-
-#def command_adopt_jaegertracing(daemon_id, fsid):
-#    # type: (str, str) -> None
-#
-#    daemon_type = 'alertmanager'
-#    (uid, gid) = extract_uid_gid_monitoring(daemon_type)
-#
-#    _stop_and_disable('prometheus-alertmanager')
-#
-#    data_dir_dst = make_data_dir(fsid, daemon_type, daemon_id,
-#                                     uid=uid, gid=gid)
-#
-#    # config
-#    config_src = '/etc/prometheus/alertmanager.yml'
-#    config_src = os.path.abspath(args.legacy_dir + config_src)
-#    config_dst = os.path.join(data_dir_dst, 'etc/alertmanager')
-#    makedirs(config_dst, uid, gid, 0o755)
-#    copy_files([config_src], config_dst, uid=uid, gid=gid)
-#
-#    # data
-#    data_src = '/var/lib/prometheus/alertmanager/'
-#    data_src = os.path.abspath(args.legacy_dir + data_src)
-#    data_dst = os.path.join(data_dir_dst, 'etc/alertmanager/data')
-#    copy_tree([data_src], data_dst, uid=uid, gid=gid)
-#
-#    make_var_run(fsid, uid, gid)
-#    c = get_container(fsid, daemon_type, daemon_id)
-#    deploy_daemon(fsid, daemon_type, daemon_id, c, uid, gid)
-#    update_firewalld(daemon_type)
 
 def _adjust_grafana_ini(filename):
     # type: (str) -> None
@@ -5630,43 +5635,44 @@ def command_gather_facts():
     host = HostFacts()
     print(host.dump())
 
-def command_init_tracing():
-    
-    global container_path
-
-    ports = ['5775/udp', '6831/udp', '6832/udp', '5778', '16686', '14268', '14250']
-       
-    
-    c = CephContainer(
-        image='jaegertracing/all-in-one:1.20',
-        entrypoint='doesnotmatter',
-        cname='jaeger',
-        container_args=['-p', '5775:5775/udp',
-        '-p', '6831:6831/udp',
-        '-p', '6832:6832/udp',
-        '-p', '5778:5778',
-        '-p', '16686:16686',
-        '-p', '14268:14268',
-        '-p', '14250:14250',
-        '-p', '9411:9411'],
-        host_network=False)
-    try:
-        #remove any container existing with name jaeger
-        out, _, _ = call_throws(c.rm_cmd(), verbose=False)
-    except:
-        pass
-    fw = Firewalld()
-    fw.open_ports(ports)
-    fw.apply_rules()
-    
-    out, err, code = call_throws(c.run_cmd(), verbose=True)
-    if not code:
-        print(out)
-        logger.info('Jaegertracing available at:\n\n'
-                    '\t Jaeger Frontend URL: https://%s:16686/\n'
-                    '\t serve config: https://%s:5778/\n'
-                        % (get_fqdn(), get_fqdn()))
-
+#delete later
+#def command_init_tracing():
+#    
+#    global container_path
+#
+#    ports = ['5775/udp', '6831/udp', '6832/udp', '5778', '16686', '14268', '14250']
+#       
+#    
+#    c = CephContainer(
+#        image='jaegertracing/all-in-one:1.20',
+#        entrypoint='doesnotmatter',
+#        cname='jaeger',
+#        container_args=['-p', '5775:5775/udp',
+#        '-p', '6831:6831/udp',
+#        '-p', '6832:6832/udp',
+#        '-p', '5778:5778',
+#        '-p', '16686:16686',
+#        '-p', '14268:14268',
+#        '-p', '14250:14250',
+#        '-p', '9411:9411'],
+#        host_network=False)
+#    try:
+#        #remove any container existing with name jaeger
+#        out, _, _ = call_throws(c.rm_cmd(), verbose=False)
+#    except:
+#        pass
+#    fw = Firewalld()
+#    fw.open_ports(ports)
+#    fw.apply_rules()
+#    
+#    out, err, code = call_throws(c.run_cmd(), verbose=True)
+#    if not code:
+#        print(out)
+#        logger.info('Jaegertracing available at:\n\n'
+#                    '\t Jaeger Frontend URL: https://%s:16686/\n'
+#                    '\t serve config: https://%s:5778/\n'
+#                        % (get_fqdn(), get_fqdn()))
+#
 ##################################
 
 
@@ -6050,7 +6056,7 @@ def _get_parser():
     parser_bootstrap.add_argument(
         '--skip-monitoring-stack',
         action='store_true',
-        help='Do not automatically provision monitoring stack (prometheus, grafana, alertmanager, node-exporter, jaegertracing)')
+        help='Do not automatically provision monitoring stack (prometheus, grafana, alertmanager, node-exporter)')
     parser_bootstrap.add_argument(
         '--skip-tracing',
         action='store_true',

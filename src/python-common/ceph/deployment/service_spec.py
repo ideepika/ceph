@@ -800,7 +800,7 @@ class JaegerAgentSpec(ServiceSpec):
             preview_only=preview_only)
         self.user_data = user_data or {}
 
-yaml.add_representer(JaegerAgentSpec, ServiceSpec.yaml_representer)
+#yaml.add_representer(JaegerAgentSpec, ServiceSpec.yaml_representer)
 
 
 class JaegerCollectorSpec(ServiceSpec):
@@ -820,7 +820,7 @@ class JaegerCollectorSpec(ServiceSpec):
         self.user_data = user_data or {}
 
 
-yaml.add_representer(JaegerCollectorSpec, ServiceSpec.yaml_representer)
+#yaml.add_representer(JaegerCollectorSpec, ServiceSpec.yaml_representer)
 
 class JaegerQuerySpec(ServiceSpec):
     def __init__(self,
@@ -836,25 +836,10 @@ class JaegerQuerySpec(ServiceSpec):
             'jaeger-query', service_id=service_id,
             placement=placement, unmanaged=unmanaged,
             preview_only=preview_only)
-
-        # Custom configuration.
-        #
-        # Example:
-        # service_type: jaeger-query
-        # service_id: xyz
-        # user_data:
-        #   default_webhook_urls:
-        #   - "https://foo"
-        #   - "https://bar"
-        #
-        # Documentation:
-        # default_webhook_urls - A list of additional URL's that are
-        #                        added to the default receivers'
-        #                        <webhook_configs> configuration.
         self.user_data = user_data or {}
 
 
-yaml.add_representer(JaegerQuerySpec, ServiceSpec.yaml_representer)
+#yaml.add_representer(JaegerQuerySpec, ServiceSpec.yaml_representer)
 
 class CustomContainerSpec(ServiceSpec):
     def __init__(self,

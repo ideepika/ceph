@@ -1718,9 +1718,6 @@ To check that the host is reachable:
             'prometheus': ['mgr', 'alertmanager', 'node-exporter'],
             'grafana': ['prometheus'],
             'alertmanager': ['mgr', 'alertmanager'],
-            'jaeger-agent': ['mgr'],
-            'jaeger-collector': ['mgr', 'jaeger-agent', 'jaeger-query'],
-            'jaeger-query': ['mgr']
         }
         deps = []
         for dep_type in need.get(daemon_type, []):

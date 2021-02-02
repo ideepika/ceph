@@ -36,7 +36,6 @@ sensible.
     RESTful module <restful>
     Zabbix module <zabbix>
     Prometheus module <prometheus>
-    Jaeger module <jaeger>
     Influx module <influx>
     Hello module <hello>
     Telegraf module <telegraf>
