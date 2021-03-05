@@ -2088,6 +2088,21 @@ TEST_F(PGLogTest, olog_tail_gt_log_tail_split2) {
   run_test_case(t);
 }
 
+TEST_F(PGLogTest, append_log_entries_update_missing) {
+  TestCase t;
+  t.auth.push_back(mk_ple_mod(mk_obj(1), mk_evt(10, 100), mk_evt(8, 70)));
+  t.auth.push_back(mk_ple_mod(mk_obj(1), mk_evt(15, 150), mk_evt(10, 100)));
+  t.auth.push_back(mk_ple_mod(mk_obj(1), mk_evt(16, 155), mk_evt(15, 150)));
+  t.div.push_back(mk_ple_mod(mk_obj(1), mk_evt(15, 153), mk_evt(15, 150)));
+
+  t.setup();
+  t.set_div_bounds(mk_evt(15, 153), mk_evt(15, 151));
+  t.set_auth_bounds(mk_evt(16, 156), mk_evt(10, 99));
+  t.final.add(mk_obj(1), mk_evt(16, 155), mk_evt(0, 0), false);
+  t.toremove.insert(mk_obj(1));
+  append_log_entries_update_missing()
+  
+}
 TEST_F(PGLogTest, filter_log_1) {
   {
     clear();

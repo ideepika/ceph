@@ -1268,13 +1268,12 @@ public:
       invalidate_stats = invalidate_stats || !p->is_error();
       if (log) {
        log->add(*p);
-       ldpp_dout(dpp, 20) << "update missing, appended " << *p << dendl;
+       ldpp_dout(dpp, 20) << __func__ << " appended " << *p << dendl;
        if (should_rollforward) {
           *should_rollforward = true;
        }
       }
-      if (p->soid <= last_backfill &&
-	  !p->is_error()) {
+      if (p->soid <= last_backfill && !p->is_error()) {
 	if (missing.may_include_deletes) {
 	  missing.add_next_event(*p);
 	} else {
