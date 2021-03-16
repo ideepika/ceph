@@ -15,10 +15,12 @@ function(build_yamlcpp)
   if(CMAKE_MAKE_PROGRAM MATCHES "make")
     # try to inherit command line arguments passed by parent "make" job
     set(make_cmd "$(MAKE)")
+  elseif(CMAKE_MAKE_PROGRAM MATCHES "ninja")
+    set(make_cmd ninja)
   else()
     set(make_cmd ${CMAKE_COMMAND} --build <BINARY_DIR> --target yaml-cpp)
   endif()
-set(install_cmd $(MAKE) install DESTDIR=)
+set(install_cmd ${make_cmd} install)
 
   include(ExternalProject)
   ExternalProject_Add(yaml-cpp

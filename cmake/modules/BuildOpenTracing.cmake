@@ -16,10 +16,12 @@ function(build_opentracing)
   if(CMAKE_MAKE_PROGRAM MATCHES "make")
     # try to inherit command line arguments passed by parent "make" job
     set(make_cmd $(MAKE) )
+  elseif(CMAKE_MAKE_PROGRAM MATCHES "ninja")
+    set(make_cmd ninja)
   else()
-    set(make_cmd ${CMAKE_COMMAND} --build <BINARY_DIR> --target opentracing)
+    set(make_cmd ${CMAKE_MAKE_PROGRAM} --build <BINARY_DIR> --target opentracing)
   endif()
-  set(install_cmd $(MAKE) install DESTDIR=)
+  set(install_cmd ${make_cmd} install)
 
   include(ExternalProject)
   ExternalProject_Add(opentracing
@@ -31,5 +33,6 @@ function(build_opentracing)
     BUILD_IN_SOURCE 1
     BUILD_COMMAND ${make_cmd}
     INSTALL_COMMAND ${install_cmd}
+    BUILD_BYPRODUCTS ${CMAKE_BINARY_DIR}/external/lib/libopentracing.so
     )
 endfunction()
