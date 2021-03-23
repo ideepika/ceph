@@ -3,7 +3,7 @@
 ======================
 
 Once you have a running cluster, you may use the ``ceph`` tool to monitor your
-cluster. Monitoring a cluster typically involves checking OSD status, monitor 
+cluster. Monitoring a cluster typically involves checking OSD status, monitor
 status, placement group status and metadata server status.
 
 Using the command line
@@ -142,7 +142,7 @@ output may be updated as follows:
             1 osds down
             Degraded data redundancy: 21/63 objects degraded (33.333%), 16 pgs unclean, 16 pgs degraded
 
-At this time, cluster log messages are also emitted to record the failure of the 
+At this time, cluster log messages are also emitted to record the failure of the
 health checks:
 
 ::
@@ -340,7 +340,7 @@ Checking a Cluster's Usage Stats
 ================================
 
 To check a cluster's data usage and data distribution among pools, you can
-use the ``df`` option. It is similar to Linux ``df``. Execute 
+use the ``df`` option. It is similar to Linux ``df``. Execute
 the following::
 
 	ceph df
@@ -352,11 +352,11 @@ The output of ``ceph df`` looks like this::
    TOTAL  202 GiB  200 GiB  2.0 GiB   2.0 GiB       1.00
 
    --- POOLS ---
-   POOL                   ID  PGS   STORED   (DATA)   (OMAP)   OBJECTS     USED  (DATA)   (OMAP)   %USED  MAX AVAIL  QUOTA OBJECTS  QUOTA BYTES  DIRTY  USED COMPR  UNDER COMPR
-   device_health_metrics   1    1  242 KiB   15 KiB  227 KiB         4  251 KiB  24 KiB  227 KiB       0    297 GiB            N/A          N/A      4         0 B          0 B
-   cephfs.a.meta           2   32  6.8 KiB  6.8 KiB      0 B        22   96 KiB  96 KiB      0 B       0    297 GiB            N/A          N/A     22         0 B          0 B
-   cephfs.a.data           3   32      0 B      0 B      0 B         0      0 B     0 B      0 B       0     99 GiB            N/A          N/A      0         0 B          0 B
-   test                    4   32   22 MiB   22 MiB   50 KiB       248   19 MiB  19 MiB   50 KiB       0    297 GiB            N/A          N/A    248         0 B          0 B
+   POOL                   ID  PGS   STORED   (DATA)   (OMAP)   OBJECTS     USED  (DATA)   (OMAP)   %USED  MAX AVAIL  QUOTA OBJECTS  QUOTA BYTES  USED COMPR  UNDER COMPR
+   device_health_metrics   1    1  242 KiB   15 KiB  227 KiB         4  251 KiB  24 KiB  227 KiB       0    297 GiB            N/A          N/A         0 B          0 B
+   cephfs.a.meta           2   32  6.8 KiB  6.8 KiB      0 B        22   96 KiB  96 KiB      0 B       0    297 GiB            N/A          N/A         0 B          0 B
+   cephfs.a.data           3   32      0 B      0 B      0 B         0      0 B     0 B      0 B       0     99 GiB            N/A          N/A         0 B          0 B
+   test                    4   32   22 MiB   22 MiB   50 KiB       248   19 MiB  19 MiB   50 KiB       0    297 GiB            N/A          N/A         0 B          0 B
 
 
 
@@ -370,18 +370,18 @@ The output of ``ceph df`` looks like this::
 - **RAW USED:** The amount of raw storage consumed by user data, internal
   overhead, or reserved capacity.
 - **%RAW USED:** The percentage of raw storage used. Use this number in
-  conjunction with the ``full ratio`` and ``near full ratio`` to ensure that 
-  you are not reaching your cluster's capacity. See `Storage Capacity`_ for 
+  conjunction with the ``full ratio`` and ``near full ratio`` to ensure that
+  you are not reaching your cluster's capacity. See `Storage Capacity`_ for
   additional details.
 
 
-**POOLS:**  
+**POOLS:**
 
-The **POOLS** section of the output provides a list of pools and the notional 
+The **POOLS** section of the output provides a list of pools and the notional
 usage of each pool. The output from this section **DOES NOT** reflect replicas,
-clones or snapshots. For example, if you store an object with 1MB of data, the 
-notional usage will be 1MB, but the actual usage may be 2MB or more depending 
-on the number of replicas, clones and snapshots.  
+clones or snapshots. For example, if you store an object with 1MB of data, the
+notional usage will be 1MB, but the actual usage may be 2MB or more depending
+on the number of replicas, clones and snapshots.
 
 - **ID:** The number of the node within the pool.
 - **STORED:** actual amount of data user/Ceph has stored in a pool. This is
@@ -410,10 +410,6 @@ on the number of replicas, clones and snapshots.
   to this pool.
 - **QUOTA OBJECTS:** The number of quota objects.
 - **QUOTA BYTES:** The number of bytes in the quota objects.
-- **DIRTY:** "DIRTY" is meaningful only when cache tiering is in use. If cache
-  tiering is in use, the "DIRTY" column lists the number of objects in the
-  cache pool that have been written to the cache pool but have not flushed yet
-  to the base pool.
 - **USED COMPR:** amount of space allocated for compressed data (i.e. this
   includes comrpessed data plus all the allocation, replication and erasure
   coding overhead).
@@ -441,7 +437,7 @@ following command:
 
   ceph osd stat
 	
-Or: 
+Or:
 
 .. prompt:: bash #
 
@@ -549,7 +545,7 @@ Checking Placement Group States
 ===============================
 
 Placement groups map objects to OSDs. When you monitor your
-placement groups,  you will want them to be ``active`` and ``clean``. 
+placement groups,  you will want them to be ``active`` and ``clean``.
 For a detailed discussion, refer to `Monitoring OSDs and Placement Groups`_.
 
 .. _Monitoring OSDs and Placement Groups: ../monitoring-osd-pg
@@ -559,9 +555,9 @@ For a detailed discussion, refer to `Monitoring OSDs and Placement Groups`_.
 Using the Admin Socket
 ======================
 
-The Ceph admin socket allows you to query a daemon via a socket interface. 
+The Ceph admin socket allows you to query a daemon via a socket interface.
 By default, Ceph sockets reside under ``/var/run/ceph``. To access a daemon
-via the admin socket, login to the host running the daemon and use the 
+via the admin socket, login to the host running the daemon and use the
 following command:: 
 
 	ceph daemon {daemon-name}
