@@ -2198,7 +2198,7 @@ TEST_F(TestLibRBD, TestEncryptionLUKS2)
 
   test_io(image);
 
-  bool passed;
+  bool passed=false;
   write_test_data(image, "test", 0, 4, 0, &passed);
   ASSERT_TRUE(passed);
   ASSERT_EQ(0, rbd_close(image));
@@ -2206,6 +2206,7 @@ TEST_F(TestLibRBD, TestEncryptionLUKS2)
   ASSERT_EQ(0, rbd_open(ioctx, name.c_str(), &image, NULL));
   ASSERT_EQ(0, rbd_encryption_load(
           image, RBD_ENCRYPTION_FORMAT_LUKS2, &opts, sizeof(opts)));
+  bool passed=false;
   read_test_data(image, "test", 0, 4, 0, &passed);
   ASSERT_TRUE(passed);
 #endif
@@ -2654,56 +2655,6 @@ void write_test_data(librbd::Image& image, const char *test_data, off_t off, uin
     written = image.write(off, len, bl);
   printf("wrote: %u\n", (unsigned int) written);
   ASSERT_EQ(bl.length(), written);
-  *passed = true;
-}
-
-void discard_test_data(librbd::Image& image, off_t off, size_t len, bool *passed)
-{
-  size_t written;
-  written = image.discard(off, len);
-  printf("discard: %u~%u\n", (unsigned)off, (unsigned)len);
-  ASSERT_EQ(len, written);
-  *passed = true;
-}
-
-void aio_read_test_data(librbd::Image& image, const char *expected, off_t off, size_t expected_len, uint32_t iohint, bool *passed)
-{
-  librbd::RBD::AioCompletion *comp = new librbd::RBD::AioCompletion(NULL, (librbd::callback_t) simple_read_cb_pp);
-  ceph::bufferlist bl;
-  printf("created completion\n");
-  if (iohint)
-    image.aio_read2(off, expected_len, bl, comp, iohint);
-  else
-    image.aio_read(off, expected_len, bl, comp);
-  printf("started read\n");
-  comp->wait_for_complete();
-  int r = comp->get_return_value();
-  printf("return value is: %d\n", r);
-  ASSERT_EQ(TEST_IO_SIZE, r);
-  ASSERT_EQ(0, memcmp(expected, bl.c_str(), TEST_IO_SIZE));
-  printf("finished read\n");
-  comp->release();
-  *passed = true;
-}
-
-void read_test_data(librbd::Image& image, const char *expected, off_t off, size_t expected_len, uint32_t iohint, bool *passed)
-{
-  int read;
-  size_t len = expected_len;
-  ceph::bufferlist bl;
-  if (iohint)
-    read = image.read2(off, len, bl, iohint);
-  else
-    read = image.read(off, len, bl);
-  ASSERT_TRUE(read >= 0);
-  std::string bl_str(bl.c_str(), read);
-
-  printf("read: %u\n", (unsigned int) read);
-  int result = memcmp(bl_str.c_str(), expected, expected_len);
-  if (result != 0) {
-    printf("read: %s\nexpected: %s\n", bl_str.c_str(), expected);
-    ASSERT_EQ(0, result);
-  }
   *passed = true;
 }
 
