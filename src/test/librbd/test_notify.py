@@ -21,6 +21,7 @@ IMG_SIZE = 16 << 20
 IMG_ORDER = 20
 
 def delete_image(ioctx, img_name):
+    print("deleting image")
     image = Image(ioctx, img_name)
     for snap in image.list_snaps():
         snap_name = snap['name']

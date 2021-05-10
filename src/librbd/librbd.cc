@@ -2477,6 +2477,8 @@ namespace librbd {
     tracepoint(librbd, read_enter, ictx, ictx->name.c_str(), ictx->snap_name.c_str(), ictx->read_only, ofs, len);
 
     int r = api::Io<>::read(*ictx, ofs, len, io::ReadResult{&bl}, 0);
+    ldout(ictx->cct, 10) << "Image::read() buf=" << (void *)bl.c_str() << "~"
+			 << (void *)(bl.c_str() + len - 1) << dendl;
     tracepoint(librbd, read_exit, r);
     return r;
   }
@@ -2488,6 +2490,8 @@ namespace librbd {
 		ictx->read_only, ofs, len, op_flags);
 
     int r = api::Io<>::read(*ictx, ofs, len, io::ReadResult{&bl}, op_flags);
+    ldout(ictx->cct, 10) << "Image::read2() buf=" << (void *)bl.c_str() << "~"
+			 << (void *)(bl.c_str() + len - 1) << dendl;
     tracepoint(librbd, read_exit, r);
     return r;
   }

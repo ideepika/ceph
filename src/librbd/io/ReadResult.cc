@@ -192,7 +192,8 @@ void ReadResult::C_ObjectReadRequest::finish(int r) {
     for (auto& extent: extents) {
       ldout(cct, 10) << " got " << extent.extent_map
                      << " for " << extent.buffer_extents
-                     << " bl " << extent.bl.length() << dendl;
+                     << " bl " << extent.bl.length()
+		     << " bl_val " << extent.bl.c_str() << dendl;
 
       aio_completion->read_result.m_destriper.add_partial_sparse_result(
               cct, std::move(extent.bl), extent.extent_map, extent.offset,

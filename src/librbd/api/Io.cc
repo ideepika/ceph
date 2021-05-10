@@ -46,7 +46,8 @@ ssize_t Io<I>::read(
   auto cct = image_ctx.cct;
 
   ldout(cct, 20) << "ictx=" << &image_ctx << ", off=" << off << ", "
-                 << "len = " << len << dendl;
+                 << "len = " << len 
+                 << dendl;
 
   C_SaferCond ctx;
   auto aio_comp = io::AioCompletion::create(&ctx);
@@ -220,7 +221,7 @@ void Io<I>::aio_read(I &image_ctx, io::AioCompletion *aio_comp, uint64_t off,
   aio_comp->init_time(util::get_image_ctx(&image_ctx), io::AIO_TYPE_READ);
   ldout(cct, 20) << "ictx=" << &image_ctx << ", "
                  << "completion=" << aio_comp << ", off=" << off << ", "
-                 << "len=" << len << ", " << "flags=" << op_flags << dendl;
+                 << " ,len=" << len << ", " << "flags=" << op_flags << dendl;
 
   if (native_async && image_ctx.event_socket.is_valid()) {
     aio_comp->set_event_notify(true);
