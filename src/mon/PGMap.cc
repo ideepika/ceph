@@ -747,7 +747,6 @@ void PGMapDigest::dump_pool_stats_full(
     }
     tbl.define_column("%USED", TextTable::RIGHT, TextTable::RIGHT);
     tbl.define_column("MAX AVAIL", TextTable::RIGHT, TextTable::RIGHT);
-
     if (verbose) {
       tbl.define_column("QUOTA OBJECTS", TextTable::RIGHT, TextTable::RIGHT);
       tbl.define_column("QUOTA BYTES", TextTable::RIGHT, TextTable::RIGHT);
@@ -955,16 +954,17 @@ void PGMapDigest::dump_object_stat_sum(
         tbl << "N/A";
       else
         tbl << stringify(si_u_t(pool->quota_max_objects));
-
       if (pool->quota_max_bytes == 0)
         tbl << "N/A";
       else
         tbl << stringify(byte_u_t(pool->quota_max_bytes));
-
-      tbl << stringify(si_u_t(sum.num_objects_dirty))
-	  << stringify(byte_u_t(statfs.data_compressed_allocated))
-	  << stringify(byte_u_t(statfs.data_compressed_original))
-	  ;
+      if (pool->is_tier()) {
+        tbl << stringify(si_u_t(sum.num_objects_dirty))
+	      << stringify(byte_u_t(statfs.data_compressed_allocated))
+	      << stringify(byte_u_t(statfs.data_compressed_original));
+      } else {
+	tbl << "N/A";
+      }
     }
   }
 }
