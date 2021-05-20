@@ -331,7 +331,7 @@ bool NotifyMessage::check_for_refresh() const {
 }
 
 void NotifyMessage::encode(bufferlist& bl) const {
-  ENCODE_START(7, 1, bl);
+  ENCODE_START(7, 7, bl);
   encode(static_cast<uint32_t>(payload->get_notify_op()), bl);
   payload->encode(bl);
   ENCODE_FINISH(bl);
