@@ -1,31 +1,31 @@
 tasks:
 - parallel:
   - workunit:
-      branch: octopus
+      branch: wip-49592-upgrade-octopus
       clients:
         client.0:
           - rbd/notify_master.sh
       env:
         RBD_FEATURES: "61"
   - workunit:
-      branch: pacific
+      branch: wip-49592-upgrade-octopus
       clients:
         client.1:
           - rbd/notify_slave.sh
       env:
         RBD_FEATURES: "61"
-        DISABLE_UPDATE_FEATURES: "1"
+        RBD_DISABLE_UPDATE_FEATURES: "1"
 - print: "**** done rbd: old librbd -> new librbd"
 - parallel:
   - workunit:
-      branch: octopus
+      branch: wip-49592-upgrade-octopus
       clients:
         client.0:
           - rbd/notify_slave.sh
       env:
         RBD_FEATURES: "61"
   - workunit:
-      branch: pacific
+      branch: wip-49592-upgrade-octopus
       clients:
         client.1:
           - rbd/notify_master.sh
