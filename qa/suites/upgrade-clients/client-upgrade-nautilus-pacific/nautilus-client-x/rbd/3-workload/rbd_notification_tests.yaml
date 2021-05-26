@@ -23,6 +23,7 @@ tasks:
           - rbd/notify_slave.sh
       env:
         RBD_FEATURES: "61"
+        RBD_DISABLE_UPDATE_FEATURES: "1"
   - workunit:
       branch: pacific
       clients:
