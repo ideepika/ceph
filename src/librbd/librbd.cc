@@ -2560,6 +2560,7 @@ namespace librbd {
   {
     ImageCtx *ictx = (ImageCtx *)ctx;
     tracepoint(librbd, write_enter, ictx, ictx->name.c_str(), ictx->snap_name.c_str(), ictx->read_only, ofs, len, bl.length() < len ? NULL : bl.c_str());
+    ldout(ictx->cct, 10) << __func__ << bl.c_str() << dendl;
     if (bl.length() < len) {
       tracepoint(librbd, write_exit, -EINVAL);
       return -EINVAL;
@@ -2575,6 +2576,7 @@ namespace librbd {
     ImageCtx *ictx = (ImageCtx *)ctx;
     tracepoint(librbd, write2_enter, ictx, ictx->name.c_str(), ictx->snap_name.c_str(), ictx->read_only,
 		ofs, len, bl.length() < len ? NULL : bl.c_str(), op_flags);
+    ldout(ictx->cct, 10) << __func__ << bl.c_str() << dendl;
     if (bl.length() < len) {
       tracepoint(librbd, write_exit, -EINVAL);
       return -EINVAL;
@@ -2659,6 +2661,7 @@ namespace librbd {
   {
     ImageCtx *ictx = (ImageCtx *)ctx;
     tracepoint(librbd, aio_write_enter, ictx, ictx->name.c_str(), ictx->snap_name.c_str(), ictx->read_only, off, len, bl.length() < len ? NULL : bl.c_str(), c->pc);
+    ldout(ictx->cct, 10) << __func__ << bl.c_str() << dendl;
     if (bl.length() < len) {
       tracepoint(librbd, aio_write_exit, -EINVAL);
       return -EINVAL;

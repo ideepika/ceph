@@ -608,6 +608,7 @@ public:
     test_data[TEST_IO_SIZE] = '\0';
     memset(zero_data, 0, sizeof(zero_data));
     memset(mismatch_data, 9, sizeof(mismatch_data));
+    cout << "data: " << test_data;
 
     for (i = 0; i < 5; ++i)
       ASSERT_PASSED(write_test_data, image, test_data, TEST_IO_SIZE * i,
@@ -2196,7 +2197,7 @@ TEST_F(TestLibRBD, TestEncryptionLUKS2)
   ASSERT_EQ(-EEXIST, rbd_encryption_load(
           image, RBD_ENCRYPTION_FORMAT_LUKS2, &opts, sizeof(opts)));
 
-//  test_io(image);
+  test_io(image);
 
   bool passed;
   write_test_data(image, "test", 0, 4, 0, &passed);

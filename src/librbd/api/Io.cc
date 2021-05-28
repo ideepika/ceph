@@ -62,6 +62,7 @@ ssize_t Io<I>::write(
   auto cct = image_ctx.cct;
   ldout(cct, 20) << "ictx=" << &image_ctx << ", off=" << off << ", "
                  << "len = " << len << dendl;
+  ldout(cct, 10) << __func__ << bl.c_str() << dendl;
 
   image_ctx.image_lock.lock_shared();
   int r = clip_io(util::get_image_ctx(&image_ctx), off, &len);
@@ -119,6 +120,7 @@ ssize_t Io<I>::write_same(
   image_ctx.image_lock.lock_shared();
   int r = clip_io(util::get_image_ctx(&image_ctx), off, &len);
   image_ctx.image_lock.unlock_shared();
+  ldout(cct, 10) << __func__ << bl.c_str() << dendl;
   if (r < 0) {
     lderr(cct) << "invalid IO request: " << cpp_strerror(r) << dendl;
     return r;
@@ -168,6 +170,7 @@ ssize_t Io<I>::compare_and_write(
   auto cct = image_ctx.cct;
   ldout(cct, 20) << "compare_and_write ictx=" << &image_ctx << ", off="
                  << off << ", " << "len = " << len << dendl;
+  ldout(cct, 10) << __func__ << bl.c_str() << dendl;
 
   image_ctx.image_lock.lock_shared();
   int r = clip_io(util::get_image_ctx(&image_ctx), off, &len);
@@ -254,6 +257,7 @@ void Io<I>::aio_write(I &image_ctx, io::AioCompletion *aio_comp, uint64_t off,
   ldout(cct, 20) << "ictx=" << &image_ctx << ", "
                  << "completion=" << aio_comp << ", off=" << off << ", "
                  << "len=" << len << ", flags=" << op_flags << dendl;
+  ldout(cct, 10) << __func__ << bl.c_str() << dendl;
 
   if (native_async && image_ctx.event_socket.is_valid()) {
     aio_comp->set_event_notify(true);
@@ -317,6 +321,7 @@ void Io<I>::aio_write_same(I &image_ctx, io::AioCompletion *aio_comp,
                  << "completion=" << aio_comp << ", off=" << off << ", "
                  << "len=" << len << ", data_len = " << bl.length() << ", "
                  << "flags=" << op_flags << dendl;
+  ldout(cct, 10) << __func__ << bl.c_str() << dendl;
 
   if (native_async && image_ctx.event_socket.is_valid()) {
     aio_comp->set_event_notify(true);
@@ -500,6 +505,7 @@ void Io<I>::aio_compare_and_write(I &image_ctx, io::AioCompletion *aio_comp,
   ldout(cct, 20) << "ictx=" << &image_ctx << ", "
                  << "completion=" << aio_comp << ", off=" << off << ", "
                  << "len=" << len << dendl;
+  ldout(cct, 10) << __func__ << bl.c_str() << dendl;
 
   if (native_async && image_ctx.event_socket.is_valid()) {
     aio_comp->set_event_notify(true);
