@@ -2200,14 +2200,14 @@ TEST_F(TestLibRBD, TestEncryptionLUKS2)
   test_io(image);
 
   bool passed;
-  write_test_data(image, "test", 0, 4, 0, &passed);
+  write_test_data(image, "test_luks2", 0, 4, 0, &passed);
   ASSERT_TRUE(passed);
   ASSERT_EQ(0, rbd_close(image));
 
   ASSERT_EQ(0, rbd_open(ioctx, name.c_str(), &image, NULL));
   ASSERT_EQ(0, rbd_encryption_load(
           image, RBD_ENCRYPTION_FORMAT_LUKS2, &opts, sizeof(opts)));
-  read_test_data(image, "test", 0, 4, 0, &passed);
+  read_test_data(image, "test_luks2", 0, 4, 0, &passed);
   ASSERT_TRUE(passed);
 #endif
 
