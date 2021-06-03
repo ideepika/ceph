@@ -242,6 +242,7 @@ void ObjectReadRequest<I>::read_object() {
     } else {
       read_op.read(extent.offset, extent.length, &extent.bl);
     }
+    ldout(image_ctx->cct, 20) << __func__ << " buf=" << extent.bl.c_str() << dendl;
   }
   util::apply_op_flags(
     m_op_flags, image_ctx->get_read_flags(read_snap_id), &read_op);

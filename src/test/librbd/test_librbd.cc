@@ -357,6 +357,7 @@ void read_test_data(rbd_image_t image, const char *expected, uint64_t off, size_
   else
     read = rbd_read(image, off, len, result);
   printf("read: %d\n", (int) read);
+  printf("read: %s\nexpected: %s\n", result, expected);
   ASSERT_EQ(len, static_cast<size_t>(read));
   result[len] = '\0';
   if (memcmp(result, expected, len)) {
@@ -2197,17 +2198,17 @@ TEST_F(TestLibRBD, TestEncryptionLUKS2)
   ASSERT_EQ(-EEXIST, rbd_encryption_load(
           image, RBD_ENCRYPTION_FORMAT_LUKS2, &opts, sizeof(opts)));
 
-  test_io(image);
+//  test_io(image);
 
   bool passed;
-  write_test_data(image, "test_luks2", 0, 4, 0, &passed);
+  write_test_data(image, "test_luks2", 0, 10, 0, &passed);
   ASSERT_TRUE(passed);
   ASSERT_EQ(0, rbd_close(image));
 
   ASSERT_EQ(0, rbd_open(ioctx, name.c_str(), &image, NULL));
   ASSERT_EQ(0, rbd_encryption_load(
           image, RBD_ENCRYPTION_FORMAT_LUKS2, &opts, sizeof(opts)));
-  read_test_data(image, "test_luks2", 0, 4, 0, &passed);
+  read_test_data(image, "test_luks2", 0, 10, 0, &passed);
   ASSERT_TRUE(passed);
 #endif
 
@@ -2701,6 +2702,7 @@ void read_test_data(librbd::Image& image, const char *expected, off_t off, size_
 
   printf("read: %u\n", (unsigned int) read);
   int result = memcmp(bl_str.c_str(), expected, expected_len);
+  printf("read: %s\nexpected: %s\n", bl_str.c_str(), expected);
   if (result != 0) {
     printf("read: %s\nexpected: %s\n", bl_str.c_str(), expected);
     ASSERT_EQ(0, result);

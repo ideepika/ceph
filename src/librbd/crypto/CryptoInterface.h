@@ -8,6 +8,12 @@
 #include "include/buffer.h"
 #include "include/intarith.h"
 #include "librbd/io/Types.h"
+#include "common/dout.h"
+
+#define dout_subsys ceph_subsys_rbd
+#undef dout_prefix
+#define dout_prefix *_dout << "librbd::crypto::CryptoInterface: " \
+                           << this << " " << __func__ << ": "
 
 namespace librbd {
 namespace crypto {
@@ -61,7 +67,13 @@ public:
   }
 
   inline int decrypt_aligned_extent(io::ReadExtent& extent,
-                                    uint64_t image_offset) {
+                                    uint64_t image_offset,
+                                     CephContext *cct) {
+
+    ldout(cct, 20) << "decrypt_aligned_extent buf=" << extent.bl.c_str()
+                   << "bl len=" << extent.bl.length()
+                   << dendl;
+
     if (extent.length == 0 || extent.bl.length() == 0) {
       return 0;
     }
@@ -92,6 +104,7 @@ public:
                   &curr_block_bl,
                   image_offset + curr_block_start_offset - extent.offset);
           if (r != 0) {
+            ldout(cct, 20) << "decrypt_aligned_extent decrypt" << r << dendl;
             return r;
           }
 
@@ -113,6 +126,7 @@ public:
 
     extent.bl = std::move(result_bl);
     extent.extent_map = std::move(result_extent_map);
+    ldout(cct, 20) << "decrypt_aligned_extent buf_result=" << extent.bl.c_str() << dendl;
 
     return 0;
   }

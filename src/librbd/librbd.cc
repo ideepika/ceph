@@ -5918,8 +5918,10 @@ extern "C" ssize_t rbd_read(rbd_image_t image, uint64_t ofs, size_t len,
 {
   librbd::ImageCtx *ictx = (librbd::ImageCtx *)image;
   tracepoint(librbd, read_enter, ictx, ictx->name.c_str(), ictx->snap_name.c_str(), ictx->read_only, ofs, len);
+  ldout(ictx->cct, 20) << "rbd_read: buf=" << buf << dendl;
   int r = librbd::api::Io<>::read(
     *ictx, ofs, len, librbd::io::ReadResult{buf, len}, 0);
+  ldout(ictx->cct, 20) << "rbd_read: buf=" << buf << dendl;
   tracepoint(librbd, read_exit, r);
   return r;
 }
@@ -5930,8 +5932,10 @@ extern "C" ssize_t rbd_read2(rbd_image_t image, uint64_t ofs, size_t len,
   librbd::ImageCtx *ictx = (librbd::ImageCtx *)image;
   tracepoint(librbd, read2_enter, ictx, ictx->name.c_str(),
 	      ictx->snap_name.c_str(), ictx->read_only, ofs, len, op_flags);
+  ldout(ictx->cct, 20) << "rbd_read: buf=" << buf << dendl;
   int r = librbd::api::Io<>::read(
     *ictx, ofs, len, librbd::io::ReadResult{buf, len}, op_flags);
+  ldout(ictx->cct, 20) << "rbd_read2: buf=" << buf << dendl;
   tracepoint(librbd, read_exit, r);
   return r;
 }

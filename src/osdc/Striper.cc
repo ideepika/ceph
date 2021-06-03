@@ -516,6 +516,7 @@ void Striper::StripedReadResult::assemble_result(CephContext *cct, char *buffer,
     ++p;
   }
   partial.clear();
+  ldout(cct, 10) << __func__ << " buffer=" << buffer << dendl;
   ceph_assert(curr == 0);
 }
 
@@ -532,6 +533,7 @@ uint64_t Striper::StripedReadResult::assemble_result(
       bl->claim_append(p.second.first);
     }
   }
+  ldout(cct, 10) << __func__ << " bl=" << bl->c_str() << dendl;
   partial.clear();
   return total_intended_len;
 }

@@ -79,7 +79,9 @@ struct C_AlignedObjectReadRequest : public Context {
           auto crypto_ret = crypto->decrypt_aligned_extent(
                   extent,
                   io::util::get_file_offset(
-                          image_ctx, object_no, extent.offset));
+                          image_ctx, object_no, extent.offset),
+                  cct);
+          ldout(cct, 20) << "aligned read extent buf" << extent.bl.c_str() << dendl;
           if (crypto_ret != 0) {
             ceph_assert(crypto_ret < 0);
             r = crypto_ret;
