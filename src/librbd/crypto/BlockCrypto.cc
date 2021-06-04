@@ -4,8 +4,14 @@
 #include "librbd/crypto/BlockCrypto.h"
 #include "include/byteorder.h"
 #include "include/ceph_assert.h"
+#include "common/dout.h"
 
 #include <stdlib.h>
+
+#define dout_subsys ceph_subsys_rbd
+#undef dout_prefix
+#define dout_prefix *_dout << "librbd::crypto::BlockCrypto: " \
+                           << this << " " << __func__ << ": "
 
 namespace librbd {
 namespace crypto {
@@ -114,6 +120,7 @@ int BlockCrypto<T>::crypt(ceph::bufferlist* data, uint64_t image_offset,
 
 template <typename T>
 int BlockCrypto<T>::encrypt(ceph::bufferlist* data, uint64_t image_offset) {
+  ldout(m_cct, 20) << __func__ << " data=" << data->c_str() << dendl;
   return crypt(data, image_offset, CipherMode::CIPHER_MODE_ENC);
 }
 

@@ -20,6 +20,8 @@ namespace crypto {
 
 class CryptoInterface : public RefCountedObject {
 
+private:
+  ceph::mutex m_lock = ceph::make_mutex("librbd::crypto::CryptoInterface");
 public:
   virtual int encrypt(ceph::bufferlist* data, uint64_t image_offset) = 0;
   virtual int decrypt(ceph::bufferlist* data, uint64_t image_offset) = 0;
@@ -71,7 +73,7 @@ public:
                                      CephContext *cct) {
 
     ldout(cct, 20) << "decrypt_aligned_extent buf=" << extent.bl.c_str()
-                   << "bl len=" << extent.bl.length()
+                   << " bl len=" << extent.bl.length()
                    << dendl;
 
     if (extent.length == 0 || extent.bl.length() == 0) {
@@ -95,7 +97,9 @@ public:
             extent.offset + extent.length + get_block_size(), 0);
 
     for (auto [off, len]: extent.extent_map) {
+      std::lock_guard<ceph::mutex> lockGuard(m_lock);
       auto [aligned_off, aligned_len] = align(off, len);
+      ldout(cct, 20) << "decrypt_aligned_extent [align, off]" << "[" << aligned_off << "," << aligned_len << "]" << dendl;
       if (aligned_off > curr_block_end_offset) {
         curr_block_bl.append_zero(curr_block_end_offset - curr_offset);
         auto curr_block_length = curr_block_bl.length();
@@ -104,7 +108,7 @@ public:
                   &curr_block_bl,
                   image_offset + curr_block_start_offset - extent.offset);
           if (r != 0) {
-            ldout(cct, 20) << "decrypt_aligned_extent decrypt" << r << dendl;
+            ldout(cct, 20) << "decrypt_aligned_extent r=" << r << dendl;
             return r;
           }
 

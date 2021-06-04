@@ -2198,7 +2198,7 @@ TEST_F(TestLibRBD, TestEncryptionLUKS2)
   ASSERT_EQ(-EEXIST, rbd_encryption_load(
           image, RBD_ENCRYPTION_FORMAT_LUKS2, &opts, sizeof(opts)));
 
-//  test_io(image);
+  test_io(image);
 
   bool passed;
   write_test_data(image, "test_luks2", 0, 10, 0, &passed);
