@@ -6,6 +6,9 @@ overrides:
         rbd_persistent_cache_size: 1073741824
         rbd_plugins: pwl_cache
         rbd_default_features: 61
+        debug librbd: 20
+        debug ms: 1
+        debug rbd: 20
 tasks:
 - exec:
     client.0:
