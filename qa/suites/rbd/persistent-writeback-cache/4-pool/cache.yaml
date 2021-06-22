@@ -2,10 +2,6 @@ overrides:
   ceph:
     conf:
       client:
-        rbd_persistent_cache_path: /home/ubuntu/cephtest/write_back_cache
-        rbd_persistent_cache_size: 1073741824
-        rbd_plugins: pwl_cache
-        rbd_default_features: 61
 tasks:
 - exec:
     client.0:
