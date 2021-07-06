@@ -50,13 +50,15 @@ function(build_jaeger)
 			-Dthrift_HOME=${CMAKE_BINARY_DIR}/external
 			-DOpenTracing_HOME=${CMAKE_BINARY_DIR}/external)
 
-  set(dependencies opentracing thrift)
+  # build these libraries along with jaeger
+  set(dependencies opentracing)
   include(BuildOpenTracing)
   build_opentracing()
   find_package(thrift 0.13.0)
   if(NOT thrift_FOUND)
     include(Buildthrift)
     build_thrift()
+    list(APPEND dependencies thrift)
     execute_process(COMMAND bash -c "grep -q 'thrift' debian/libjaeger.install || echo 'usr/lib/libthrift.so.*' >> debian/libjaeger.install"
 		    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR})
   endif()
