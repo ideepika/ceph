@@ -38,7 +38,7 @@ function(build_thrift)
   else()
     set(make_cmd ${CMAKE_COMMAND} --build <BINARY_DIR> --target thrift)
   endif()
-  set(install_cmd ${CMAKE_MAKE_PROGRAM} install)
+  set(install_cmd DESTDIR= ${CMAKE_MAKE_PROGRAM} install)
 
   include(ExternalProject)
   ExternalProject_Add(thrift
@@ -48,7 +48,7 @@ function(build_thrift)
     BINARY_DIR ${thrift_BINARY_DIR}
     BUILD_COMMAND ${make_cmd}
     INSTALL_COMMAND ${install_cmd}
-    DEPENDS ${dependencies}
+    DEPENDS "${dependencies}"
     BUILD_BYPRODUCTS ${CMAKE_BINARY_DIR}/external/lib/libthrift.so
     )
 endfunction()

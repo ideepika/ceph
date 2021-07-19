@@ -73,7 +73,8 @@ function(build_jaeger)
   else()
     set(make_cmd ${CMAKE_COMMAND} --build <BINARY_DIR> --target jaegertracing)
   endif()
-  set(install_cmd ${CMAKE_MAKE_PROGRAM} install)
+  set(install_cmd DESTDIR= ${CMAKE_MAKE_PROGRAM} install)
+  message(STATUS "install cmd ${install_cmd}")
 
   include(ExternalProject)
   ExternalProject_Add(jaegertracing
