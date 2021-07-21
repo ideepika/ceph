@@ -40,9 +40,9 @@ def _shell(ctx, cluster_name, remote, args, extra_cephadm_args=[], **kwargs):
             '-c', '/etc/ceph/{}.conf'.format(cluster_name),
             '-k', '/etc/ceph/{}.client.admin.keyring'.format(cluster_name),
             '--fsid', ctx.ceph[cluster_name].fsid,
-            ] + extra_cephadm_args + [
+        ] + extra_cephadm_args + [
             '--',
-            ] + args,
+        ] + args,
         **kwargs
     )
 
@@ -874,7 +874,6 @@ def ceph_rgw(ctx, config):
 
     yield
 
-
 @contextlib.contextmanager
 def ceph_iscsi(ctx, config):
     """
@@ -885,16 +884,19 @@ def ceph_iscsi(ctx, config):
 
     nodes = []
     daemons = {}
+    trusted_ip_list = []
+
     for remote, roles in ctx.cluster.remotes.items():
         for role in [r for r in roles
-                    if teuthology.is_type('iscsi', cluster_name)(r)]:
+                     if teuthology.is_type('iscsi', cluster_name)(r)]:
             c_, _, id_ = teuthology.split_role(role)
+            trusted_ip_list.append(remote.ip_address)
             log.info('Adding %s on %s' % (role, remote.shortname))
             nodes.append(remote.shortname + '=' + id_)
             daemons[role] = (remote, id_)
     if nodes:
-        poolname = 'iscsi'
-        # ceph osd pool create iscsi 3 3 replicated
+        poolname = 'datapool'
+        # ceph osd pool create datapool 3 3 replicated
         _shell(ctx, cluster_name, remote, [
             'ceph', 'osd', 'pool', 'create',
             poolname, '3', '3', 'replicated']
@@ -905,12 +907,15 @@ def ceph_iscsi(ctx, config):
             poolname, 'rbd']
         )
 
-        # ceph orch apply iscsi iscsi user password
+        # ceph orch apply iscsi datapool user password
+        ips = ','.join(trusted_ip_list)
         _shell(ctx, cluster_name, remote, [
             'ceph', 'orch', 'apply', 'iscsi',
             poolname, 'user', 'password',
+            '--trusted_ip_list', ips,
             '--placement', str(len(nodes)) + ';' + ';'.join(nodes)]
         )
+
     for role, i in daemons.items():
         remote, id_ = i
         ctx.daemons.register_daemon(
