@@ -8,3 +8,9 @@ overrides:
         osd debug verify cached snaps: true
       mon:
         mon scrub interval: 300
+tasks:
+- install:
+    ceph:
+      flavor: jaeger
+- ceph:
+    flavor: jaeger
