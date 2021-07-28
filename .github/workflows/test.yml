@@ -1,0 +1,35 @@
+---
+name: "Create Backport"
+# only trigger on pull request closed events
+on:
+  pull_request:
+    types: [ closed ]
+jobs:
+  merge_job:
+    # this job will only run if the PR has been merged
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: "Running ceph-backport.sh"
+        if: "contains(github.event.head_commit.message, 'tracker.ceph')"
+        env:
+          #FIX: org change
+          redmine_user_id: dupadhya
+          redmine_key: "${{ secrets.REDMINE_KEY }}"
+          github_user: ideepika
+          github_token: "${{ secrets.GITHUB_TOKEN }}"
+          fork_remote: https://github.com/ideepika/ceph.git
+        run: |
+          echo PR #${{ github.event.number }} has been merged
+          tracker_id = grep "tracker.ceph" ${{ github.event.head_commit.message }} \
+          | cut -d/ -f5 | rev
+          echo "tracker id $tracker_id"
+          ./src/scripts/ceph-backport.sh $tracker_id
+
+  close_job:
+    # this job will only run if the PR has been closed without being merged
+    if: github.event.pull_request.merged == false
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo PR #${{ github.event.number }} has been closed without being merged
