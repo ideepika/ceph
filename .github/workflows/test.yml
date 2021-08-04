@@ -1,16 +1,13 @@
 ---
-name: CI
-on: push
-
-#name: "Create Backport"
-## only trigger on pull request closed events
-#on:
-#  pull_request:
-#    types: [ closed ]
+name: "Create Backport"
+# only trigger on pull request closed events
+on:
+  pull_request:
+    types: [ closed ]
 jobs:
   merge_job:
     # this job will only run if the PR has been merged
-    #if: github.event.pull_request.merged == true
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
       - name: "Running ceph-backport.sh"
@@ -25,6 +22,7 @@ jobs:
         run: |
           echo PR #${{ github.event.number }} has been merged
           tracker_id = grep "tracker.ceph" ${{ github.event.head_commit.message }} \
+          echo tracker id is: $tracker_id
           | cut -d/ -f5 | rev
           echo "tracker id $tracker_id"
           ./src/scripts/ceph-backport.sh $tracker_id
