@@ -21,9 +21,9 @@ jobs:
           fork_remote: https://github.com/ideepika/ceph.git
         run: |
           echo PR #${{ github.event.number }} has been merged
-          tracker_id = grep "tracker.ceph" ${{ github.event.head_commit.message }} \
-          echo tracker id is: $tracker_id
-          | cut -d/ -f5 | rev
+          tracker_url =$(grep "tracker.ceph" ${{ github.event.head_commit.message }})
+          echo "tracker id $tracker_url"
+          tracker_id=$($tracker_url | cut -d/ -f5 | rev)
           echo "tracker id $tracker_id"
           ./src/scripts/ceph-backport.sh $tracker_id
 
