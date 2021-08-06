@@ -14,7 +14,6 @@ jobs:
           echo PR #${{ github.event.number }} has been merged
       - name: set tracker to PR id
         if: "contains(github.event.head_commit.message, 'tracker.ceph')"
-          echo "success"
         env:
           #FIX: org change
           redmine_user_id: dupadhya
@@ -22,11 +21,8 @@ jobs:
           github_user: ideepika
           github_token: "${{ secrets.GITHUB_TOKEN }}"
           fork_remote: https://github.com/ideepika/ceph.git
-          tracker_url =$(grep "tracker.ceph" ${{ github.event.head_commit.message }})
-          echo "tracker id $tracker_url"
-          tracker_id=$($tracker_url | cut -d/ -f5 | rev)
-          echo "tracker id $tracker_id"
-          ./src/scripts/ceph-backport.sh $tracker_id
+        run: |
+          echo ${{ github.event.head_commit.message }}
 
   close_job:
     # this job will only run if the PR has been closed without being merged
