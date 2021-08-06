@@ -1,4 +1,5 @@
 ---
+# githubaction docs: https://json.schemastore.org/github-workflow.json
 name: "Create Backport"
 # only trigger on pull request closed events
 on:
@@ -22,11 +23,12 @@ jobs:
           github_token: "${{ secrets.GITHUB_TOKEN }}"
           fork_remote: https://github.com/ideepika/ceph.git
         run: |
+          echo "head_commit"
           echo ${{ github.event.head_commit.message }}
 
   close_job:
     # this job will only run if the PR has been closed without being merged
-    #if: github.event.pull_request.merged == false
+    if: github.event.pull_request.merged == false
     runs-on: ubuntu-latest
     steps:
       - run: |
