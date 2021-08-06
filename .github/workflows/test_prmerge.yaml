@@ -20,4 +20,6 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - run: |
-        echo PR #${{ github.event.number }} has been closed without being merged
+        - run: |
+          echo PR #${{ github.event.number }} has been merged
+       echo PR #${{ github.event.number }} has been closed without being merged
