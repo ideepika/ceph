@@ -13,6 +13,7 @@ jobs:
     steps:
       - run: |
           echo PR #${{ github.event.number }} has been merged
+          echo ${{ github.event.head_commit.message }}
       - name: set tracker to PR id
         if: "contains(github.event.head_commit.message, 'tracker.ceph')"
         env:
