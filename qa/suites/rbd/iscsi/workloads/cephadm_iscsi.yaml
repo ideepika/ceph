@@ -1,0 +1,30 @@
+tasks:
+- workunit:
+    parallel: False
+    clients:
+      client.0:
+      - rbd/iscsi_container_test.sh gateway_create.sh
+- workunit:
+    parallel: False
+    clients:
+      client.1:
+      - rbd/iscsi_initiator_cfg.sh
+- cram:
+    parallel: False
+    clients:
+      client.1:
+      - src/test/cli-integration/rbd/iscsi_client.t
+- workunit:
+    parallel: False
+    clients:
+      client.0:
+      - rbd/iscsi_container_test.sh gateway_delete.sh
+- cram:
+    parallel: False
+    clients:
+      client.0:
+      - src/test/cli-integration/rbd/rest_api_create.t
+      client.1:
+      - src/test/cli-integration/rbd/iscsi_client.t
+      client.1:
+      - src/test/cli-integration/rbd/rest_api_delete.t
