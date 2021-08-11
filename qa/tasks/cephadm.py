@@ -19,6 +19,7 @@ from teuthology import contextutil
 from teuthology.orchestra import run
 from teuthology.orchestra.daemon import DaemonGroup
 from teuthology.config import config as teuth_config
+from textwrap import dedent
 
 # these items we use from ceph.py should probably eventually move elsewhere
 from tasks.ceph import get_mons, healthy
@@ -66,6 +67,29 @@ def build_initial_config(ctx, config):
 
     return conf
 
+
+def _get_trusted_ip_list(ctx, cluster_name):
+
+    trusted_ip_list = []
+    for remote, roles in ctx.cluster.remotes.items():
+        for role in [r for r in roles
+                     if teuthology.is_type('iscsi', cluster_name)(r)]:
+            trusted_ip_list.append(remote.ip_address)
+
+    ips = ','.join(trusted_ip_list)
+    return ips
+
+
+def distribute_iscsi_gateway_cfg(ctx, conf_data):
+    """
+    Distribute common gateway config to get the IPs
+    """
+    log.info('Distributing iscsi-gateway.cfg...')
+    for remote, roles in ctx.cluster.remotes.items():
+        remote.write_file(
+            path='/etc/ceph/iscsi-gateway.cfg',
+            data=conf_data,
+            sudo=True)
 
 def update_archive_setting(ctx, key, value):
     """
@@ -885,32 +909,48 @@ def ceph_iscsi(ctx, config):
 
     nodes = []
     daemons = {}
+    ips = _get_trusted_ip_list(ctx, cluster_name)
+
     for remote, roles in ctx.cluster.remotes.items():
         for role in [r for r in roles
-                    if teuthology.is_type('iscsi', cluster_name)(r)]:
+                     if teuthology.is_type('iscsi', cluster_name)(r)]:
             c_, _, id_ = teuthology.split_role(role)
             log.info('Adding %s on %s' % (role, remote.shortname))
             nodes.append(remote.shortname + '=' + id_)
             daemons[role] = (remote, id_)
     if nodes:
-        poolname = 'iscsi'
-        # ceph osd pool create iscsi 3 3 replicated
+        poolname = 'datapool'
+        # ceph osd pool create datapool 3 3 replicated
         _shell(ctx, cluster_name, remote, [
             'ceph', 'osd', 'pool', 'create',
             poolname, '3', '3', 'replicated']
         )
 
+        # ceph osd pool iscsi application enable datapool rbd
         _shell(ctx, cluster_name, remote, [
             'ceph', 'osd', 'pool', 'application', 'enable',
             poolname, 'rbd']
         )
 
-        # ceph orch apply iscsi iscsi user password
+        # ceph orch apply iscsi datapool (admin)user (admin)password
         _shell(ctx, cluster_name, remote, [
             'ceph', 'orch', 'apply', 'iscsi',
-            poolname, 'user', 'password',
+            poolname, 'admin', 'admin',
+            '--trusted_ip_list', ips,
             '--placement', str(len(nodes)) + ';' + ';'.join(nodes)]
         )
+
+    conf_data = dedent("""
+        [config]
+        cluster_name = {}
+        pool = datapool
+        api_secure = false
+        api_port = 5000
+        trusted_ip_list = {}
+        """.format(cluster_name, ips))
+
+    distribute_iscsi_gateway_cfg(ctx, conf_data)
+
     for role, i in daemons.items():
         remote, id_ = i
         ctx.daemons.register_daemon(
