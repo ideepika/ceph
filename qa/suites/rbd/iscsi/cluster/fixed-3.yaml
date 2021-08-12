@@ -1,10 +1,12 @@
 roles:
-- - host.a
+- - mon.a
+  - mgr.y
   - osd.0
   - osd.1
-  - osd.2
   - client.0
   - ceph.iscsi.iscsi.a
-- - host.b
+- - mon.b
+  - mgr.x
+  - osd.2
   - osd.3
-  - osd.4
+  - client.1
