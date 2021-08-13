@@ -10,5 +10,9 @@ roles:
   - mon.b
   - mgr.x
   - osd.2
-  - osd.3
   - client.1
+- - mon.c
+  - mgr.z
+  - osd.3
+  - osd.4
+  - ceph.iscsi.iscsi.b
