@@ -1,11 +1,14 @@
 use_shaman: True
 tasks:
+- cephadm:
+- cephadm.shell:
+    host.a:
+    - ceph orch status
+    - ceph orch ps
+    - ceph orch ls
+    - ceph orch host ls
+    - ceph orch device ls
 - install:
     extra_packages:
       - iscsi-initiator-utils
       - device-mapper-multipath
-- cephadm:
-    conf:
-      mgr:
-        debug mgr: 20
-        debug ms: 1

@@ -17,13 +17,13 @@ sudo mpathconf --enable
 
 echo "devices {
         device {
-                vendor                 "LIO-ORG"
-                product                "LIO-ORG"
-                hardware_handler       "1 alua"
-                path_grouping_policy   "failover"
-                path_selector          "queue-length 0"
+                vendor                 \"LIO-ORG\"
+                product                \"TCMU device\"
+                hardware_handler       \"1 alua\"
+                path_grouping_policy   \"failover\"
+                path_selector          \"queue-length 0\"
                 failback               60
-                path_checker           tur
+                path_checker           turuesive_pref_bit
                 prio                   alua
                 prio_args              exclusive_pref_bit
                 fast_io_fail_tmo       25

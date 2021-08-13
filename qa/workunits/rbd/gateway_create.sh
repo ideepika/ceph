@@ -60,6 +60,20 @@ echo "Create a host"
     check=$(sudo gwcli ls iscsi-targets/ | grep 'o- iqn.1994-05.com.redhat:client' | awk -F'[' '{print $2}')
     test "$check" == "Auth: None, Disks: 0(0.00Y)]" || return 1
 
+echo "Create the second gateway"
+  IP=`cat /etc/ceph/iscsi-gateway.cfg |grep 'trusted_ip_list' | awk -F'[, ]' '{print $3}'`
+  if [ "$IP" != `hostname -i | awk '{print $1}'` ]; then
+    HOST=`python3 -c "import socket; print(socket.getfqdn('$IP'))"`
+    sudo gwcli iscsi-targets/iqn.2003-01.com.redhat.iscsi-gw:ceph-gw/gateways create ip_addresses=$IP gateway_name=$HOST
+  
+  IP=`cat /etc/ceph/iscsi-gateway.cfg |grep 'trusted_ip_list' | awk -F'[, ]' '{print $4}'`
+  if [ "$IP" != `hostname -i | awk '{print $1}'` ]; then
+    HOST=`python3 -c "import socket; print(socket.getfqdn('$IP'))"`
+    sudo gwcli iscsi-targets/iqn.2003-01.com.redhat.iscsi-gw:ceph-gw/gateways create ip_addresses=$IP gateway_name=$HOST
+  fi
+  check=$(sudo gwcli ls iscsi-targets/ | grep 'o- gateways' | awk -F'[' '{print $2}')
+  test "$check" == "Up: 2/2, Portals: 2]" || return 1
+
 echo "Map the LUN"
     sudo gwcli iscsi-targets/iqn.2003-01.com.redhat.iscsi-gw:ceph-gw/hosts/iqn.1994-05.com.redhat:client disk disk=datapool/block0
     check=$(sudo gwcli ls iscsi-targets/ | grep 'o- hosts' | awk -F'[' '{print $2}')
