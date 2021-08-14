@@ -29,7 +29,7 @@ echo "Create a datapool/block0 disk..."
     expect_val "datapool (300M)]" "$check"
 
     check=$(gwcli ls disks/ | grep 'o- block0' | awk -F'[' '{print $2}')
-    expect_val "datapool/block0 (Online, 300M)]" "$check"
+    expect_val "datapool/block0 (Unknown, 300M)]" "$check"
 
 echo "Create the target IQN..."
     expect_true gwcli iscsi-targets/ create target_iqn=iqn.2003-01.com.redhat.iscsi-gw:ceph-gw
@@ -67,7 +67,7 @@ echo "Create the second gateway"
     sudo gwcli iscsi-targets/iqn.2003-01.com.redhat.iscsi-gw:ceph-gw/gateways create ip_addresses=$IP gateway_name=$HOST
 
   IP=`cat /etc/ceph/iscsi-gateway.cfg |grep 'trusted_ip_list' | awk -F'[, ]' '{print $4}'`
-  if [ "$IP" != `hostname -i | awk '{print $1}'` ]; then
+  if [ "$IP" != "$(hostname -i | awk '{print $1}')" ]; then
     HOST=`python3 -c "import socket; print(socket.getfqdn('$IP'))"`
     sudo gwcli iscsi-targets/iqn.2003-01.com.redhat.iscsi-gw:ceph-gw/gateways create ip_addresses=$IP gateway_name=$HOST
   fi
@@ -93,5 +93,4 @@ echo "Map the LUN"
     check=$(sudo gwcli ls iscsi-targets/ | grep 'o- iqn.1994-05.com.redhat:client' | awk -F'[' '{print $2}')
     expect_val "Auth: None, Disks: 1(300M)]" "$check"
 
-echo "Success!"
-
+echo OK
