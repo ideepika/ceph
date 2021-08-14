@@ -60,15 +60,18 @@ echo "Create the first gateway"
     check=$(gwcli ls iscsi-targets/ | grep 'o- gateways' | awk -F'[' '{print $2}')
     expect_val "Up: 1/1, Portals: 1]" "$check"
 
+
 echo "Create the second gateway"
   IP=`cat /etc/ceph/iscsi-gateway.cfg |grep 'trusted_ip_list' | awk -F'[, ]' '{print $3}'`
-  if [ "$IP" != `hostname -i | awk '{print $1}'` ]; then
+  HOSTNAME=`hostname -i | awk '{print $1}'`
+  if [ "$IP" != "$HOSTNAME" ]; then
     HOST=`python3 -c "import socket; print(socket.getfqdn('$IP'))"`
     sudo gwcli iscsi-targets/iqn.2003-01.com.redhat.iscsi-gw:ceph-gw/gateways create ip_addresses=$IP gateway_name=$HOST
+  fi
 
-  IP=`cat /etc/ceph/iscsi-gateway.cfg |grep 'trusted_ip_list' | awk -F'[, ]' '{print $4}'`
+  IP=$(cat /etc/ceph/iscsi-gateway.cfg |grep 'trusted_ip_list' | awk -F'[, ]' '{print $4}')
   if [ "$IP" != "$(hostname -i | awk '{print $1}')" ]; then
-    HOST=`python3 -c "import socket; print(socket.getfqdn('$IP'))"`
+    HOST=$(python3 -c "import socket; print(socket.getfqdn('$IP'))")
     sudo gwcli iscsi-targets/iqn.2003-01.com.redhat.iscsi-gw:ceph-gw/gateways create ip_addresses=$IP gateway_name=$HOST
   fi
   check=$(sudo gwcli ls iscsi-targets/ | grep 'o- gateways' | awk -F'[' '{print $2}')

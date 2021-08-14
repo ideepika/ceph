@@ -43,3 +43,5 @@ echo "Delete the disks"
   expect_true gwcli disks/ delete image_id=datapool/block0
   check=$(gwcli ls disks/ | grep 'o- disks' | awk -F'[' '{print $2}')
   expect_val "0.00Y, Disks: 0]" "$check"
+
+echo OK
