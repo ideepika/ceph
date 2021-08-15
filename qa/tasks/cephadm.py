@@ -940,16 +940,20 @@ def ceph_iscsi(ctx, config):
             '--placement', str(len(nodes)) + ';' + ';'.join(nodes)]
         )
 
-    conf_data = dedent("""
-        [config]
-        cluster_name = {}
-        pool = datapool
-        api_secure = false
-        api_port = 5000
-        trusted_ip_list = {}
-        """.format(cluster_name, ips))
-
-    distribute_iscsi_gateway_cfg(ctx, conf_data)
+        conf_data = dedent("""
+            [config]
+            cluster_client_name = {}
+            pool = datapool
+            trusted_ip_list = {}
+            minimum_gateways = 1
+            api_port = ''
+            api_user = admin
+            api_password = admin
+            api_secure = False
+            log_to_stderr = True
+            log_to_stderr_prefix = debug
+            """.format(role, ips))
+        distribute_iscsi_gateway_cfg(ctx, conf_data)
 
     for role, i in daemons.items():
         remote, id_ = i
