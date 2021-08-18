@@ -9,7 +9,7 @@ Login to the target
 Make filesystem
 ===============
   $ device=`sudo multipath -l | grep 'LIO-ORG,TCMU device' | awk '{print $1}'`
-  > sudo mkfs.xfs /dev/mapper/$device -f | grep 'meta-data=/dev/mapper/' | awk '{print $2}'
+  > sudo mkfs.xfs /dev/mapper/$device -f | grep 'meta-data=/dev/mapper' | awk '{print $2}'
   isize=512
 
 Write/Read test

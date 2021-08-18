@@ -20,7 +20,7 @@ tasks:
       client.0:
       - rbd/iscsi_container_test.sh gateway_delete.sh
 - cram:
-    parallel: False
+    sequential:
     clients:
       client.0:
       - src/test/cli-integration/rbd/rest_api_create.t
