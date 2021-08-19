@@ -9,3 +9,4 @@ export ISCSI_CONTAINER=$(sudo podman ps -a | grep -F 'iscsi' | grep -Fv 'tcmu' |
 sudo podman cp $mydir/$test_script $ISCSI_CONTAINER:bin/$test_script
 
 sudo podman exec $ISCSI_CONTAINER $test_script
+
