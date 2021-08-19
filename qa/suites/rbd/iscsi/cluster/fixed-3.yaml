@@ -15,4 +15,5 @@ roles:
   - mgr.z
   - osd.3
   - osd.4
+  - client.2
   - ceph.iscsi.iscsi.b

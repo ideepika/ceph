@@ -17,14 +17,14 @@ tasks:
 - workunit:
     parallel: False
     clients:
-      client.0:
+      client.2:
       - rbd/iscsi_container_test.sh gateway_delete.sh
 - cram:
-    sequential:
+    parallel: False
     clients:
       client.0:
       - src/test/cli-integration/rbd/rest_api_create.t
       client.1:
       - src/test/cli-integration/rbd/iscsi_client.t
-      client.0:
+      client.2:
       - src/test/cli-integration/rbd/rest_api_delete.t
