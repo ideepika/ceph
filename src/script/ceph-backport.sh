@@ -140,7 +140,7 @@ function bail_out_github_api {
 function blindly_set_pr_metadata {
     local pr_number="$1"
     local json_blob="$2"
-    curl -u ${github_user}:${github_token} --silent --data-binary "$json_blob" "https://api.github.com/repos/ceph/ceph/issues/${pr_number}" >/dev/null 2>&1 || true
+    curl -u ${github_user}:${github_token} --silent -X --data-binary "$json_blob" "https://api.github.com/repos/ceph/ceph/issues/${pr_number}" >/dev/null 2>&1 || true
 }
 
 function check_milestones {
