@@ -17,6 +17,7 @@ env:
   github_token: "${{ secrets.GITHUB_TOKEN }}"
   fork_remote: https://github.com/ideepika/ceph.git
 jobs:
+  my_build:
     runs-on: ubuntu-latest
     steps:
       - name: Check Commit Message
