@@ -90,3 +90,9 @@ group for each path.
 
 You should now be able to use the RBD image like you would a normal
 multipath’d iSCSI disk.
+
+4. Logout the target:
+
+   ::
+
+      # iscsiadm -m node -T iqn.2003-01.org.linux-iscsi.rheln1 -p 192.168.56.101:3260 -u

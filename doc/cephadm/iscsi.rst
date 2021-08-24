@@ -67,3 +67,12 @@ The specification can then be applied using:
 
 
 See :ref:`orchestrator-cli-placement-spec` for details of the placement specification.
+
+Configuring iSCSI client
+========================
+
+The containerized iscsi service can be used from any host by `configuring the
+iSCSI initiator(clients)`_, which will use TCP/IP to send SCSI commad to
+target(gateway node).
+
+.. _configuring the iSCSI initiator(clients): ../rbd/iscsi-initiator-linux.rst
