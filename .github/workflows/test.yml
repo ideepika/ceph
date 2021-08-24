@@ -34,6 +34,6 @@ jobs:
         run: |
           MSG=$(git log --format=%B -n 1 ${{ github.event.after }})
           echo "::set-env name=COMMIT_MESSAGE::${MSG}"
-      - name: set tracker to PR id
-        if: "!contains(github.event.pull_request.commits, 'tracker.ceph')"
+          #      - name: set tracker to PR id
+          #        if: "!contains(github.event.pull_request.commits, 'tracker.ceph')
 
