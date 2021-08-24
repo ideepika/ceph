@@ -11,6 +11,8 @@ env:
   github_token: "${{ secrets.GITHUB_TOKEN }}"
   fork_remote: https://github.com/ideepika/ceph.git
 jobs:
+  merge_job:
+    if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
       - name: Check commit message
