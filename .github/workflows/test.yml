@@ -18,10 +18,11 @@ jobs:
       - name: Check commit message
         run: |
           echo PR #${{ github.event.number }} has been merged
+          echo ${{ toJSON(github.event.pull_request.commits) }}
           echo ${{ toJSON(github.event.commits[0].message) }}
           echo ${{ toJSON(github.event.head_commit.message) }}
+          echo ${{ toJSON(github.event.pull_request.head.sha) }}
           echo ${{ toJSON(github.event.commits.*.message) }}
-          # only handles one tracker issue in a PR
           tracker_id=$(${{ toJSON(github.event.commits.*.message) }} | grep "tracker.ceph" | cut -d"/" -f5)
           echo $tracker_id
           #      - name: Update issues with PR ID
