@@ -18,12 +18,15 @@ jobs:
       - name: Check commit message
         run: |
           echo PR #${{ github.event.number }} has been merged
-          echo ${{ toJSON(github.event.pull_request.commits) }}
-          echo ${{ toJSON(github.event.commits[0].message) }}
-          echo ${{ toJSON(github.event.head_commit.message) }}
           echo ${{ toJSON(github.event.pull_request.head.sha) }}
-          echo ${{ toJSON(github.event.commits.*.message) }}
-          tracker_id=$(${{ toJSON(github.event.commits.*.message) }} | grep "tracker.ceph" | cut -d"/" -f5)
+          echo ${{ toJSON(github.event.pull_request) }}
+          echo ::set-env name=commitmsg_temp::$(git log --format=%B -n 1 ${{ github.event.pull_request.head.sha }})
+          echo ::set-env name=commitmsg::$(git log --format=%B -n 1 ${{ github.event.after }})
+          echo "temp " $commitmsg_temp
+          echo "real " $commitmsg
+          tracker_id=$(echo $commitmsg_temp | grep "tracker.ceph" | cut -d"/" -f5)
+          echo $tracker_id
+          tracker_id=$(echo $commitmsg | grep "tracker.ceph" | cut -d"/" -f5)
           echo $tracker_id
           #      - name: Update issues with PR ID
           #        run: ./src/script/backport-create-issue () --force --resolve-parent
