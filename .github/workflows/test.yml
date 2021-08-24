@@ -28,15 +28,3 @@ jobs:
           echo $tracker_id
           tracker_id=$(echo $commitmsg | grep "tracker.ceph" | cut -d"/" -f5)
           echo $tracker_id
-          #      - name: Update issues with PR ID
-          #        run: ./src/script/backport-create-issue () --force --resolve-parent
-          #
-          #
-          #
-          #
-          #      - name: Update Tracker
-          #          #      - name: set tracker to PR id
-          #          #        if: "!contains(github.event.pull_request.commits, 'tracker.ceph')
-          #
-
-        #TODO
