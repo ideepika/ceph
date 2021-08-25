@@ -1,4 +1,3 @@
-Testing merge
 =======
 # Ceph - a scalable distributed storage system
 
