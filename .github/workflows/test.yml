@@ -24,7 +24,4 @@ jobs:
           echo ::set-env name=commitmsg::$(git log --format=%B -n 1 ${{ github.event.after }})
           echo "temp " $commitmsg_temp
           echo "real " $commitmsg
-          tracker_id=$(echo $commitmsg_temp | grep "tracker.ceph" | cut -d"/" -f5)
-          echo $tracker_id
-          tracker_id=$(echo $commitmsg | grep "tracker.ceph" | cut -d"/" -f5)
-          echo $tracker_id
+          echo ::set-output name=commit_message::$(git log --format=%B -n 1 HEAD^2)
