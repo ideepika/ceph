@@ -14,17 +14,14 @@ jobs:
     if: github.event.pull_request.merged == true
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout Project
+        uses: actions/checkout@v2
+        with:
+          # for pull_request so we can do HEAD^2
+          fetch-depth: 2
       - name: Check commit message
         run: |
           echo PR #${{ github.event.number }} has been merged
-          echo ::set-env name=commitmsg_temp::$(git log --format=%B -n 1 ${{ github.event.pull_request.head.sha }})
-          echo ::set-env name=commitmsg::$(git log --format=%B -n 1 ${{ github.event.after }})
-          echo "temp " $commitmsg_temp
-          echo "real " $commitmsg
-          echo ::set-output name=commit_message::$(git log --format=%B -n 1 HEAD^2)
-          echo "github.event.commits[0] " ${{ toJSON(github.event.commits[0]) }}
-          echo "github.event.head_commit.message " ${{ toJSON(github.event.head_commit.message) }}
-          echo "github.event.commits[0].message " ${{ toJSON(github.event.commits[0].message) }}
-          echo "github.event.head_commit.message " ${{ toJSON(github.event.head_commit.message) }}
           echo ${{ toJSON(github.event.pull_request.head.sha) }}
-          echo ${{ toJSON(github.event.pull_request) }}
+          echo $(git log --format=%B -n 1 HEAD^2)
+
