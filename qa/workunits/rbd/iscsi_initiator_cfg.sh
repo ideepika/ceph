@@ -28,6 +28,7 @@ echo "devices {
                 prio_args              exclusive_pref_bit
                 fast_io_fail_tmo       25
                 no_path_retry          queue
+		user_friendly_names    yes
         }
 }" | sudo tee /etc/multipath.conf
 
