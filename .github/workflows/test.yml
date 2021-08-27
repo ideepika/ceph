@@ -20,9 +20,17 @@ jobs:
           # for pull_request so we can do HEAD^2
           fetch-depth: 2
       - name: Check commit message
+      # cache dependencies
+      - uses: actions/cache@v2
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/src/script/requirements.txt') }}
+          restore-keys: |
+           ${{ runner.os }}-pip-
         run: |
           echo PR #${{ github.event.number }} has been merged
-          echo ${{ toJSON(github.event.pull_request.head.sha) }}
-          echo git show ${{ toJSON(github.event.pull_request.head.sha) }}
-          echo $(git log --format=%B -n 1 HEAD^2)
+          commit_msg=$(git log --format=%B -n 1 HEAD^2)
+          tracker_id=$(echo $commit_msg | grep "tracker.ceph" | cut -d"/" -f5)
+          python ./src/script/backport-create-issue "$tracker_id:${{ github.event.number }}"
+
 
