@@ -68,7 +68,7 @@ def usage():
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
-    parser.add_argument("issue_numbers", nargs='*', help="Issue number")
+    parser.add_argument("issue_numbers", nargs='*', help="Issue number in format issue_id or issue_id:original_pr")
     parser.add_argument("--user", help="Redmine user")
     parser.add_argument("--password", help="Redmine password")
     parser.add_argument("--resolve-parent", help="Resolve parent issue if all backports resolved/rejected",
@@ -317,6 +317,17 @@ if __name__ == '__main__':
     populate_tracker_dict(redmine)
     force_create = False
     if args.issue_numbers:
+        for i, issue in enumerate(args.issue_numbers):
+            logging.debug("issue_test: {} {}".format(issue, i))
+            if ":" in issue:
+                issue_id, pr_id = issue.split(":")
+                logging.debug(issue_id, pr_id)
+                # magic number for pull request id custom field(21)
+                out = redmine.issue.update(int(issue_id),
+                        status_id=pending_backport_status_id,
+                        custom_fields=[{'id': 21, 'value': int(pr_id)},],)
+                args.issue_numbers[i] = issue_id
+
         issue_list = ','.join(args.issue_numbers)
         logging.info("Processing issue list ->{}<-".format(issue_list))
         if args.force:
