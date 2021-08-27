@@ -19,7 +19,7 @@ jobs:
         with:
           # for pull_request so we can do HEAD^2
           fetch-depth: 2
-      - name: Check commit message
+      - name: Cache dependencies
       # cache dependencies
         uses: actions/cache@v2
         with:
@@ -27,6 +27,7 @@ jobs:
           key: ${{ runner.os }}-pip-${{ hashFiles('**/src/script/requirements.txt') }}
           restore-keys: |
            ${{ runner.os }}-pip-
+      - name: Check commit message
         run: |
           echo PR #${{ github.event.number }} has been merged
           commit_msg=$(git log --format=%B -n 1 HEAD^2)
