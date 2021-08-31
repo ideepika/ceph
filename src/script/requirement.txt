@@ -1,1 +1,1 @@
-redminelib=0.4.0
+python_redmine==2.2.1
