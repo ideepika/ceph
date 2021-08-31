@@ -7,8 +7,8 @@ env:
   #FIX: org change
   redmine_user_id: dupadhya
   redmine_key: "${{ secrets.REDMINE_KEY }}"
-  redmine_passwd: "{{ secrets.REDMINE_PASSWD }}"
-  github_token: "{{ secrets.TOKEN }}"
+  redmine_passwd: "${{ secrets.REDMINE_PASSWD }}"
+  github_token: "${{ secrets.TOKEN }}"
   github_user: dexter816
   fork_remote: https://github.com/dexter816/ceph.git
 jobs:
