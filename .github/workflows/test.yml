@@ -37,10 +37,11 @@ jobs:
           commit_msg=$(git log --format=%B -n 1 HEAD^2)
           tracker_id=$(echo $commit_msg | grep "tracker.ceph" | cut -d"/" -f5)
           echo $tracker_id
-          if [[ -z $tracker_id ]]; then
+          if [[ -n $tracker_id ]]; then
             # fixme: make it secure
             python ./src/script/backport-create-issue $tracker_id:${{ github.event.number }} --user $redmine_user_id --password $redmine_passwd
           fi
+
 
 
 
