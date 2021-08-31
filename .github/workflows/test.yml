@@ -7,8 +7,10 @@ env:
   #FIX: org change
   redmine_user_id: dupadhya
   redmine_key: "${{ secrets.REDMINE_KEY }}"
-  github_user: ideepika
-  fork_remote: https://github.com/ideepika/ceph.git
+  redmine_passwd: "{{ secrets.REDMINE_PASSWD }}"
+  github_token: "{{ secrets.TOKEN }}"
+  github_user: dexter816
+  fork_remote: https://github.com/dexter816/ceph.git
 jobs:
   merge_job:
     if: github.event.pull_request.merged == true
@@ -30,9 +32,15 @@ jobs:
       - name: Check commit message
         run: |
           echo PR #${{ github.event.number }} has been merged
+          # FIXME: cache dependencies
           pip3 install python_redmine
           commit_msg=$(git log --format=%B -n 1 HEAD^2)
           tracker_id=$(echo $commit_msg | grep "tracker.ceph" | cut -d"/" -f5)
-          python ./src/script/backport-create-issue $tracker_id:${{ github.event.number }}
+          echo $tracker_id
+          if [[ -z $tracker_id ]]; then
+            # fixme: make it secure
+            python ./src/script/backport-create-issue $tracker_id:${{ github.event.number }} --user $redmine_user_id --password $redmine_passwd
+          fi
+
 
 
