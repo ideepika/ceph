@@ -23,9 +23,9 @@ jobs:
           fetch-depth: 2
       - name: Cache dependencies
       # cache dependencies
-        uses: actions/cache@v2
-        with:
-          path: ~/.cache/pip
+      #        uses: actions/cache@v2
+      #  with:
+      #   path: ~/.cache/pip
         run: |
           pip3 install python_redmine
       - name: Run backport-create-issue script
