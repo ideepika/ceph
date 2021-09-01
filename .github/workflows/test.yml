@@ -23,9 +23,7 @@ jobs:
       - name: Run backport-create-issue script
         env:
           #FIX: org change
-          redmine_user_id: dupadhya
           redmine_key: ${{ secrets.REDMINE_KEY }}
-          redmine_passwd: ${{ secrets.REDMINE_PASSWD }}
           github_token: ${{ secrets.TOKEN }}
           github_user: dexter816
           fork_remote: https://github.com/dexter816/ceph.git
@@ -35,7 +33,7 @@ jobs:
           tracker_id=$(echo "$commit_msg" | grep "tracker.ceph" | cut -d"/" -f5)
           echo $tracker_id
           if [[ -n $tracker_id ]]; then
-            res=$(python ./src/script/backport-create-issue "$tracker_id:${{ github.event.number }}" --user env.redmine_user_id --password env.redmine_passwd)
+            res=$(python ./src/script/backport-create-issue "$tracker_id:${{ github.event.number }}" --redmine-key env.redmine_key
           fi
           backport_log=$(echo "$res" | grep -q "backport_tracker_ids:")
           if "$backport_log" ; then

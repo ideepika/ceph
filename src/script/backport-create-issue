@@ -60,7 +60,11 @@ resolve_parent = None
 
 def usage():
     logging.error("Redmine credentials are required to perform this operation. "
+<<<<<<< HEAD
                   "Please provide either a Redmine key (via %s) or as --redmine-key "
+=======
+                  "Please provide either a Redmine key (via %s) or as --redmine-key"
+>>>>>>> 7452b2f1e5e... https://tracker.ceph.com/issues/52486
                   "or a Redmine username and password (via --user and --password). "
                   "Optionally, one or more issue numbers can be given via positional "
                   "argument(s). In the absence of positional arguments, the script "
@@ -70,6 +74,7 @@ def usage():
 def parse_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument("issue_numbers", nargs='*', help="Issue number in format issue_id or issue_id:original_pr")
+    parser.add_argument("--redmine-key", help="Redmine API key")
     parser.add_argument("--user", help="Redmine user")
     parser.add_argument("--password", help="Redmine password")
     parser.add_argument("--resolve-parent", help="Resolve parent issue if all backports resolved/rejected",
