@@ -545,8 +545,8 @@ function init_fork_remote {
 function init_github_token {
     github_token="$(from_file github_token)"
     if [ "$GITHUB_TOKEN" ] ; then
-        github_token="$GITHUB_TOKEN"
-        true
+       github_token="$GITHUB_TOKEN"
+	true
     elif [ "$github_token" ] ; then
         true
     else
@@ -558,8 +558,8 @@ function init_github_token {
 function init_redmine_key {
     redmine_key="$(from_file redmine_key)"
     if [ "$REDMINE_KEY" ] ; then
-        redmine_key="$REDMINE_KEY"
-        true
+      redmine_key="$REDMINE_KEY"
+	true
     elif [ "$redmine_key" ] ; then
         true
     else

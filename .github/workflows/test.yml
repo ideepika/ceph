@@ -26,22 +26,25 @@ jobs:
         uses: actions/cache@v2
         with:
           path: ~/.cache/pip
-          key: ${{ runner.os }}-pip-${{ hashFiles('**/src/script/requirements.txt') }}
-          restore-keys: |
-           ${{ runner.os }}-pip-
-      - name: Check commit message
+        run: |
+          pip3 install python_redmine
+      - name: Run backport-create-issue script
         run: |
           echo PR #${{ github.event.number }} has been merged
-          # FIXME: cache dependencies
-          pip3 install python_redmine
           commit_msg=$(git log --format=%B -n 1 HEAD^2)
           tracker_id=$(echo $commit_msg | grep "tracker.ceph" | cut -d"/" -f5)
           echo $tracker_id
           if [[ -n $tracker_id ]]; then
-            # fixme: make it secure
-            python ./src/script/backport-create-issue $tracker_id:${{ github.event.number }} --user $redmine_user_id --password $redmine_passwd
+            res=$(python ./src/script/backport-create-issue $tracker_id:${{ github.event.number }} --user $redmine_user_id --password $redmine_passwd) --debug
           fi
-
-
-
+      - name: Run ceph-backport script
+        run: |
+          backport_log=$(echo $res | grep -q "backport_tracker_ids:")
+          if $backport_log ; then
+            backport_tracker_ids=$(echo $backport_log | grep "backport_tracker_ids:" | awk '{split($0,a,":"); print a[2];}')
+            for i in $(echo $backport_tracker_ids | sed "s/,/ /g")
+            do
+               echo "running backports cherrypicking for tracker $i"
+               ./src/script/ceph-backport.sh $i --redmine-key $redmine_key --github-user $github_user --github-token $github_token --debug
+            done
 
