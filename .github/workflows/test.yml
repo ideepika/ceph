@@ -35,7 +35,7 @@ jobs:
           tracker_id=$(echo $commit_msg | grep "tracker.ceph" | cut -d"/" -f5)
           echo $tracker_id
           if [[ -n $tracker_id ]]; then
-            res=$(python ./src/script/backport-create-issue $tracker_id:${{ github.event.number }} --user $redmine_user_id --password $redmine_passwd) --debug
+            res=$(python ./src/script/backport-create-issue $tracker_id:${{ github.event.number }} --user $redmine_user_id --password $redmine_passwd)
           fi
       - name: Run ceph-backport script
         run: |
