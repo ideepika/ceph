@@ -60,11 +60,7 @@ resolve_parent = None
 
 def usage():
     logging.error("Redmine credentials are required to perform this operation. "
-<<<<<<< HEAD
-                  "Please provide either a Redmine key (via %s) or as --redmine-key "
-=======
                   "Please provide either a Redmine key (via %s) or as --redmine-key"
->>>>>>> 7452b2f1e5e... https://tracker.ceph.com/issues/52486
                   "or a Redmine username and password (via --user and --password). "
                   "Optionally, one or more issue numbers can be given via positional "
                   "argument(s). In the absence of positional arguments, the script "
