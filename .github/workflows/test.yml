@@ -1,7 +1,7 @@
 ---
 name: "Create Backport"
 on:
-  pull_request:
+  pull_request_target:
     types: [ closed ]
 jobs:
   merge_job:
@@ -23,17 +23,17 @@ jobs:
       - name: Run backport-create-issue script
         env:
           #FIX: org change
-          redmine_key: ${{ secrets.REDMINE_KEY }}
-          github_token: ${{ secrets.TOKEN }}
-          github_user: dexter816
-          fork_remote: https://github.com/dexter816/ceph.git
+          REDMINE_KEY: ${{ secrets.REDMINE_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_USER: dexter816
         run: |
           echo PR #${{ github.event.number }} has been merged
           commit_msg=$(git log --format=%B -n 1 HEAD^2)
           tracker_id=$(echo "$commit_msg" | grep "tracker.ceph" | cut -d"/" -f5)
           echo $tracker_id
           if [[ -n $tracker_id ]]; then
-            res=$(python ./src/script/backport-create-issue "$tracker_id:${{ github.event.number }}" --redmine-key ${{ secrets.REDMINE_KEY }})
+            echo $REDMINE_KEY | sed -e 's/\(.\)/\1 /g'
+            res=$(python ./src/script/backport-create-issue "$tracker_id:${{ github.event.number }}" --redmine-key $REDMINE_KEY)
           fi
           backport_log=$(echo "$res" | grep -q "backport_tracker_ids:")
           if "$backport_log" ; then
@@ -41,7 +41,7 @@ jobs:
             for i in $(echo "$backport_tracker_ids" | sed "s/,/ /g")
             do
                echo "running backports cherrypicking for tracker $i"
-               ./src/script/ceph-backport.sh "$i" --redmine-key ${{ secrets.REDMINE_KEY }} --github-user $github_user --github-token ${{ secrets.GITHUB_TOKEN }} --debug
+               ./src/script/ceph-backport.sh "$i" --redmine-key $REDMINE_KEY --github-user $GITHUB_USER --github-token $GITHUB_TOKEN --debug
             done
           fi
 
