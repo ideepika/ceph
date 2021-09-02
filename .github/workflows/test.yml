@@ -21,6 +21,7 @@ jobs:
         run: |
           pip3 install python_redmine
       - name: Run backport-create-issue script
+        continue-on-error: true
         env:
           #FIX: org change
           REDMINE_KEY: ${{ secrets.REDMINE_KEY }}
