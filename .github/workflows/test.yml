@@ -33,8 +33,6 @@ jobs:
           tracker_id=$(echo "$commit_msg" | grep "tracker.ceph" | cut -d"/" -f5)
           echo $tracker_id
           if [[ -n $tracker_id ]]; then
-            echo "redmine key "
-            echo env.redmine_key
             res=$(python ./src/script/backport-create-issue "$tracker_id:${{ github.event.number }}" --redmine-key ${{ secrets.REDMINE_KEY }})
           fi
           backport_log=$(echo "$res" | grep -q "backport_tracker_ids:")
@@ -43,7 +41,7 @@ jobs:
             for i in $(echo "$backport_tracker_ids" | sed "s/,/ /g")
             do
                echo "running backports cherrypicking for tracker $i"
-               ./src/script/ceph-backport.sh "$i" --redmine-key env.redmine_key --github-user $github_user --github-token ${{ secrets.GITHUB_TOKEN }} --debug
+               ./src/script/ceph-backport.sh "$i" --redmine-key ${{ secrets.REDMINE_KEY }} --github-user $github_user --github-token ${{ secrets.GITHUB_TOKEN }} --debug
             done
           fi
 
