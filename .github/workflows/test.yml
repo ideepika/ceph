@@ -11,8 +11,8 @@ jobs:
       - name: Checkout Project
         uses: actions/checkout@v2
         with:
-          # for pull_request so we can do HEAD^2
-          fetch-depth: 2
+          # Checkout pull request HEAD commit instead of merge commit
+          ref: ${{ github.event.pull_request.head.sha }}
       - name: Cache dependencies
       # cache dependencies
       #        uses: actions/cache@v2
