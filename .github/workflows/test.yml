@@ -28,8 +28,8 @@ jobs:
           GITHUB_USER: dexter816
         run: |
           echo PR #${{ github.event.number }} has been merged
-          echo ${{ github.event.head_commit.message }}
-          commit_msg=${{ github.event.head_commit.message }}
+          commit_msg=$(git log -n 1 ${{ github.event.pull_request.head.sha }})
+          echo $commit_msg
           tracker_id=$(echo "$commit_msg" | grep "tracker.ceph" | cut -d"/" -f5)
           echo $tracker_id
           if [[ -n $tracker_id ]]; then
