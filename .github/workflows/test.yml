@@ -29,7 +29,6 @@ jobs:
         run: |
           echo PR #${{ github.event.number }} has been merged
           echo ${{ github.event.head_commit.message }}
-          git show ${{ github.event.pull_request.head.sha }}
           commit_msg=${{ github.event.head_commit.message }}
           tracker_id=$(echo "$commit_msg" | grep "tracker.ceph" | cut -d"/" -f5)
           echo $tracker_id
