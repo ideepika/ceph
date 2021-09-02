@@ -328,7 +328,6 @@ if __name__ == '__main__':
             logging.debug("issue_test: {} {}".format(issue, i))
             if ":" in issue:
                 issue_id, pr_id = issue.split(":")
-                logging.debug(issue_id, pr_id)
                 # magic number for pull request id custom field(21)
                 out = redmine.issue.update(int(issue_id),
                         status_id=pending_backport_status_id,
