@@ -26,9 +26,9 @@ jobs:
           REDMINE_KEY: ${{ secrets.REDMINE_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_USER: dexter816
-          commit_msg: ${{ github.event.pull_request.head.sha }}
         run: |
           echo PR #${{ github.event.number }} has been merged
+          commit_msg=$(git show ${{ github.event.pull_request.head.sha }})
           tracker_id=$(echo "$commit_msg" | grep "tracker.ceph" | cut -d"/" -f5)
           echo $tracker_id
           if [[ -n $tracker_id ]]; then
