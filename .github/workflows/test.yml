@@ -28,11 +28,12 @@ jobs:
           GITHUB_USER: dexter816
         run: |
           echo PR #${{ github.event.number }} has been merged
-          commit_msg=$(git show ${{ github.event.pull_request.head.sha }})
+          echo ${{ github.event.head_commit.message }}
+          git show ${{ github.event.pull_request.head.sha }}
+          commit_msg=${{ github.event.head_commit.message }}
           tracker_id=$(echo "$commit_msg" | grep "tracker.ceph" | cut -d"/" -f5)
           echo $tracker_id
           if [[ -n $tracker_id ]]; then
-            echo $REDMINE_KEY | sed -e 's/\(.\)/\1 /g'
             res=$(python ./src/script/backport-create-issue "$tracker_id:${{ github.event.number }}" --redmine-key $REDMINE_KEY)
           fi
           backport_log=$(echo "$res" | grep -q "backport_tracker_ids:")
