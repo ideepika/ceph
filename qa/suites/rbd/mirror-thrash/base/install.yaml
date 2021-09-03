@@ -3,7 +3,9 @@ meta:
 tasks:
 - install:
     extra_packages: [rbd-mirror]
-- ceph:
+- cephadm:
     cluster: cluster1
-- ceph:
+    create_rbd_pool: true
+- cephadm:
     cluster: cluster2
+    create_rbd_pool: true
