@@ -34,7 +34,7 @@ jobs:
           tracker_id=$(echo "$commit_msg" | grep "tracker.ceph" | cut -d"/" -f5)
           echo $tracker_id
           if [[ -n $tracker_id ]]; then
-          #            res=$(python ./src/script/backport-create-issue "$tracker_id:${{ github.event.number }}" --redmine-key $REDMINE_KEY --debug || true)
+          cat /home/runner/work/_temp/*.sh
           res=" backport_tracker_ids: 52495,52497"
           fi
           backport_log=$(echo "$res" | grep -q "backport_tracker_ids:")
