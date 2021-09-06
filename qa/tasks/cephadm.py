@@ -1261,11 +1261,9 @@ def create_rbd_pool(ctx, config):
       cluster_name = config['cluster']
       log.info('Creating RBD pool')
       _shell(ctx, cluster_name, ctx.ceph[cluster_name].bootstrap_remote,
-             args=['sudo', 'ceph', '--cluster', cluster_name,
-                   'osd', 'pool', 'create', 'rbd', '8'])
+             args=['sudo', 'ceph', 'osd', 'pool', 'create', 'rbd', '8'])
       _shell(ctx, cluster_name, ctx.ceph[cluster_name].bootstrap_remote,
-             args=['sudo', 'ceph', '--cluster', cluster_name,
-                   'osd', 'pool', 'application', 'enable',
+             args=['sudo', 'ceph', 'osd', 'pool', 'application', 'enable',
                    'rbd', 'rbd', '--yes-i-really-mean-it'
           ])
     yield
