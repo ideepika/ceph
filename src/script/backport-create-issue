@@ -305,6 +305,7 @@ def iterate_over_backports(r, issues, dry_run=False):
         update_relations(r, issue, dry_run)
     logging.info('                                     \r')
     logging.info("Processed {} issues".format(counter))
+    exit(0)
     return None
 
 
