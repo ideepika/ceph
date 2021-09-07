@@ -21,31 +21,34 @@ jobs:
         run: |
           pip3 install python_redmine
       - name: Run backport-create-issue script
-        continue-on-error: true
         env:
           #FIX: org change
           REDMINE_KEY: ${{ secrets.REDMINE_KEY }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITHUB_USER: dexter816
+          EXPLICT_FORK: https://github.com/dexter816/ceph.git
         run: |
-          echo PR #${{ github.event.number }} has been merged
-          commit_msg=$(git log -n 1 ${{ github.event.pull_request.head.sha }})
-          echo $commit_msg
-          tracker_id=$(echo "$commit_msg" | grep "tracker.ceph" | cut -d"/" -f5)
           #TODO: handle tracker_id in any commit_msg instead of topmost
           #TODO: handle preexisting/half processed ones(though unlikely)
+          echo PR #${{ github.event.number }} has been merged
+          commit_msg=$(git log -n 1 ${{ github.event.pull_request.head.sha }})
+          tracker_id=$(echo "$commit_msg" | grep "tracker.ceph" | cut -d"/" -f5)
           if [[ -n $tracker_id ]]; then
-            res=$(python ./src/script/backport-create-issue "$tracker_id:${{ github.event.number }}" --redmine-key $REDMINE_KEY --debug)
-            backport_log="'$res' | grep backport_tracker_ids:"
-            echo $backport_log
+            backport_log=$(python ./src/script/backport-create-issue "$tracker_id:${{ github.event.number }}" --redmine-key $REDMINE_KEY --debug)
+            backport_log="'$backport_log' | grep backport_tracker_ids:"
             if echo "$backport_log" ; then
               backport_tracker_ids=$(echo $backport_log | grep "backport_tracker_ids:" | awk '{split($0,a,":"); print a[2];}')
-              echo "backport_tracker_ids " $backport_tracker_ids
+              echo "backport_tracker_ids are: " $backport_tracker_ids
               backport_tracker_ids="52495,52497"
+              git remote add "$GITHUB_USER" "$EXPLICT_FORK"
               for i in $(echo "$backport_tracker_ids" | sed "s/,/ /g")
               do
                  echo "running backports cherrypicking for tracker $i"
-                 ./src/script/ceph-backport.sh "$i" --redmine-key $REDMINE_KEY --fork https://github.com/dexter816/ceph.git --github-user $GITHUB_USER --github-token $GITHUB_TOKEN --debug
+                 ./src/script/ceph-backport.sh "$i" \
+                 --redmine-key $REDMINE_KEY \
+                 --github-user $GITHUB_USER \
+                 --github-token $GITHUB_TOKEN \
+                 --debug
               done
             fi
           fi
