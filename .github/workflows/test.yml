@@ -32,7 +32,8 @@ jobs:
           commit_msg=$(git log -n 1 ${{ github.event.pull_request.head.sha }})
           echo $commit_msg
           tracker_id=$(echo "$commit_msg" | grep "tracker.ceph" | cut -d"/" -f5)
-          echo $tracker_id
+          #TODO: handle tracker_id in any commit_msg instead of topmost
+          #TODO: handle preexisting/half processed ones(though unlikely)
           if [[ -n $tracker_id ]]; then
             res=$(python ./src/script/backport-create-issue "$tracker_id:${{ github.event.number }}" --redmine-key $REDMINE_KEY --debug)
             backport_log="'$res' | grep backport_tracker_ids:"
@@ -40,6 +41,7 @@ jobs:
             if echo "$backport_log" ; then
               backport_tracker_ids=$(echo $backport_log | grep "backport_tracker_ids:" | awk '{split($0,a,":"); print a[2];}')
               echo "backport_tracker_ids " $backport_tracker_ids
+              backport_tracker_ids="52495,52497"
               for i in $(echo "$backport_tracker_ids" | sed "s/,/ /g")
               do
                  echo "running backports cherrypicking for tracker $i"
