@@ -45,7 +45,7 @@ jobs:
               for i in $(echo "$backport_tracker_ids" | sed "s/,/ /g")
               do
                  echo "running backports cherrypicking for tracker $i"
-                 ./src/script/ceph-backport.sh "$i" --redmine-key $REDMINE_KEY --github-user $GITHUB_USER --github-token $GITHUB_TOKEN --debug
+                 ./src/script/ceph-backport.sh "$i" --redmine-key $REDMINE_KEY --fork https://github.com/dexter816/ceph.git --github-user $GITHUB_USER --github-token $GITHUB_TOKEN --debug
               done
             fi
           fi
