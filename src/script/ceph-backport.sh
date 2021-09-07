@@ -1316,11 +1316,11 @@ function vet_setup {
     local github_token_display
     debug "Entering vet_setup with argument $argument"
     if [ "$argument" = "--report" ] || [ "$argument" = "--normal-operation" ] ; then
-        if [[ -n "$GITHUB_USER" ]] ; then
-            github_user="$GITHUB_USER"
-        else
-            [ "$github_token" ] && [ "$setup_ok" ] && set_github_user_from_github_token quiet
-        fi
+        if [[ -n "$GITHUB_USER" ]] ; then 
+	  github_user="$GITHUB_USER"
+	else
+          [ "$github_token" ] && [ "$setup_ok" ] && set_github_user_from_github_token quiet
+	fi
         init_upstream_remote
         [ "$github_token" ] && [ "$setup_ok" ] && init_fork_remote
         vet_remotes
