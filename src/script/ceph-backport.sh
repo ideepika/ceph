@@ -730,6 +730,15 @@ function interactive_setup_routine {
     vet_setup --interactive
 }
 
+function init_active_milestones {
+    local remote_api_output="$(curl -u ${github_user}:${github_token} --silent -X GET "${github_api_endpoint}/repos/ceph/ceph/milestones")"
+    active_milestones="$(echo "$remote_api_output" | jq -r '.[] | .title' | sort)"
+    if [ "$active_milestones" = "null" ] ; then
+	error "Could not determine the active milestones"
+	bail_out_github_api "$remote_api_output"
+    fi
+}
+
 function is_active_milestone {
     local is_active=
     local milestone_under_test="$1"
@@ -1582,12 +1591,8 @@ vet_remotes
 #
 
 verbose "Querying GitHub API for active milestones"
-remote_api_output="$(curl -u ${github_user}:${github_token} --silent -X GET "${github_api_endpoint}/repos/ceph/ceph/milestones")"
-active_milestones="$(echo "$remote_api_output" | jq -r '.[] | .title')"
-if [ "$active_milestones" = "null" ] ; then
-    error "Could not determine the active milestones"
-    bail_out_github_api "$remote_api_output"
-fi
+
+init_active_milestones
 
 if [ "$CHECK_MILESTONES" ] ; then
     check_milestones "$active_milestones"
