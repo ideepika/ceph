@@ -1306,6 +1306,91 @@ function vet_prs_for_milestone {
     done
 }
 
+function get_backport_issue {
+    local original="$1"
+    local release="$2"
+    local copies=$(curl --silent "${original}.json?include=relations" |
+		       jq -r '.issue.relations[] | select(.relation_type | contains("copied_to")) | .issue_to_id')
+    local copy
+    for copy in $copies ; do
+	local backport="$(number_to_url "redmine" "${copy}")"
+	local actual_release="$(curl --silent "${backport}.json" | jq -r '.issue.custom_fields[0].value')"
+	debug "$original has backport $backport set for $actual_release"
+	if test "$release" = "$actual_release" ; then
+	    echo $backport
+	    return 0
+	fi
+    done
+    error "no $release backport issue was found for $original, aborting"
+    return 1
+}
+
+function get_pr_number_from_backport_issue {
+    local redmine_url="$1"
+
+    local redmine_api_output=$(curl --silent "${redmine_url}.json?include=journals")
+    local desc_is="$(echo "$redmine_api_output" | jq -r '.issue.description')"
+    local re="^${github_endpoint}/${github_pull_path}/([0-9]+)$"
+    if ! [[ "$desc_is" =~ $re ]] ; then
+	debug "no PR found because $redmine_url description '$desc_is' does not match $re"
+	return 1
+    fi
+    echo ${BASH_REMATCH[1]}
+}
+
+function vet_backport_pr_is_staged {
+    local redmine_url="$1"
+    local release="$2"
+    local pr_number
+    pr_number="$(get_pr_number_from_backport_issue $redmine_url)" || return 1
+    local github_api_output="$(curl -u ${github_user}:${github_token} --silent "${github_api_endpoint}/repos/ceph/ceph/pulls/${pr_number}")"
+    local pr_title="$(echo "$github_api_output" | jq -r '.title')"
+    if ! echo "$pr_title" | grep --quiet "^$release:" ; then
+	error "$redmine_url is a backport for $release but its description points to the PR ${github_endpoint}/${github_pull_path}/${pr_number} with a title $pr_title which does not start with the '$release:' string."
+	return 1
+    fi
+    return 0
+}
+
+function vet_backport_issue {
+    local original="$1"
+    local release="$2"
+
+    local backport
+    backport=$(get_backport_issue $original $release) || return 1
+    if ! vet_backport_pr_is_staged $backport $release ; then
+	error "A PR must be staged for $release in $backport before working on this backport. Use --force to override this check."
+	return 1
+    fi
+    return 0
+}
+
+function releases_more_recent_than {
+    local release="$1"
+    local found=$(echo -e "$active_milestones" | sed -e "0,/$release/d")
+    echo $found # this is to convert newlines into space
+}
+
+function test_releases_more_recent_than {
+    active_milestones="nautilus\noctopus\npacific"
+    test "$(releases_more_recent_than octopus)" = "pacific" || return 1
+    test "$(releases_more_recent_than pacific)" = "" || return 1
+    test "$(releases_more_recent_than nautilus)" = "octopus pacific" || return 1
+    return 0
+}
+
+function vet_backport_ordering {
+    local redmine_url="$1"
+    local release="$2"
+    local original_issue_url="$(number_to_url "redmine" "$original_issue")"
+    debug "Sanity check for backport ordering of $original_issue_url, verifying $release"
+
+    for required_release in $(releases_more_recent_than $release); do
+	vet_backport_issue $original_issue_url $required_release || return 1
+    done
+    return 0
+}
+
 function vet_remotes {
     if [ "$upstream_remote" ] ; then
         verbose "Upstream remote is $upstream_remote"
@@ -1681,6 +1766,10 @@ fi
 target_branch="$milestone"
 info "milestone/release is $milestone"
 debug "milestone number is $milestone_number"
+
+if [ -z "$FORCE" ] ; then
+    vet_backport_ordering $redmine_url $milestone
+fi
 
 if [ "$CHERRY_PICK_PHASE" ] ; then
     local_branch=wip-${issue}-${target_branch}
