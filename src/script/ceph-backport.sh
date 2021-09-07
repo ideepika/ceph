@@ -1116,9 +1116,9 @@ function try_known_milestones {
         kraken) eol "$mtt" ;;
         luminous) mn="10" ;;
         mimic) mn="11" ;;
-        nautilus) mn="12" ;;
-        octopus) mn="13" ;;
-        pacific) mn="14" ;;
+        nautilus) mn="${milestone_nautilus:-12}" ;;
+        octopus) mn="${milestone_octopus:-13}" ;;
+        pacific) mn="${milestone_pacific:-14}" ;;
     esac
     echo "$mn"
 }
