@@ -1357,6 +1357,122 @@ def initialize_config(ctx, config):
         ctx.ceph[cluster_name].first_mgr = first_mgr
     yield
 
+@contextlib.contextmanager
+def cluster(ctx, config):
+    """
+    Handle the creation and removal of a ceph cluster.
+
+    On startup:
+        Create directories needed for the cluster.
+        Create remote journals for all osds.
+        Create and set keyring.
+        Copy the monmap to the test systems.
+        Setup mon nodes.
+        Setup mds nodes.
+        Mkfs osd nodes.
+        Add keyring information to monmaps
+        Mkfs mon nodes.
+
+    On exit:
+        If errors occurred, extract a failure message and store in ctx.summary.
+        Unmount all test files and temporary journaling files.
+        Save the monitor information and archive all ceph logs.
+        Cleanup the keyring setup, and remove all monitor map and data files left over.
+
+    :param ctx: Context
+    :param config: Configuration
+    """
+    if ctx.config.get('use_existing_cluster', False) is True:
+        log.info("'use_existing_cluster' is true; skipping cluster creation")
+        yield
+    cluster_name = config['cluster']
+    if cluster_name not in ctx.ceph:
+        ctx.ceph[cluster_name] = argparse.Namespace()
+        ctx.ceph[cluster_name].bootstrapped = False
+
+    # image
+    teuth_defaults = teuth_config.get('defaults', {})
+    cephadm_defaults = teuth_defaults.get('cephadm', {})
+    containers_defaults = cephadm_defaults.get('containers', {})
+    container_image_name = containers_defaults.get('image', None)
+
+    containers = config.get('containers', {})
+    container_image_name = containers.get('image', container_image_name)
+
+    if not hasattr(ctx.ceph[cluster_name], 'image'):
+        ctx.ceph[cluster_name].image = config.get('image')
+    ref = None
+    if not ctx.ceph[cluster_name].image:
+        if not container_image_name:
+            raise Exception("Configuration error occurred. "
+                            "The 'image' value is undefined for 'cephadm' task. "
+                            "Please provide corresponding options in the task's "
+                            "config, task 'overrides', or teuthology 'defaults' "
+                            "section.")
+        sha1 = config.get('sha1')
+        flavor = config.get('flavor', 'default')
+
+        if sha1:
+            if flavor == "crimson":
+                ctx.ceph[cluster_name].image = container_image_name + ':' + sha1 + '-' + flavor
+            else:
+                ctx.ceph[cluster_name].image = container_image_name + ':' + sha1
+            ref = sha1
+        else:
+            # hmm, fall back to branch?
+            branch = config.get('branch', 'master')
+            ref = branch
+            ctx.ceph[cluster_name].image = container_image_name + ':' + branch
+    log.info('Cluster image is %s' % ctx.ceph[cluster_name].image)
+
+
+    with contextutil.nested(
+            #if the cluster is already bootstrapped bypass corresponding methods
+            lambda: _bypass() if (ctx.ceph[cluster_name].bootstrapped)\
+                              else initialize_config(ctx=ctx, config=config),
+            lambda: ceph_initial(),
+            lambda: normalize_hostnames(ctx=ctx),
+            lambda: _bypass() if (ctx.ceph[cluster_name].bootstrapped)\
+                              else download_cephadm(ctx=ctx, config=config, ref=ref),
+            lambda: ceph_log(ctx=ctx, config=config),
+            lambda: ceph_crash(ctx=ctx, config=config),
+            lambda: _bypass() if (ctx.ceph[cluster_name].bootstrapped)\
+                              else ceph_bootstrap(ctx, config),
+            lambda: crush_setup(ctx=ctx, config=config),
+            lambda: ceph_mons(ctx=ctx, config=config),
+            lambda: distribute_config_and_admin_keyring(ctx=ctx, config=config),
+            lambda: ceph_mgrs(ctx=ctx, config=config),
+            lambda: ceph_osds(ctx=ctx, config=config),
+            lambda: ceph_mdss(ctx=ctx, config=config),
+            lambda: ceph_rgw(ctx=ctx, config=config),
+            lambda: ceph_iscsi(ctx=ctx, config=config),
+            lambda: ceph_monitoring('prometheus', ctx=ctx, config=config),
+            lambda: ceph_monitoring('node-exporter', ctx=ctx, config=config),
+            lambda: ceph_monitoring('alertmanager', ctx=ctx, config=config),
+            lambda: ceph_monitoring('grafana', ctx=ctx, config=config),
+            lambda: ceph_clients(ctx=ctx, config=config),
+            lambda: create_rbd_pool(ctx=ctx, config=config),
+    ):
+        if not hasattr(ctx, 'managers'):
+            ctx.managers = {}
+        ctx.managers[cluster_name] = CephManager(
+            ctx.ceph[cluster_name].bootstrap_remote,
+            ctx=ctx,
+            logger=log.getChild('ceph_manager.' + cluster_name),
+            cluster=cluster_name,
+            cephadm=True,
+        )
+
+        try:
+            if config.get('wait-for-healthy', True):
+                healthy(ctx=ctx, config=config)
+
+            log.info('Setup complete cluster, yielding')
+            yield
+
+        finally:
+            log.info('Teardown begin for cluster')
+
 
 @contextlib.contextmanager
 def task(ctx, config):
@@ -1488,4 +1604,3 @@ def task(ctx, config):
 
         finally:
             log.info('Teardown begin')
-

@@ -3,4 +3,11 @@ tasks:
 - cephadm:
 overrides:
   ceph:
-    create_rbd_pool: true  
+    create_rbd_pool: true
+- cephadm.shell:
+    mon.a:
+      - ceph orch status
+      - ceph orch ps
+      - ceph orch ls
+      - ceph orch host ls
+      - ceph orch device ls

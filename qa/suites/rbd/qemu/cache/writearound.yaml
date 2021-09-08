@@ -7,4 +7,4 @@ tasks:
         rbd cache policy: writearound
 overrides:
   ceph:
-    create_rbd_pool: true  
+    create_rbd_pool: true

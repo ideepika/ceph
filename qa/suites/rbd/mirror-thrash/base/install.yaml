@@ -6,6 +6,20 @@ tasks:
 - cephadm:
     cluster: cluster1
     create_rbd_pool: true
+- cephadm.shell:
+    host.a:
+      - ceph orch status
+      - ceph orch ps
+      - ceph orch ls
+      - ceph orch host ls
+      - ceph orch device ls
 - cephadm:
     cluster: cluster2
     create_rbd_pool: true
+- cephadm.shell:
+    host.a:
+      - ceph orch status
+      - ceph orch ps
+      - ceph orch ls
+      - ceph orch host ls
+      - ceph orch device ls
