@@ -331,6 +331,222 @@ def ceph_crash(ctx, config):
 
 
 @contextlib.contextmanager
+def cluster(ctx, config):
+    """
+    Bootstrap ceph cluster.
+
+    :param ctx: the argparse.Namespace object
+    :param config: the config dict
+    """
+    cluster_name = config['cluster']
+    testdir = teuthology.get_testdir(ctx)
+    fsid = ctx.ceph[cluster_name].fsid
+
+    bootstrap_remote = ctx.ceph[cluster_name].bootstrap_remote
+    first_mon = ctx.ceph[cluster_name].first_mon
+    first_mon_role = ctx.ceph[cluster_name].first_mon_role
+    mons = ctx.ceph[cluster_name].mons
+
+    ctx.cluster.run(args=[
+        'sudo', 'mkdir', '-p', '/etc/ceph',
+        ]);
+    ctx.cluster.run(args=[
+        'sudo', 'chmod', '777', '/etc/ceph',
+        ]);
+    try:
+        # write seed config
+        log.info('Writing seed config...')
+        conf_fp = BytesIO()
+        seed_config = build_initial_config(ctx, config)
+        seed_config.write(conf_fp)
+        bootstrap_remote.write_file(
+            path='{}/seed.{}.conf'.format(testdir, cluster_name),
+            data=conf_fp.getvalue())
+        log.debug('Final config:\n' + conf_fp.getvalue().decode())
+        ctx.ceph[cluster_name].conf = seed_config
+
+        # register initial daemons
+        ctx.daemons.register_daemon(
+            bootstrap_remote, 'mon', first_mon,
+            cluster=cluster_name,
+            fsid=fsid,
+            logger=log.getChild('mon.' + first_mon),
+            wait=False,
+            started=True,
+        )
+        if not ctx.ceph[cluster_name].roleless:
+            first_mgr = ctx.ceph[cluster_name].first_mgr
+            ctx.daemons.register_daemon(
+                bootstrap_remote, 'mgr', first_mgr,
+                cluster=cluster_name,
+                fsid=fsid,
+                logger=log.getChild('mgr.' + first_mgr),
+                wait=False,
+                started=True,
+            )
+
+        # bootstrap
+        log.info('Bootstrapping...')
+        cmd = [
+            'sudo',
+            ctx.cephadm,
+            '--image', ctx.ceph[cluster_name].image,
+            '-v',
+            'bootstrap',
+            '--fsid', fsid,
+            '--config', '{}/seed.{}.conf'.format(testdir, cluster_name),
+            '--output-config', '/etc/ceph/{}.conf'.format(cluster_name),
+            '--output-keyring',
+            '/etc/ceph/{}.client.admin.keyring'.format(cluster_name),
+            '--output-pub-ssh-key', '{}/{}.pub'.format(testdir, cluster_name),
+        ]
+
+        if config.get('registry-login'):
+            registry = config['registry-login']
+            cmd += [
+                "--registry-url", registry['url'],
+                "--registry-username", registry['username'],
+                "--registry-password", registry['password'],
+            ]
+
+        if not ctx.ceph[cluster_name].roleless:
+            cmd += [
+                '--mon-id', first_mon,
+                '--mgr-id', first_mgr,
+                '--orphan-initial-daemons',   # we will do it explicitly!
+                '--skip-monitoring-stack',    # we'll provision these explicitly
+            ]
+
+        if mons[first_mon_role].startswith('['):
+            cmd += ['--mon-addrv', mons[first_mon_role]]
+        else:
+            cmd += ['--mon-ip', mons[first_mon_role]]
+        if config.get('skip_dashboard'):
+            cmd += ['--skip-dashboard']
+        if config.get('skip_monitoring_stack'):
+            cmd += ['--skip-monitoring-stack']
+        if config.get('single_host_defaults'):
+            cmd += ['--single-host-defaults']
+        if not config.get('avoid_pacific_features', False):
+            cmd += ['--skip-admin-label']
+        # bootstrap makes the keyring root 0600, so +r it for our purposes
+        cmd += [
+            run.Raw('&&'),
+            'sudo', 'chmod', '+r',
+            '/etc/ceph/{}.client.admin.keyring'.format(cluster_name),
+        ]
+        bootstrap_remote.run(args=cmd)
+
+        # fetch keys and configs
+        log.info('Fetching config...')
+        ctx.ceph[cluster_name].config_file = \
+            bootstrap_remote.read_file(f'/etc/ceph/{cluster_name}.conf')
+        log.info('Fetching client.admin keyring...')
+        ctx.ceph[cluster_name].admin_keyring = \
+            bootstrap_remote.read_file(f'/etc/ceph/{cluster_name}.client.admin.keyring')
+        log.info('Fetching mon keyring...')
+        ctx.ceph[cluster_name].mon_keyring = \
+            bootstrap_remote.read_file(f'/var/lib/ceph/{fsid}/mon.{first_mon}/keyring', sudo=True)
+
+        # fetch ssh key, distribute to additional nodes
+        log.info('Fetching pub ssh key...')
+        ssh_pub_key = bootstrap_remote.read_file(
+            f'{testdir}/{cluster_name}.pub').decode('ascii').strip()
+
+        log.info('Installing pub ssh key for root users...')
+        ctx.cluster.run(args=[
+            'sudo', 'install', '-d', '-m', '0700', '/root/.ssh',
+            run.Raw('&&'),
+            'echo', ssh_pub_key,
+            run.Raw('|'),
+            'sudo', 'tee', '-a', '/root/.ssh/authorized_keys',
+            run.Raw('&&'),
+            'sudo', 'chmod', '0600', '/root/.ssh/authorized_keys',
+        ])
+
+        # set options
+        if config.get('allow_ptrace', True):
+            _shell(ctx, cluster_name, bootstrap_remote,
+                   ['ceph', 'config', 'set', 'mgr', 'mgr/cephadm/allow_ptrace', 'true'])
+
+        if not config.get('avoid_pacific_features', False):
+            log.info('Distributing conf and client.admin keyring to all hosts + 0755')
+            _shell(ctx, cluster_name, bootstrap_remote,
+                   ['ceph', 'orch', 'client-keyring', 'set', 'client.admin',
+                    '*', '--mode', '0755'],
+                   check_status=False)
+
+        # add other hosts
+        for remote in ctx.cluster.remotes.keys():
+            if remote == bootstrap_remote:
+                continue
+
+            # note: this may be redundant (see above), but it avoids
+            # us having to wait for cephadm to do it.
+            log.info('Writing (initial) conf and keyring to %s' % remote.shortname)
+            remote.write_file(
+                path='/etc/ceph/{}.conf'.format(cluster_name),
+                data=ctx.ceph[cluster_name].config_file)
+            remote.write_file(
+                path='/etc/ceph/{}.client.admin.keyring'.format(cluster_name),
+                data=ctx.ceph[cluster_name].admin_keyring)
+
+            log.info('Adding host %s to orchestrator...' % remote.shortname)
+            _shell(ctx, cluster_name, remote, [
+                'ceph', 'orch', 'host', 'add',
+                remote.shortname
+            ])
+            r = _shell(ctx, cluster_name, remote,
+                       ['ceph', 'orch', 'host', 'ls', '--format=json'],
+                       stdout=StringIO())
+            hosts = [node['hostname'] for node in json.loads(r.stdout.getvalue())]
+            assert remote.shortname in hosts
+
+        yield
+
+    finally:
+        log.info('Cleaning up testdir ceph.* files...')
+        ctx.cluster.run(args=[
+            'rm', '-f',
+            '{}/seed.{}.conf'.format(testdir, cluster_name),
+            '{}/{}.pub'.format(testdir, cluster_name),
+        ])
+
+        log.info('Stopping all daemons...')
+
+        # this doesn't block until they are all stopped...
+        #ctx.cluster.run(args=['sudo', 'systemctl', 'stop', 'ceph.target'])
+
+        # stop the daemons we know
+        for role in ctx.daemons.resolve_role_list(None, CEPH_ROLE_TYPES, True):
+            cluster, type_, id_ = teuthology.split_role(role)
+            try:
+                ctx.daemons.get_daemon(type_, id_, cluster).stop()
+            except Exception:
+                log.exception(f'Failed to stop "{role}"')
+                raise
+
+        # tear down anything left (but leave the logs behind)
+        ctx.cluster.run(
+            args=[
+                'sudo',
+                ctx.cephadm,
+                'rm-cluster',
+                '--fsid', fsid,
+                '--force',
+                '--keep-logs',
+            ],
+            check_status=False,  # may fail if upgrading from old cephadm
+        )
+
+        # clean up /etc/ceph
+        ctx.cluster.run(args=[
+            'sudo', 'rm', '-f',
+            '/etc/ceph/{}.conf'.format(cluster_name),
+            '/etc/ceph/{}.client.admin.keyring'.format(cluster_name),
+        ])
+
+@contextlib.contextmanager
 def ceph_bootstrap(ctx, config):
     """
     Bootstrap ceph cluster.
