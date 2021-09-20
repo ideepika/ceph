@@ -1,0 +1,481 @@
+CHANGES
+=======
+
+1.5.20
+------
+
+* version 1.5.20
+* backports: enable luminous
+* teuthology: sync with remote
+* requirements.txt: deal with latest requests module
+* bump 1.5.20
+* doc: bootstrap: improve legibility
+* bootstrap: be more careful about updating/installing packages
+
+1.5.19
+------
+
+* version 1.5.19
+* teuthology: sync with remote
+* bump 1.5.19
+
+1.5.18
+------
+
+* version 1.5.18
+* teuthology: sync with remote
+* bump 1.5.18
+* ceph-qa-suite: fix help test; point to ceph-repo's qa subdir
+
+1.5.17
+------
+
+* version 1.5.17
+* bump 1.5.17
+* sync with teuthology
+
+1.5.16
+------
+
+* version 1.5.16
+* sync with teuthology
+* switch to --{ceph,suite}-repo
+* bump 1.5.16
+
+1.5.15
+------
+
+* version 1.5.15
+* kraken was released
+* argument parsing was refactored
+* ssh-keygen -l format changed
+* pin gitlab and fix arguments
+* reminder about teuthology openstack depedencies
+* switch to 16.04 containers
+* requirements.txt: drop libvirt-python
+* bump 1.5.15
+
+1.5.14
+------
+
+* version 1.5.14
+* Update teuthology submodule
+* Use SUSE/teuthology.git master by default
+* sync teuthology submodule
+* sync teuthology submodule
+* sync teuthology submodule
+* use --public-key when verifying keypair
+* sync teuthology submodule
+* sync teuthology submodule
+* sync teuthology submodule
+* sync teuthology submodule
+* sync teuthology submodule
+* sync teuthology submodule
+* README.rst: hint at Ubuntu 14.04 and non-root
+* fix pep8 error
+* bump 1.5.14
+
+1.5.13
+------
+
+* version 1.5.13
+* sync teuthology module
+* ansible 2.0
+* jewel has been released
+* release: test on whatever architecture
+* bootstrap: do not set +x
+* git should ignore qcow2 and raw files
+* teuthology: sync with dachary/openstack
+* release: add aarch64 support
+* release: also load openrc
+* teuthology: sync with dachary/openstack
+* bump 1.5.13
+
+1.5.12
+------
+
+* version 1.5.12
+* docker: pull from dachary/ceph-workbench
+* tests: --points-at may return more than one line
+* pip glancelient 1.2.0 because OVH has troubles with 2.0.0
+* coverage: coverage and python3
+* re-package ceph-workbench
+* tox: use coverage instead of pytest-cov
+* release: populate the packages-repository with a release
+* ceph-qa-suite: numerical parameters must be str()
+* bootstrap: set PYTHONPATH
+* ceph-qa-suite: add missing --key-name parser
+* util: implement stdin for sh()
+* doc: directory tree organization
+* bootstrap: get the latest git
+* tests: wait for a proof of life
+* Source openrc.sh only if ceph-qa-suite is passed as argument
+* teuthology: sync with dachary/openstack
+* docs/index.rst: expand openrc.sh instructions
+* ping gevent 1.0.2
+* ceph-qa-suite: split with TeuthologyDelegate
+* main: do not provide argv to constructors
+* docker: update the Dockerfile for 1.5.11
+* bump 1.5.12
+
+1.5.11
+------
+
+* version 1.5.11
+* util: discarding non-ascii characters to please log.debug()
+* gitlab project deletion is asynchronous
+* py.test --cov-fail-under=100 hides error output
+* tests: be generous with delays to setup redmine/gitlab
+* bump 1.5.11
+* docker: quote entrypoint arguments
+* doc: add missing USER\_NAME=
+
+1.5.10
+------
+
+* version 1.5.10
+* bump 1.5.10
+* docker: reminder on how to build a numbered tag
+* docker: force request >= 2.8.1
+* version 1.5.9
+* README: more cleanup
+* doc: make system docker executable available inside container
+* README.rst: clarify how to run ceph-workbench in dev environment
+* ceph-qa-suite: implement --openrc
+* ceph-qa-suite: sync with teuthology
+* ceph-qa-suite: rework common arguments
+* strict requirement on requests 2.8.1
+* ceph-qa-suite: sync with teuthology
+* doc: enable docker within ceph-workbench
+* doc: instructions to sync with teuthology
+* docs: sudo docker to avoid user permission problems
+* bump 1.5.9
+* build: reminder to push the latest image
+* doc: workflow -> toolbox
+
+1.5.8
+-----
+
+* version 1.5.8
+* doc: fix rst layout
+
+1.5.7
+-----
+
+* version 1.5.7
+* documentation: clarify the documentation relations
+* ceph-qa-suite: sync teuthology submodule
+* docker: documentation and setup
+* bump 1.5.7
+* ceph-qa-suite: ceph-qa-suite must discard the first argument
+* ceph-qa-suite: ssh-keygen -y displays errors on stdout
+* util: expanduser to get ~/.ceph-workbench path
+
+1.5.6
+-----
+
+* version 1.5.6
+* implement ceph-qa-suite subcommand
+* responses is not (yet) used in tests
+* relax requests requirement
+* do not make ceph-workbench the entrypoint of the container
+* add reminder that tox can support -s
+* re-implement sh to display output continuously
+* save the original argument list
+* give a cute name to the gitlab CI job
+* README.rst: put release management material into its own section
+* wbbackportsetrelease: refactor logs
+* tests: fixture\_github must retry when creating a pull request
+* tests: fixture\_github must use random repository name
+* README.rst: explain how to install deps and set up dev environment
+* .gitignore: expand list of temporary files/directories
+* setup.cfg: fix Environment classifier
+* wbredmine: hardcode custom fields
+* bump 1.5.6
+* docker: install teuthology
+
+1.5.5
+-----
+
+* version 1.5.5
+* wbredmine: add has\_tracker helper
+* limit log level to ceph\_workbench
+* wbbackportcreateissue: create backport issues when needed
+* wbredmine: add the Release field to all trackers
+* documentation: --help can be used as a reference
+* enforce 100% test coverage
+* bump 1.5.5
+* wbbackportsetrelease: suggest variable for redmine\_key
+* wbgithub: more robust github fallback
+* docker: update helpers
+
+1.5.4
+-----
+
+* version 1.5.4
+* wbbackportsetrelease: set git defaults
+* wbgithub: getting the list of repos fails often
+* wbredmine: factory is only used by tests
+* wbgithub: add --github-url
+* wbgit: clone and fetch
+* wbgit: convert from testtools to pytest
+* wbgithub: set default repo to ceph/ceph
+* wbredmine: implement --remine-key
+* wbredmine: url defaults to http://tracker.ceph.com
+* wbbackportsetrelease: GitHub pr may not have a merged event
+* wbgithub: pull request creation is asynchronous
+* wbgit: use git-remote instead of heads
+* util: extract CommaSplit from get\_parser
+* wbredmine: custom\_fields may be missing
+* wbgit: do not prefix tags with origin
+* wbgit: add cuttlefish version
+* version 1.5.4
+* bump version 1.5.4
+* missing empty line is a formatting bug in rst
+
+1.5.3
+-----
+
+* version 1.5.3
+* implement backport-set-release
+* github project deletion / creation is asynchronous
+* the setUp() method returns self
+* implement --git-remote
+* the next branch no longer exists
+* update the release numbers mapping
+* set logging level INFO by default
+* implement wbgithub
+* list all existing ceph releases
+* redmine: map names to ids
+* test\_wbredmine uses fixture\_redmine
+* create the Backport tracker when setting up redmine
+* the git fixture always has a cuttlefish branch
+* docker is the recommended installation
+* docs: s/workbench.dachary/ceph-workbench.dachary/
+* tox: test with whatever python3 is installed
+* wbbackport: clone with StrictHostKeyChecking=false
+* setup a redmine / gitlab fixture
+* coverage not 100% anymore
+* ignore missing interpreters
+* run flake8 by default
+* draft gitlab-ci.yml
+* upgrade gitlab test installation
+* twisted is not needed at this time
+* upgrade redmine test installation
+* flake8 fixes
+* jenkins: no longer use jenkins
+* bot: clean -ff to remove directories not handled by git
+
+1.5.2
+-----
+
+* version 1.5.2
+* pep8 conformance
+* helpers to create the jenkins master are redundant
+* setup the jenkins master in a class teardown/setup
+* implement jenkins master creation/destruction
+* make the jenkins qemu slave image name a parameter
+* avoid timeout during tests when downloading a new image
+* ignore known\_hosts restrictions when testing
+* prepare the qemu image if the .ssh is missing
+* create an exception for when jenkins credentials are not found
+* desambiguate the context of --jenkins-home
+* add missing --jenkins-docker-destroy-slave
+* create the authorized\_keys of a jenkins slave 0600
+* extract the try\_a\_few\_times helper in jenkins tests
+* split the http url into host and port
+* docker make-check-bot helper has been renamed
+* run the jenkins slave tunnel in the background
+* wrap jenkins client jar location in a helper
+* the jenkins master .ssh directory belongs to jenkins
+* expose jenkins master port 50000
+* implement jenkins add\_credential
+* always update the qemu image .ssh directory
+* direct link to the make-check output
+* add make-check-bot helper to be used when docker is not available
+* rename jenkins-make-check-bot into docker-make-check-bot
+* create intermediate directories for qemu images
+* make check bot: ceph/pull/XXX an alias of origin/pull/XXX
+
+1.5.1
+-----
+
+* version 1.5.1
+* implement --jenkins-qemu-prepare
+
+1.5.0
+-----
+
+* version 1.5.0
+* implement --jenkins-qemu-run-slave
+* run tests on 172.17.42.1 instead of localhost
+* add default to --jenkins-ssh-port
+* reorganize run\_docker\_slave
+* simplify qemu image creation
+* add links to ceph-workbench in the docs
+* nicer fork me for agnes
+
+1.4.3
+-----
+
+* version 1.4.3
+* include docs in setup.cfg
+* rename AUTHORS to AUTHORS.rst
+* do not use ditaa because rtd does not have it
+* documentation focuse on jenkins
+* import sphinx ditaa to beautify ascii art
+* six > 1.9.0 for six.moves import UserString
+* sphinx and docutils are not just for tests
+* rename AUTHORS to AUTHORS.rst
+* quote the \ to determine docker version
+
+1.4.2
+-----
+
+* version 1.4.2
+* install lxc-docker in the container to match the host
+* do not chown the jenkins home, set the jenkins uid instead
+* squash: the tunnel must be established as jenkins
+* append to jenkins authorized\_keys instead of overriding it
+* By default /home/jenkins is the data directory
+* the init script is setup.sh not setup-ssh.sh
+* the tunnel must be established as jenkins
+
+1.4.1
+-----
+
+* version 1.4.1
+* jenkins slave docker group must have the same id as the host
+* the jenkins slave needs apt-get install ccache jq
+* the jenkins user in the jenkins slave needs to sudo
+* OVERRIDE\_GIT\_BRANCH for jenkins parameterized builds
+* store the logs of the sshd jenkins slave daemon
+* discard known\_hosts maintenance for jenkins slave
+* allow jenkins slave to connect to itself when using its ssh key
+* set jenkins .ssh permissions
+* set jenkins .ssh permissions
+* implement --jenkins-git-branch
+* implement default for --datadir
+
+1.4.0
+-----
+
+* version 1.4.0
+* implement jenkins.prepare\_qemu\_img for ubuntu-14.04-i386
+* define a libguestfs docker image
+* implement jenkins.docker\_{run,destroy}\_slave
+* define a jenkins slave docker image
+* implement jenkins.next\_node\_name
+* define find/destroy/create jenkins slave nodes
+* define jenkins master / slave port range
+* implement jenkins.slave\_credential\_id
+* implement --jenkins-make-check-bot
+* define libdir and datadir
+* run a jenkins server as part of the integration tests setup
+* jenkins docker image with a ssh server
+* move ceph-workbench-jenkins-runner jenkins-make-check-bot
+* set the ccache size to 15G
+
+1.3.1
+-----
+
+* version 1.3.1
+* the container name now has the $USER appended
+* make it easier to publish a new version
+
+1.3.0
+-----
+
+* version 1.3.0
+* jenkins runner helper
+* add reference to pbr in setup.cfg
+
+1.1.0
+-----
+
+* version 1.1.0
+* implement jenkins subcommand to report to github
+* implement run from the command line
+* add global --verbose
+* add missing requirement to six
+
+1.0.2
+-----
+
+* release 1.0.2
+
+1.0.1
+-----
+
+* release 1.0.1
+* ignore distribution files
+* document how to create the pypi project
+
+1.0.0
+-----
+
+* release 1.0.0
+* rename the package from ceph\_workbench to ceph-workbench
+* pep8 and python3 compatibility
+* implement ceph\_workbench main
+* pep8 compliance
+* implement WBBackport::inventory\_write
+* allow for separate ssh GitLab configuration
+* Implement WBBackport
+* implement fixture helpers
+* implement WBRedmine::load\_issue
+* add missing updates in WBXref::index
+* xref collects argument parser from git, redmine and gitlab
+* redmine argument parsing
+* gitlab argument parsing
+* git argument parsing
+* --release is used in various contexts
+* implement sanity\_checks
+* six is not used in util
+* implement and test update\_cherry\_pick\_or\_link
+* init self.commit2issues in the constructor
+* convert bytes into string
+* implement wbxref.update\_issues\_with\_comments
+* cosmetic change
+* implement wbgitlab.commit\_url
+* test wbxref.update\_issues\_with\_merge
+* flake8 cleanup
+* test wxref.merge\_message2issue
+* add wbxref.message2issue with tests
+* update wbxref to connect to redmine
+* use python-redmine instead requests
+* add tests for wbxref.{test\_update\_issue,update\_commit2issues}
+* wbxref stub
+* depends on github2gitlab
+* remove method that relates to issues
+* wbredmine flake8 compliance
+* cleanup wbgitlab tests
+* flake8 compliance import parse instead of urllib
+* add the merge\_requests attr that contains all merge\_requests
+* populate the urls field of a merge request
+* add for\_each\_merge helper
+* move gitpython repo initialization to open
+* single script to setup redmine / gitlab
+* add gitlab stub
+* run docker generation from root not from tests
+* wb{git,redmine} index return self
+* ignore docker data directory
+* load all redmine issues
+* update release2last\_tag
+* redmine fixture
+* programatically enable the REST API
+* populate release2backports
+* head2merge map
+* cross reference Ceph tags, releases and commits
+* initial git class and stub test
+* draft scripts to launch redmine / gitlab from scratch
+* shell script helper
+* check pep8 on tests too
+* minimal test that relies on a live redmine
+* responses to mock requests
+* include\_package\_data can be used to include helper scripts
+* ignore more python temporary files
+* add CephWorkbench class
+* remove spurious github2gitlab
+* ceph-workbench script
+* base files for, license etc

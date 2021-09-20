@@ -1,0 +1,57 @@
+#!/bin/bash
+#
+# git branch -r --points-at and maybe more need git > 1.9.1
+#
+function is_binary_installed() {
+    local binary=$1
+    type $1 >/dev/null 2>&1
+}
+
+function bail_out() {
+    local message=$1
+    echo $message
+    exit 1
+}
+
+is_binary_installed git || bail_out "No git; bailing out"
+is_binary_installed virtualenv || bail_out "No virtualenv; bailing out"
+is_binary_installed pip || bail_out "No pip; bailing out"
+is_binary_installed lsb_release || bail_out "No lsb_release; bailing out"
+
+source /etc/os-release
+if [ "x$IDx" = "xubuntux" ] ; then
+    sudo apt-get install -y software-properties-common
+    sudo add-apt-repository --yes ppa:git-core/ppa
+    sudo apt-get update
+    sudo apt-get install -y git
+fi
+
+#
+# Install teuthology and the packages required by teuthology.
+#
+git submodule sync
+git submodule update --force --init --recursive
+
+#
+# the virtualenv created by teuthology is populated but ignored
+# the bootstrap script is only useful to figure out which system
+# packages must be installed
+#
+( cd teuthology ; git clean -ffqdx ; ./bootstrap install )
+
+#
+# create our own virtualenv
+#
+rm -fr virtualenv .tox
+virtualenv virtualenv
+source virtualenv/bin/activate
+
+#
+# install everything we need
+#
+pip install --upgrade pip
+pip install --upgrade setuptools
+pip install -r requirements.txt
+pip install -e teuthology
+pip install -e .
+pip install tox

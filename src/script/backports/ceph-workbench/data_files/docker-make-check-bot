@@ -1,0 +1,89 @@
+#!/bin/bash -ex
+#
+# Ceph distributed storage system
+#
+# Copyright (C) 2015 Red Hat <contact@redhat.com>
+#
+# Author: Loic Dachary <loic@dachary.org>
+#
+#  This library is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU Lesser General Public
+#  License as published by the Free Software Foundation; either
+#  version 2.1 of the License, or (at your option) any later version.
+#
+export PATH=:$HOME:/usr/local/bin:$PATH
+
+REF=${REF:-${GIT_BRANCH#origin/}}
+number=$(echo $REF | perl -ne 'print $1 if(m:pull/(\d+):)')
+commit=$(git rev-parse HEAD)
+
+DOCKER_SETUP=origin/master
+#NONET=--net=none
+#DEV=--dev
+#ROOT_CHECK=--enable-root-make-check
+
+ccache -M 15G
+
+: ${LABELS:=centos-7&&x84_64}
+: ${OS:=${LABELS/&&*/}}
+os_type=${OS/-*/}
+os_version=${OS/*-/}
+
+# delete these lines in a few weeks, it's for when there was no user in the container name
+docker stop ceph-$os_type-$os_version || true
+docker rm ceph-$os_type-$os_version || true
+
+docker stop ceph-$os_type-$os_version-$USER || true
+docker rm ceph-$os_type-$os_version-$USER || true
+
+DIR_DOCKER=../ceph-docker
+if ! test -d $DIR_DOCKER ; then
+    git clone http://github.com/ceph/ceph.git $DIR_DOCKER
+fi
+cd $DIR_DOCKER/src
+
+git fetch --force origin master $REF
+git reset --hard $DOCKER_SETUP
+
+if $success && test/docker-test.sh --os-type $os_type --os-version $os_version true ; then
+    success=true
+else
+    success=false
+fi
+
+if $success && test/docker-test.sh --os-type $os_type --os-version $os_version --opts -t -- sudo chown -R $USER . ; then
+    success=true
+else
+    success=false
+fi
+
+# run autogen *from master* with network as it may need to access the network
+if $success && test/docker-test.sh --ref $commit --os-type $os_type --os-version $os_version -- /bin/bash -c 'git clean -qffdx ; git submodule foreach --recursive "git clean -qffdx && git reset --hard" || true ; git checkout '$DOCKER_SETUP' autogen.sh ; bash -x ./autogen.sh || true' ; then
+    success=true
+else
+    success=false
+fi
+
+function display_logs() {
+    local dir=$1
+    find $dir -name '*.trs' | xargs grep -l FAIL | while read file ; do
+        log=$(dirname $file)/$(basename $file .trs).log
+        echo FAIL: $log
+        cat $log
+    done
+}
+
+duration=1h
+# run make check without network to prevent network related bugs to spread
+
+if $success && timeout $duration test/docker-test.sh --ref $commit --os-type $os_type --os-version $os_version --opts "$NONET -t" $DEV -- /bin/bash -c "git checkout origin/master run-make-check.sh ; ./run-make-check.sh $ROOT_CHECK" ; then
+    success=true
+else
+    if test $? = 124 ; then
+	display_logs ../../ceph-$os_type-$os_version-$USER
+	echo abort by timeout after $duration
+    fi
+    success=false
+fi
+
+$success

@@ -1,0 +1,4 @@
+*~
+tests/data
+.direnv
+__pycache__

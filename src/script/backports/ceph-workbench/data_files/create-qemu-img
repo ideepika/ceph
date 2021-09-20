@@ -1,0 +1,75 @@
+#!/bin/bash -x
+#
+# Copyright (C) 2015 <contact@redhat.com>
+#
+# Author: Loic Dachary <loic@dachary.org>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+#
+
+export LIBGUESTFS_BACKEND=direct 
+
+NAME=$1
+USER_ID=$2
+
+case $NAME in
+    ubuntu-14.04-i386)
+        URL=http://cloud-images.ubuntu.com/trusty/current/trusty-server-cloudimg-i386-disk1.img
+        ;;
+    *)
+        echo unsuported $NAME
+        exit 1
+        ;;
+esac
+
+mkdir -p $NAME
+cd $NAME
+
+if ! test -d .ssh ; then
+    echo ".ssh directory not found, required to inject in the image"
+    exit 1
+fi
+
+yum install -y libguestfs-tools wget
+
+if ! test -e $NAME.orig ; then
+    wget -O $NAME.tmp -c $URL
+    mv $NAME.tmp $NAME.orig
+    virt-builder --get-kernel $NAME.orig
+    qemu-img resize $NAME.orig +10G
+    guestfish -i -a $NAME.orig command 'useradd --create-home --shell=/bin/bash jenkins' : command 'chown -R jenkins /home/jenkins' : write-file /etc/sudoers.d/jenkins 'jenkins ALL=(ALL) NOPASSWD:ALL' 0
+fi
+
+guestfish -i -a $NAME.orig command 'rm -fr /home/jenkins/.ssh' : copy-in .ssh /home/jenkins : command 'chown -R jenkins /home/jenkins/.ssh' 
+
+if test -e rc.local ; then
+    chmod +x rc.local
+    guestfish -i -a $NAME.orig copy-in rc.local /etc
+fi
+
+(
+    echo NAME=$NAME
+    cat <<'EOF'
+test -e $NAME.img || cp $NAME.orig $NAME.img
+kvm -m 1024 -drive file=$NAME.img,if=virtio -net nic -net user,hostfwd=tcp::3000-:22 -kernel vmlinuz-* -initrd initrd.* -append "root=/dev/vda1 ro ds=nocloud-net brd.rd_size=$((128 * 1024))" -display none
+EOF
+) > run.sh
+chmod +x run.sh
+
+cat > ssh.sh <<'EOF'
+ssh -A -i .ssh/id_rsa -p 3000 -t jenkins@localhost "$@"
+EOF
+chmod +x ssh.sh
+
+chown -R $USER_ID ../$NAME

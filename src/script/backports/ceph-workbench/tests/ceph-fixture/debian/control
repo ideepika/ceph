@@ -1,0 +1,74 @@
+Source: ceph
+Section: admin
+Priority: optional
+Homepage: http://ceph.com/
+Vcs-Git: git://github.com/ceph/ceph.git
+Vcs-Browser: https://github.com/ceph/ceph
+Maintainer: Ceph Maintainers <ceph-maintainers@lists.ceph.com>
+Uploaders: Ken Dreyer <kdreyer@redhat.com>,
+           Alfredo Deza <adeza@redhat.com>
+Standards-Version: 3.9.3
+Build-Depends: autoconf,
+               automake,
+               autotools-dev,
+               devscripts,
+               debhelper (>= 6.0.7~)
+
+Package: ceph
+Architecture: all
+Description: distributed storage and file system
+ Ceph is a massively scalable, open-source, distributed
+ storage system that runs on commodity hardware and delivers object,
+ block and file system storage.
+
+Package: ceph-mds
+Architecture: all
+Description: distributed storage and file system
+
+Package: ceph-common
+Architecture: all
+Description: distributed storage and file system
+
+Package: ceph-fuse
+Architecture: all
+Description: distributed storage and file system
+
+Package: ceph-test
+Architecture: all
+Description: distributed storage and file system
+
+Package: radosgw
+Architecture: all
+Description: distributed storage and file system
+
+Package: python-ceph
+Architecture: all
+Description: distributed storage and file system
+
+Package: libcephfs1
+Architecture: all
+Description: distributed storage and file system
+
+Package: libcephfs-java
+Architecture: all
+Description: distributed storage and file system
+
+Package: libcephfs-jni
+Architecture: all
+Description: distributed storage and file system
+
+Package: librados
+Architecture: all
+Description: distributed storage and file system
+
+Package: librbd1
+Architecture: all
+Description: distributed storage and file system
+
+Package: rbd-fuse
+Architecture: all
+Description: distributed storage and file system
+
+Package: librados2
+Architecture: all
+Description: distributed storage and file system

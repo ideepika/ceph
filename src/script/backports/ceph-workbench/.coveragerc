@@ -1,0 +1,12 @@
+[run]
+omit = */test/*
+[paths]
+#
+# coverage collected remotely comes from
+# ceph-workbench/ceph_workbench/ and must be considered
+# equivalent to coverage collected locally from
+# ceph_workbench/
+#
+source =
+       ceph_workbench/
+       /home/*/ceph-workbench/ceph_workbench/

@@ -1,0 +1,76 @@
+#!/usr/bin/make -f
+# -*- makefile -*-
+export DH_VERBOSE=1
+export DESTDIR=$(CURDIR)/debian/tmp
+
+configure: configure-stamp
+configure-stamp:
+	dh_testdir
+	./autogen.sh
+	./configure --prefix=/usr --localstatedir=/var \
+	  --sysconfdir=/etc  --libexecdir=/usr/lib
+	touch $@
+
+build-arch: build
+build-indep: build
+
+build: build-stamp
+build-stamp: configure-stamp  
+	dh_testdir
+
+	$(MAKE)
+
+	touch $@
+
+clean:
+	dh_testdir
+	dh_testroot
+	rm -f build-stamp configure-stamp
+
+	[ ! -f Makefile ] || $(MAKE) distclean
+	rm -f aclocal.m4 compile config.sub config.guess depcomp install-sh \
+	  ltmain.sh missing
+	rm -f configure Makefile.in
+	rm -f acconfig.h.in
+
+	dh_clean
+
+install: build
+	dh_testdir
+	dh_testroot
+	dh_clean -k 
+	dh_installdirs
+
+	$(MAKE) DESTDIR=$(DESTDIR) install
+
+binary-indep: build install
+	dh_testdir
+	dh_testroot
+	dh_installchangelogs -i
+	dh_installdocs -i --all ChangeLog
+	dh_installexamples -i
+	dh_install -i --sourcedir=$(DESTDIR) --list-missing
+	dh_installman -i
+	dh_lintian -i
+	dh_link -i
+	dh_compress -i
+	dh_fixperms -i
+	dh_installdeb -i
+	dh_gencontrol -i
+	dh_md5sums -i
+	dh_builddeb -i
+	dh_installman -a
+	dh_lintian -a
+	dh_link -a
+
+	dh_compress -a
+	dh_fixperms -a
+	dh_makeshlibs -a
+	dh_installdeb -a
+	dh_shlibdeps -a
+	dh_gencontrol -a
+	dh_md5sums -a
+	dh_builddeb -a
+
+binary: binary-indep binary-arch
+.PHONY: build clean binary-indep binary-arch binary install configure

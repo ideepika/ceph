@@ -1,0 +1,2 @@
+- Loic Dachary <loic@dachary.org>
+- Nathan Cutler <ncutler@suse.cz>

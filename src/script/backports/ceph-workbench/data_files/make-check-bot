@@ -1,0 +1,53 @@
+#!/bin/bash -ex
+#
+# Ceph distributed storage system
+#
+# Copyright (C) 2015 Red Hat <contact@redhat.com>
+#
+# Author: Loic Dachary <loic@dachary.org>
+#
+#  This library is free software; you can redistribute it and/or
+#  modify it under the terms of the GNU Lesser General Public
+#  License as published by the Free Software Foundation; either
+#  version 2.1 of the License, or (at your option) any later version.
+#
+export PATH=:$HOME:/usr/local/bin:$PATH
+
+# the following is to avoid && in the path name : various scripts will fail because of it
+where=$(pwd)
+cd ..
+test -d ceph || ln -s "$where" ceph
+cd ceph
+
+REF=${REF:-${GIT_BRANCH#origin/}}
+number=$(echo $REF | perl -ne 'print $1 if(m:pull/(\d+):)')
+commit=$(git rev-parse HEAD)
+
+DOCKER_SETUP=origin/master
+#NONET=--net=none
+#DEV=--dev
+#ROOT_CHECK=--enable-root-make-check
+
+ccache -M 5G
+
+git clean -qffdx
+git checkout origin/master run-make-check.sh install-deps.sh
+
+duration=1h
+# run make check without network to prevent network related bugs to spread
+
+if timeout $duration run-make-check.sh ; then
+    success=true
+else
+    if test $? = 124 ; then
+        display_logs ../../ceph-$os_type-$os_version-$USER
+        echo abort by timeout after $duration
+    fi
+    success=false
+fi
+
+pkill -9 ceph-osd || true
+pkill -9 ceph-mon || true
+pkill -9 ceph-mds || true
+
+$success
