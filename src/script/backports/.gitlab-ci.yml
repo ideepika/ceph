@@ -2,12 +2,4 @@
 image: python:3.8-buster
 jobs:
   script:
-    - cd src/script/backports
-    - pip install poetry
-    - poetry install
-    - poetry run pre-commit run --config .pre-commit-config.yaml --files ceph-workbench/ceph_workbench/*.py tests/*.py
-    - MY_IP=$(ip r show default | cut -f3 -d' ') poetry run tests/setup.sh
-    - MY_IP=$(ip r show default | cut -f3 -d' ') poetry run tests/test-ceph-backport.sh
-
-  after_script:
-    - tests/setup.sh teardown
+    - MY_IP=$(ip r show default | cut -f3 -d' ')  src/test/run-ceph-backport-tests.sh

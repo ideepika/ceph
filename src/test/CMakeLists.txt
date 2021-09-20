@@ -608,6 +608,8 @@ add_ceph_test(run-cli-tests ${CMAKE_CURRENT_SOURCE_DIR}/run-cli-tests)
 
 add_ceph_test(smoke.sh ${CMAKE_CURRENT_SOURCE_DIR}/smoke.sh)
 
+add_ceph_test(run-ceph-backport-tests.sh ${CMAKE_CURRENT_SOURCE_DIR}/run-ceph-backport-tests.sh)
+
 if(DEFINED PROMTOOL_EXECUTABLE)
   set(promtool_executable_checked TRUE)
 endif()
