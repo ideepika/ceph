@@ -421,9 +421,7 @@ def cluster(ctx, config):
             cmd += ['--mon-addrv', mons[first_mon_role]]
         else:
             cmd += ['--mon-ip', mons[first_mon_role]]
-        if config.get('skip_dashboard'):
             cmd += ['--skip-dashboard']
-        if config.get('skip_monitoring_stack'):
             cmd += ['--skip-monitoring-stack']
         if config.get('single_host_defaults'):
             cmd += ['--single-host-defaults']
@@ -468,13 +466,6 @@ def cluster(ctx, config):
         if config.get('allow_ptrace', True):
             _shell(ctx, cluster_name, bootstrap_remote,
                    ['ceph', 'config', 'set', 'mgr', 'mgr/cephadm/allow_ptrace', 'true'])
-
-        if not config.get('avoid_pacific_features', False):
-            log.info('Distributing conf and client.admin keyring to all hosts + 0755')
-            _shell(ctx, cluster_name, bootstrap_remote,
-                   ['ceph', 'orch', 'client-keyring', 'set', 'client.admin',
-                    '*', '--mode', '0755'],
-                   check_status=False)
 
         # add other hosts
         for remote in ctx.cluster.remotes.keys():
@@ -684,13 +675,6 @@ def ceph_bootstrap(ctx, config):
         if config.get('allow_ptrace', True):
             _shell(ctx, cluster_name, bootstrap_remote,
                    ['ceph', 'config', 'set', 'mgr', 'mgr/cephadm/allow_ptrace', 'true'])
-
-        if not config.get('avoid_pacific_features', False):
-            log.info('Distributing conf and client.admin keyring to all hosts + 0755')
-            _shell(ctx, cluster_name, bootstrap_remote,
-                   ['ceph', 'orch', 'client-keyring', 'set', 'client.admin',
-                    '*', '--mode', '0755'],
-                   check_status=False)
 
         # add other hosts
         for remote in ctx.cluster.remotes.keys():

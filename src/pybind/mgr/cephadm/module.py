@@ -376,7 +376,7 @@ class CephadmOrchestrator(orchestrator.Orchestrator, MgrModule,
             self.prometheus_alerts_path = ''
             self.migration_current: Optional[int] = None
             self.config_dashboard = True
-            self.manage_etc_ceph_ceph_conf = True
+            self.manage_etc_ceph_ceph_conf = False
             self.manage_etc_ceph_ceph_conf_hosts = '*'
             self.registry_url: Optional[str] = None
             self.registry_username: Optional[str] = None
