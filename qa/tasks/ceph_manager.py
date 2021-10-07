@@ -29,7 +29,7 @@ from teuthology.exceptions import CommandFailedError
 from tasks.thrasher import Thrasher
 
 
-DEFAULT_CONF_PATH = '/etc/ceph/ceph.conf'
+DEFAULT_CONF_PATH = '/etc/{cluster_name}/ceph.conf'
 
 log = logging.getLogger(__name__)
 
@@ -44,6 +44,8 @@ def shell(ctx, cluster_name, remote, args, name=None, **kwargs):
             ctx.cephadm,
             '--image', ctx.ceph[cluster_name].image,
             'shell',
+            '-c', '/etc/ceph/{}.conf'.format(cluster_name),
+            '-k', '/etc/ceph/{}.client.admin.keyring'.format(cluster_name),
         ] + extra_args + [
             '--fsid', ctx.ceph[cluster_name].fsid,
             '--',
@@ -65,7 +67,7 @@ def toolbox(ctx, cluster_name, args, **kwargs):
     )
 
 
-def write_conf(ctx, conf_path=DEFAULT_CONF_PATH, cluster='ceph'):
+def write_conf(ctx, conf_path=DEFAULT_CONF_PATH, cluster_name=self.cluster_name):
     conf_fp = BytesIO()
     ctx.ceph[cluster].conf.write(conf_fp)
     conf_fp.seek(0)
@@ -205,7 +207,10 @@ class OSDThrasher(Thrasher):
         super(OSDThrasher, self).__init__()
 
         self.ceph_manager = manager
-        self.cluster = manager.cluster
+        self.cluster_name = self.manager.cluster
+        if self.cluster_name == "ceph":
+            self.cluster_name = self.config.get('cluster', 'ceph')
+        log.info("Manager cluster is {} and cluster_name {}".format(self.manager.cluster, self.cluster_name)
         self.ceph_manager.wait_for_clean()
         osd_status = self.ceph_manager.get_osd_status()
         self.in_osds = osd_status['in']
@@ -285,7 +290,7 @@ class OSDThrasher(Thrasher):
         if self.ceph_manager.cephadm or self.ceph_manager.rook:
             return True
         allremotes = self.ceph_manager.ctx.cluster.only(\
-            teuthology.is_type('osd', self.cluster)).remotes.keys()
+            teuthology.is_type('osd', self.cluster_name)).remotes.keys()
         allremotes = list(set(allremotes))
         for remote in allremotes:
             proc = remote.run(args=['type', cmd], wait=True,
@@ -409,7 +414,7 @@ class OSDThrasher(Thrasher):
                 return
             pg = random.choice(pgs)
             #exp_path = teuthology.get_testdir(self.ceph_manager.ctx)
-            #exp_path = os.path.join(exp_path, '{0}.data'.format(self.cluster))
+            #exp_path = os.path.join(exp_path, '{0}.data'.format(self.cluster_name))
             exp_path = os.path.join('/var/log/ceph', # available inside 'shell' container
                                     "exp.{pg}.{id}".format(
                                         pg=pg,
@@ -1504,17 +1509,17 @@ class CephManager:
     :param ctx: the cluster context
     :param config: path to Ceph config file
     :param logger: for logging messages
-    :param cluster: name of the Ceph cluster
+    :param cluster_name: name of the Ceph cluster
     """
 
     def __init__(self, controller, ctx=None, config=None, logger=None,
-                 cluster='ceph', cephadm=False, rook=False) -> None:
+                 cluster_name=None, cephadm=False, rook=False) -> None:
         self.lock = threading.RLock()
         self.ctx = ctx
         self.config = config
         self.controller = controller
         self.next_pool_id = 0
-        self.cluster = cluster
+        self.cluster_name = self.config.get('cluster', 'ceph')
         self.cephadm = cephadm
         self.rook = rook
         if (logger):
@@ -1559,12 +1564,12 @@ class CephManager:
             kwargs['args'] = shlex.split(kwargs['args'])
 
         if self.cephadm:
-            return shell(self.ctx, self.cluster, self.controller,
+            return shell(self.ctx, self.cluster_name, self.controller,
                          args=['ceph'] + list(kwargs['args']),
                          stdout=StringIO(),
                          check_status=kwargs.get('check_status', True))
         if self.rook:
-            return toolbox(self.ctx, self.cluster,
+            return toolbox(self.ctx, self.cluster_name,
                            args=['ceph'] + list(kwargs['args']),
                            stdout=StringIO(),
                            check_status=kwargs.get('check_status', True))
@@ -1572,7 +1577,7 @@ class CephManager:
         testdir = teuthology.get_testdir(self.ctx)
         prefix = ['sudo', 'adjust-ulimits', 'ceph-coverage',
                   f'{testdir}/archive/coverage', 'timeout', '120', 'ceph',
-                  '--cluster', self.cluster]
+                  '--cluster', self.cluster_name]
         kwargs['args'] = prefix + list(kwargs['args'])
         return self.controller.run(**kwargs)
 
@@ -1615,7 +1620,7 @@ class CephManager:
                 "kill",
                 "ceph",
                 '--cluster',
-                self.cluster,
+                self.cluster_name,
                 "-w"]
         if watch_channel is not None:
             args.append("--watch-channel")
@@ -1724,7 +1729,7 @@ class CephManager:
             '{tdir}/archive/coverage'.format(tdir=testdir),
             'rados',
             '--cluster',
-            self.cluster,
+            self.cluster_name,
             ]
         if pool is not None:
             pre += ['--pool', pool]
@@ -1805,7 +1810,7 @@ class CephManager:
         :return: a Remote instance for the host where the
                  requested role is placed
         """
-        return get_remote(self.ctx, self.cluster,
+        return get_remote(self.ctx, self.cluster_name,
                           service_type, service_id)
 
     def admin_socket(self, service_type, service_id,
@@ -1822,7 +1827,7 @@ class CephManager:
 
         if self.cephadm:
             return shell(
-                self.ctx, self.cluster, remote,
+                self.ctx, self.cluster_name, remote,
                 args=[
                     'ceph', 'daemon', '%s.%s' % (service_type, service_id),
                 ] + command,
@@ -1843,10 +1848,10 @@ class CephManager:
             str(timeout),
             'ceph',
             '--cluster',
-            self.cluster,
+            self.cluster_name,
             '--admin-daemon',
             '/var/run/ceph/{cluster}-{type}.{id}.asok'.format(
-                cluster=self.cluster,
+                cluster=self.cluster_name,
                 type=service_type,
                 id=service_id),
             ]
@@ -2037,12 +2042,12 @@ class CephManager:
                      for x in filter(lambda x:
                                      not x.running(),
                                      self.ctx.daemons.
-                                     iter_daemons_of_role('osd', self.cluster))]
+                                     iter_daemons_of_role('osd', self.cluster_name))]
         live_osds = [int(x.id_) for x in
                      filter(lambda x:
                             x.running(),
                             self.ctx.daemons.iter_daemons_of_role('osd',
-                                                                  self.cluster))]
+                                                                  self.cluster_name))]
         return {'in': in_osds, 'out': out_osds, 'up': up_osds,
                 'down': down_osds, 'dead': dead_osds, 'live': live_osds,
                 'raw': osd_lines}
@@ -2948,15 +2953,15 @@ class CephManager:
                     'osd', osd,
                     'bdev-inject-crash', self.config.get('bdev_inject_crash'))
                 try:
-                    self.ctx.daemons.get_daemon('osd', osd, self.cluster).wait()
+                    self.ctx.daemons.get_daemon('osd', osd, self.cluster_name).wait()
                 except:
                     pass
                 else:
                     raise RuntimeError('osd.%s did not fail' % osd)
             else:
-                self.ctx.daemons.get_daemon('osd', osd, self.cluster).stop()
+                self.ctx.daemons.get_daemon('osd', osd, self.cluster_name).stop()
         else:
-            self.ctx.daemons.get_daemon('osd', osd, self.cluster).stop()
+            self.ctx.daemons.get_daemon('osd', osd, self.cluster_name).stop()
 
     @staticmethod
     def _assert_ipmi(remote):
@@ -2971,7 +2976,7 @@ class CephManager:
         self.inject_args('osd', osd,
                          'objectstore-blackhole', True)
         time.sleep(2)
-        self.ctx.daemons.get_daemon('osd', osd, self.cluster).stop()
+        self.ctx.daemons.get_daemon('osd', osd, self.cluster_name).stop()
 
     def revive_osd(self, osd, timeout=360, skip_admin_check=False):
         """
@@ -2988,10 +2993,10 @@ class CephManager:
                 raise Exception('Failed to revive osd.{o} via ipmi'.
                                 format(o=osd))
             teuthology.reconnect(self.ctx, 60, [remote])
-            mount_osd_data(self.ctx, remote, self.cluster, str(osd))
+            mount_osd_data(self.ctx, remote, self.cluster_name, str(osd))
             self.make_admin_daemon_dir(remote)
-            self.ctx.daemons.get_daemon('osd', osd, self.cluster).reset()
-        self.ctx.daemons.get_daemon('osd', osd, self.cluster).restart()
+            self.ctx.daemons.get_daemon('osd', osd, self.cluster_name).reset()
+        self.ctx.daemons.get_daemon('osd', osd, self.cluster_name).restart()
 
         if not skip_admin_check:
             # wait for dump_ops_in_flight; this command doesn't appear
@@ -3020,7 +3025,7 @@ class CephManager:
         signal to the given osd.
         """
         self.ctx.daemons.get_daemon('osd', osd,
-                                    self.cluster).signal(sig, silent=silent)
+                                    self.cluster_name).signal(sig, silent=silent)
 
     ## monitors
     def signal_mon(self, mon, sig, silent=False):
@@ -3028,7 +3033,7 @@ class CephManager:
         Wrapper to local get_daemon call
         """
         self.ctx.daemons.get_daemon('mon', mon,
-                                    self.cluster).signal(sig, silent=silent)
+                                    self.cluster_name).signal(sig, silent=silent)
 
     def kill_mon(self, mon):
         """
@@ -3042,7 +3047,7 @@ class CephManager:
             self._assert_ipmi(remote)
             remote.console.power_off()
         else:
-            self.ctx.daemons.get_daemon('mon', mon, self.cluster).stop()
+            self.ctx.daemons.get_daemon('mon', mon, self.cluster_name).stop()
 
     def revive_mon(self, mon):
         """
@@ -3056,7 +3061,7 @@ class CephManager:
             self._assert_ipmi(remote)
             remote.console.power_on()
             self.make_admin_daemon_dir(remote)
-        self.ctx.daemons.get_daemon('mon', mon, self.cluster).restart()
+        self.ctx.daemons.get_daemon('mon', mon, self.cluster_name).restart()
 
     def revive_mgr(self, mgr):
         """
@@ -3070,7 +3075,7 @@ class CephManager:
             self._assert_ipmi(remote)
             remote.console.power_on()
             self.make_admin_daemon_dir(remote)
-        self.ctx.daemons.get_daemon('mgr', mgr, self.cluster).restart()
+        self.ctx.daemons.get_daemon('mgr', mgr, self.cluster_name).restart()
 
     def get_mon_status(self, mon):
         """
@@ -3133,7 +3138,7 @@ class CephManager:
         """
         Return path to osd data with {id} needing to be replaced
         """
-        return '/var/lib/ceph/osd/' + self.cluster + '-{id}'
+        return '/var/lib/ceph/osd/' + self.cluster_name + '-{id}'
 
     def make_admin_daemon_dir(self, remote):
         """
@@ -3174,7 +3179,7 @@ def utility_task(name):
             config = {}
         args = config.get('args', [])
         kwargs = config.get('kwargs', {})
-        cluster = config.get('cluster', 'ceph')
+        cluster_name = config.get('cluster', 'ceph')
         fn = getattr(ctx.managers[cluster], name)
         fn(*args, **kwargs)
     return task
