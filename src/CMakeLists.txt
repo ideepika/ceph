@@ -432,6 +432,11 @@ if(WITH_JAEGER)
   find_package(thrift 0.13.0 REQUIRED)
   include(BuildOpentelemetry)
   build_opentelemetry()
+  set(opentelemetry_include_dir ${CMAKE_SOURCE_DIR}/src/opentelemetry-cpp/api/include/
+                                ${CMAKE_SOURCE_DIR}/src/opentelemetry-cpp/exporters/jaeger/include/
+                                ${CMAKE_SOURCE_DIR}/src/opentelemetry-cpp/ext/include/
+                                ${CMAKE_SOURCE_DIR}/src/opentelemetry-cpp/sdk/include/)
+  include_directories(SYSTEM ${opentelemetry_include_dir})
   set(jaeger_base opentelemetry::libopentelemetry thrift::libthrift)
   add_dependencies(common-objs ${jaeger_base})
   target_link_libraries(common-objs ${jaeger_base})
