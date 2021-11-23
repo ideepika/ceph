@@ -394,6 +394,7 @@ set(libcommon_files
   global/global_context.cc
   xxHash/xxhash.c
   common/error_code.cc
+  common/tracer.cc
   log/Log.cc
   mon/MonCap.cc
   mon/MonClient.cc
@@ -420,7 +421,10 @@ set(libcommon_files
   librbd/io/IoOperations.cc
   ${mds_files})
 
+<<<<<<< HEAD
 set_source_files_properties(ceph_ver.c
+=======
+>>>>>>> b77838d7696 (src/*/CMakeLists: update jaeger-base > jaeger_base)
   APPEND PROPERTY OBJECT_DEPENDS ${CMAKE_BINARY_DIR}/src/include/ceph_ver.h)
 add_library(common-objs OBJECT ${libcommon_files})
 target_compile_definitions(common-objs PRIVATE
@@ -433,6 +437,7 @@ if(WITH_JAEGER)
   build_opentelemetry()
   set(jaeger_base opentelemetry::libopentelemetry thrift::libthrift)
   add_dependencies(common-objs ${jaeger_base})
+  target_link_libraries(common-objs ${jaeger_base})
 endif()
 
 CHECK_C_COMPILER_FLAG("-fvar-tracking-assignments" HAS_VTA)
@@ -496,7 +501,7 @@ if(WITH_DPDK)
 endif()
 
 if(WITH_JAEGER)
-  list(APPEND ceph_common_deps jaeger-base)
+  list(APPEND ceph_common_deps ${jaeger_base})
 endif()
 
 if(WIN32)
@@ -522,11 +527,11 @@ endif()
 
 add_library(common STATIC ${ceph_common_objs})
 target_link_libraries(common ${ceph_common_deps})
-add_dependencies(common legacy-option-headers)
+add_dependencies(common legacy-option-headers ${jaeger_base})
 
 add_library(ceph-common SHARED ${ceph_common_objs})
 target_link_libraries(ceph-common ${ceph_common_deps})
-add_dependencies(ceph-common legacy-option-headers)
+add_dependencies(ceph-common legacy-option-headers ${jaeger_base})
 # appease dpkg-shlibdeps
 set_target_properties(ceph-common PROPERTIES
   SOVERSION 2
