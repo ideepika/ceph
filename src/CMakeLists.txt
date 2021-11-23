@@ -421,10 +421,7 @@ set(libcommon_files
   librbd/io/IoOperations.cc
   ${mds_files})
 
-<<<<<<< HEAD
 set_source_files_properties(ceph_ver.c
-=======
->>>>>>> b77838d7696 (src/*/CMakeLists: update jaeger-base > jaeger_base)
   APPEND PROPERTY OBJECT_DEPENDS ${CMAKE_BINARY_DIR}/src/include/ceph_ver.h)
 add_library(common-objs OBJECT ${libcommon_files})
 target_compile_definitions(common-objs PRIVATE
