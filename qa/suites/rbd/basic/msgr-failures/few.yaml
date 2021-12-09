@@ -4,5 +4,7 @@ overrides:
       global:
         ms inject socket failures: 5000
         mon client directed command retry: 5
+        osd debug inject dispatch delay duration: 0.1
+        osd debug inject dispatch delay probability: 0.1
     log-ignorelist:
       - \(OSD_SLOW_PING_TIME
