@@ -40,14 +40,16 @@ void PromoteRequest<I>::send() {
     lderr(cct) << "cannot promote" << dendl;
     finish(-EINVAL);
     return;
-  } else if (m_rollback_snap_id == CEPH_NOSNAP && !requires_orphan) {
+  } else if (requires_orphan) {
+    create_orphan_snapshot();
+    return;
+  } else {
     create_promote_snapshot();
     return;
   }
 
   ldout(cct, 15) << "requires_orphan=" << requires_orphan << ", "
                  << "rollback_snap_id=" << m_rollback_snap_id << dendl;
-  create_orphan_snapshot();
 }
 
 template <typename I>
@@ -77,6 +79,7 @@ void PromoteRequest<I>::handle_create_orphan_snapshot(int r) {
   }
 
   list_watchers();
+
 }
 
 template <typename I>
@@ -110,6 +113,9 @@ void PromoteRequest<I>::handle_list_watchers(int r) {
 
   if (m_watchers.empty()) {
     acquire_exclusive_lock();
+        util::can_create_primary_snapshot(m_image_ctx, false, true,
+                                         &requires_orphan,
+                                         &m_rollback_snap_id);
     return;
   }
 
@@ -246,7 +252,7 @@ void PromoteRequest<I>::handle_acquire_exclusive_lock(int r) {
 
 template <typename I>
 void PromoteRequest<I>::rollback() {
-  if (m_rollback_snap_id == CEPH_NOSNAP) {
+  if (m_rollback_snap_id == CEPH_NOSNAP || !m_rollback_snap_id ) {
     create_promote_snapshot();
     return;
   }
