@@ -1,10 +1,11 @@
 name: "Test Backport Script"
 on:
-  pull_request:
-    types:
-      - edited
-      - opened
-      - reopened
+  push:
+  #  pull_request:
+  #    types:
+  #      - edited
+  #      - opened
+  #      - reopened
 jobs:
   runs-on: python:3.8-buster
   run: |
