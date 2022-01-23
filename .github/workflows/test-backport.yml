@@ -11,4 +11,4 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: run backport testing script
-        run: MY_IP=$(ip r show default | cut -f3 -d' ') src/test/run-ceph-backport-tests.sh
+        run: ls -al && MY_IP=$(ip r show default | cut -f3 -d' ') ./src/test/run-ceph-backport-tests.sh
