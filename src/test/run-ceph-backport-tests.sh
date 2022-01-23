@@ -17,10 +17,10 @@ fi
 #
 SCRIPT=src/script/ceph-backport.sh
 
-if ! git diff --stat ${GITHUB_BASE:=origin/master}..${GITHUB_SHA:=HEAD} | grep -q $SCRIPT ; then
-    echo SKIP because $SCRIPT is not modified
-    exit 0
-fi
+# if ! git diff --stat ${GITHUB_BASE:=origin/master}..${GITHUB_SHA:=HEAD} | grep -q $SCRIPT ; then
+#     echo SKIP because $SCRIPT is not modified
+#     exit 0
+# fi
 
 cd $CEPH_ROOT/src/script/backports
 

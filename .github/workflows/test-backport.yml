@@ -16,4 +16,4 @@ jobs:
           # Checkout pull request HEAD commit instead of merge commit
           ref: ${{ github.event.pull_request.head.sha }}
       - name: run backport testing script
-        run: git log && MY_IP=$(ip r show default | cut -f3 -d' ') src/test/run-ceph-backport-tests.sh
+        run: src/test/run-ceph-backport-tests.sh
