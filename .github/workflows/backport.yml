@@ -25,9 +25,11 @@ jobs:
           GITHUB_USER: dexter816
           UPSTREAM_FORK: https://github.com/ceph/ceph.git
           EXPLICT_FORK: https://github.com/dexter816/ceph.git
+          GITHUB_CONTEXT: ${{ toJSON(github) }}
         run: |
           #TODO: handle tracker_id in any commit_msg instead of topmost
           #TODO: handle preexisting/half processed ones(though unlikely)
+          echo "$GITHUB_CONTEXT"
           echo PR #${{ github.event.number }} has been merged
           commit_msg=$(git log -n 1 ${{ github.event.pull_request.head.sha }})
           tracker_id=$(echo "$commit_msg" | grep "tracker.ceph" | cut -d"/" -f5)
