@@ -465,6 +465,26 @@ wait_for_status_in_pool_dir ${CLUSTER1} ${POOL} ${image} 'up+replaying'
 compare_images ${POOL} ${image}
 remove_image_retry ${CLUSTER2} ${POOL} ${image}
 
+testlog "TEST: request image resync while no known primary exists"
+demote_image ${CLUSTER1} ${POOL} ${image}
+request_resync_image ${CLUSTER1} ${POOL} ${image} image_id
+wait_for_image_present ${CLUSTER1} ${POOL} ${image} 'present' ${image_id}
+wait_for_image_present ${CLUSTER1} ${POOL} ${image} 'present'
+wait_for_status_in_pool_dir ${CLUSTER1} ${POOL} ${image} 'up+stopped' 'resync invalid, remote image is non-primary'
+# test simple resync now
+promote_image ${CLUSTER2} ${POOL} ${image}
+wait_for_status_in_pool_dir ${CLUSTER1} ${POOL} ${image} 'up+replaying'
+wait_for_image_replay_started ${CLUSTER1} ${POOL} ${image}
+request_resync_image ${CLUSTER1} ${POOL} ${image} image_id
+wait_for_image_present ${CLUSTER1} ${POOL} ${image} 'deleted' ${image_id}
+wait_for_image_present ${CLUSTER1} ${POOL} ${image} 'present'
+wait_for_image_replay_started ${CLUSTER1} ${POOL} ${image}
+wait_for_replay_complete ${CLUSTER1} ${CLUSTER2} ${POOL} ${image}
+wait_for_status_in_pool_dir ${CLUSTER2} ${POOL} ${image} 'up+stopped'
+wait_for_status_in_pool_dir ${CLUSTER1} ${POOL} ${image} 'up+replaying'
+compare_images ${POOL} ${image}
+remove_image_retry ${CLUSTER2} ${POOL} ${image}
+
 testlog "TEST: split-brain"
 image=split-brain
 create_image_and_enable_mirror ${CLUSTER2} ${POOL} ${image}
