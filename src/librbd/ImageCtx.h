@@ -220,6 +220,7 @@ namespace librbd {
     uint32_t discard_granularity_bytes = 0;
     bool blkin_trace_all;
     uint64_t mirroring_replay_delay;
+    uint64_t mirroring_debug_snap_copy_delay;
     uint64_t mtime_update_interval;
     uint64_t atime_update_interval;
 

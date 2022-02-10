@@ -785,6 +785,7 @@ librados::IoCtx duplicate_io_ctx(librados::IoCtx& io_ctx) {
     ASSIGN_OPTION(clone_copy_on_read, bool);
     ASSIGN_OPTION(enable_alloc_hint, bool);
     ASSIGN_OPTION(mirroring_replay_delay, uint64_t);
+    ASSIGN_OPTION(mirroring_debug_snap_copy_delay, uint64_t);
     ASSIGN_OPTION(mtime_update_interval, uint64_t);
     ASSIGN_OPTION(atime_update_interval, uint64_t);
     ASSIGN_OPTION(skip_partial_discard, bool);

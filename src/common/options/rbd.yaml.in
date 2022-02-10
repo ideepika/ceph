@@ -470,6 +470,13 @@ options:
   services:
   - rbd
   min: 3
+- name: rbd_mirroring_debug_snap_copy_delay
+  type: uint
+  level: dev
+  desc: time-delay in seconds for rbd-mirror to wait before copying a snapshot
+  default: 0
+  services:
+  - rbd
 - name: rbd_default_format
   type: uint
   level: advanced

@@ -97,6 +97,7 @@ struct MockImageCtx {
       sparse_read_threshold_bytes(image_ctx.sparse_read_threshold_bytes),
       discard_granularity_bytes(image_ctx.discard_granularity_bytes),
       mirroring_replay_delay(image_ctx.mirroring_replay_delay),
+      mirroring_debug_snap_copy_delay(image_ctx.mirroring_debug_snap_copy_delay),
       non_blocking_aio(image_ctx.non_blocking_aio),
       blkin_trace_all(image_ctx.blkin_trace_all),
       enable_alloc_hint(image_ctx.enable_alloc_hint),
@@ -322,6 +323,7 @@ struct MockImageCtx {
   uint64_t sparse_read_threshold_bytes;
   uint32_t discard_granularity_bytes;
   int mirroring_replay_delay;
+  uint64_t mirroring_debug_snap_copy_delay;
   bool non_blocking_aio;
   bool blkin_trace_all;
   bool enable_alloc_hint;

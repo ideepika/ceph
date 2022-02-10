@@ -710,6 +710,14 @@ void Replayer<I>::scan_remote_mirror_snapshots(
                    << dendl;
           get_local_image_state();
         } else {
+          uint32_t delay = m_state_builder->local_image_ctx->mirroring_debug_snap_copy_delay;
+          if (delay) {
+            dout(20) << "delaying snapshot copy by " << delay << " sec" << dendl;
+            std::unique_lock timer_locker{m_threads->timer_lock};
+            auto ctx = new LambdaContext([this](int) { copy_snapshots(); });
+            m_threads->timer->add_event_after(delay, ctx);
+            return;
+          }
           copy_snapshots();
         }
         return;
