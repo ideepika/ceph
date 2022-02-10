@@ -529,7 +529,11 @@ void Replayer<I>::scan_local_mirror_snapshots(
   }
 
   if (m_local_snap_id_start > 0 || m_local_snap_id_end != CEPH_NOSNAP) {
-    if (m_local_mirror_snap_ns.is_non_primary() &&
+    if (m_local_mirror_snap_ns.is_orphan()) {
+      dout(5) << "local image force promoted - orphan snapshot detected" << dendl;
+      handle_replay_complete(locker, 0, "force promoted (orphan snapshot detected)");
+      return;
+    } else if (m_local_mirror_snap_ns.is_non_primary() &&
         m_local_mirror_snap_ns.primary_mirror_uuid !=
           m_state_builder->remote_mirror_uuid) {
       // TODO support multiple peers
