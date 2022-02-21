@@ -517,7 +517,11 @@ test -n "$(get_mirror_journal_position ${CLUSTER2} ${POOL} ${image})"
 compare_images ${POOL} ${image}
 
 testlog "TEST: request image resync while no known primary exists"    You, 09/02/22 16:22 • qa/workunits/rbd: add test for resync invalid case
+start_mirrors ${CLUSTER1}
 demote_image ${CLUSTER1} ${POOL} ${image}
+wait_for_image_replay_stopped ${CLUSTER2} ${POOL} ${image}
+wait_for_status_in_pool_dir ${CLUSTER1} ${POOL} ${image} 'up+unknown'
+wait_for_status_in_pool_dir ${CLUSTER2} ${POOL} ${image} 'up+unknown'
 request_resync_image ${CLUSTER1} ${POOL} ${image} image_id
 wait_for_image_present ${CLUSTER1} ${POOL} ${image} 'present' ${image_id}
 wait_for_image_present ${CLUSTER1} ${POOL} ${image} 'present'
