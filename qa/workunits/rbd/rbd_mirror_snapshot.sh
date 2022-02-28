@@ -442,7 +442,6 @@ compare_images ${POOL} ${image}
 
 testlog "TEST: request image resync while no known primary exists"
 demote_image ${CLUSTER2} ${POOL} ${image}
-wait_for_image_replay_stopped ${CLUSTER2} ${POOL} ${image}
 wait_for_status_in_pool_dir ${CLUSTER1} ${POOL} ${image} 'up+unknown'
 wait_for_status_in_pool_dir ${CLUSTER2} ${POOL} ${image} 'up+unknown'
 request_resync_image ${CLUSTER2} ${POOL} ${image} image_id
