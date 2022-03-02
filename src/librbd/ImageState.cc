@@ -102,6 +102,7 @@ public:
 	r = -ENOENT;
       } else {
 	if (m_in_flight.find(handle) != m_in_flight.end()) {
+	  ldout(m_cct, 20) << "ImageUpdateWatchers::" << "in-flight: " << handle << dendl;
 	  ceph_assert(m_pending_unregister.find(handle) == m_pending_unregister.end());
 	  m_pending_unregister[handle] = on_finish;
 	  on_finish = nullptr;
