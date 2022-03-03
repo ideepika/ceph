@@ -86,25 +86,14 @@ void PromoteRequest<I>::list_watchers() {
   auto ctx = create_context_callback<
     PromoteRequest<I>,
     &PromoteRequest<I>::handle_list_watchers>(this);
-  int r; 
-
-  for(auto m_watcher : m_watchers) {
-  librados::Rados rados(cct);
-  r = rados.blocklist_add(
-  m_watcher.addr,
-  //ictx->config.get_val<uint64_t>("rbd_blocklist_expire_seconds"));
-  5);
-  if (r < 0) {
-   lderr(cct) << "unable to blocklist client: " << cpp_strerror(r)
-              << dendl;
-  }
-  }
   m_watchers.clear();
   auto flags = librbd::image::LIST_WATCHERS_FILTER_OUT_MY_INSTANCE |
                librbd::image::LIST_WATCHERS_MIRROR_INSTANCES_ONLY;
   auto req = librbd::image::ListWatchersRequest<I>::create(
     *m_image_ctx, flags, &m_watchers, ctx);
   req->send();
+
+  blocklist_watchers();
 }
 
 template <typename I>
@@ -117,6 +106,27 @@ void PromoteRequest<I>::handle_list_watchers(int r) {
                << dendl;
     finish(r);
     return;
+  }
+
+}
+
+template <typename I>
+void PromoteRequest<I>::blocklist_watchers() {
+  CephContext *cct = m_image_ctx->cct;
+  ldout(cct, 15) << dendl;
+  int r;
+
+  for(auto m_watcher : m_watchers) {
+    ldout(cct, 15) <<  "blocklisting watcher address: " << m_watcher.addr << dendl;
+    librados::Rados rados(m_image_ctx->md_ctx);
+    r = rados.blocklist_add(
+    m_watcher.addr,
+    //,m_image_ctx->config.get_val<uint64_t>("rbd_blocklist_expire_seconds"));
+    1200);
+    if (r < 0) {
+     lderr(cct) << "unable to blocklist watcher: " << cpp_strerror(r)
+		<< dendl;
+    }
   }
 
   if (m_watchers.empty()) {

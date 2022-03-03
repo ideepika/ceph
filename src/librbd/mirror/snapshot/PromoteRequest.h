@@ -56,6 +56,8 @@ private:
    *    v     v                               |   |
    * LIST_WATCHERS ----> WAIT_UPDATE_NOTIFY --/   |
    *    |                                         |
+   * BLOCKLIST_WATCHERS                           |
+   *    |                                         |
    *    | (no watchers)                           |
    *    v                                         |
    * ACQUIRE_EXCLUSIVE_LOCK                       |
@@ -115,6 +117,7 @@ private:
 
   void list_watchers();
   void handle_list_watchers(int r);
+  void blocklist_watchers();
 
   void wait_update_notify();
   void handle_update_notify();
