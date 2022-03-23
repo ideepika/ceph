@@ -2,8 +2,9 @@ What is a mempool?
 ------------------
 A memory pool is a method for accounting the consumption of memory of
 a set of containers.
-Memory pools are statically declared (see pool_index_t), which serve
-the purpose of identifying memory related checks in bluestore.
+Each memory pool tracks the number of bytes and items it contains.
+Memory pools are statically declared and serves the purpose of identifying
+memory related checks in BlueStore.
 
 Some common mempools that we can track
 --------------------------------------
@@ -13,7 +14,7 @@ Some common mempools that we can track
   accessed.
 - bluestore_alloc: It accounts for actual allocations done by an allocator.
 - bluestore_inline_bl: measures encoded length of an inline buffer.
-- bluestore_fsck: file system consistency check for bluestore metadata, helps in
+- bluestore_fsck: file system consistency check for BlueStore metadata, helps in
   tracking and debugging during OSD repairs.
 - bluestore_txc: accounts for committed transactions counter.
 - bluestore_writing_deferred: measures those small writes which are deferred
@@ -46,7 +47,7 @@ Some common mempools that we can track
 Check mempools usage
 ~~~~~~~~~~~~~~~~~~~~
 
-Command to see bluestore memory allocation in these mempools::
+Command to see BlueStore memory allocation in these mempools::
 
      $ ceph daemon osd.NNN dump_mempools
 
