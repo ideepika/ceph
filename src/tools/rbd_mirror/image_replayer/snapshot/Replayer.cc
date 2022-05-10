@@ -1479,6 +1479,13 @@ void Replayer<I>::handle_image_update_notify() {
   if (m_state == STATE_REPLAYING) {
     dout(15) << "flagging snapshot rescan required" << dendl;
     m_image_updated = true;
+
+    if (m_local_mirror_snap_ns.is_orphan()) {
+      locker.unlock();
+
+      dout(15) << "orphan detected, loading local image meta" << dendl;
+      load_local_image_meta();
+    }
   } else if (m_state == STATE_IDLE) {
     m_state = STATE_REPLAYING;
     locker.unlock();
