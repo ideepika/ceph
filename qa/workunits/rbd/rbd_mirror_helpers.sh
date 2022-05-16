@@ -1233,7 +1233,7 @@ compare_images()
         show_diff ${rmt_export} ${loc_export}
         ret=1
     fi
-    rm -f ${rmt_export} ${loc_export}
+   # rm -f ${rmt_export} ${loc_export}
     return ${ret}
 }
 
