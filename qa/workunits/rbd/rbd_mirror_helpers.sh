@@ -1279,7 +1279,7 @@ promote_image()
     local image=$3
     local force=$4
 
-    rbd --cluster=${cluster} mirror image promote ${pool}/${image} ${force}
+    rbd --cluster=${cluster} mirror image promote ${pool}/${image} ${force} --debug-rbd 30 --debug-rbd-mirror 30
 }
 
 set_pool_mirror_mode()

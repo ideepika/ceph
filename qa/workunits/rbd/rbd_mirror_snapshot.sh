@@ -14,6 +14,7 @@ MIRROR_IMAGE_MODE=snapshot
 
 setup
 
+
 testlog "TEST: add image and test replay"
 start_mirrors ${CLUSTER1}
 image=test
