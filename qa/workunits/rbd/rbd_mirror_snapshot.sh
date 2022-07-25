@@ -236,7 +236,7 @@ wait_for_status_in_pool_dir ${CLUSTER1} ${POOL} ${image} 'up+replaying'
 wait_for_status_in_pool_dir ${CLUSTER2} ${POOL} ${image} 'up+stopped'
 compare_images ${POOL} ${image}
 
-# force promote
+testlog "TEST: force promote"
 force_promote_image=test_force_promote
 create_image_and_enable_mirror ${CLUSTER2} ${POOL} ${force_promote_image}
 write_image ${CLUSTER2} ${POOL} ${force_promote_image} 100
@@ -263,10 +263,10 @@ start_mirror ${CLUSTER1}:1
 create_image ${CLUSTER2} ${POOL} ${force_promote_image} 2G
 enable_mirror ${CLUSTER2} ${POOL} ${force_promote_image} snapshot
 write_image ${CLUSTER2} ${POOL} ${force_promote_image} 100
-#create_snapshot ${CLUSTER2} ${POOL} ${force_promote_image} ${snap_name}
+
+create_snapshot ${CLUSTER2} ${POOL} ${force_promote_image} ${snap_name}
 mirror_image_snapshot ${CLUSTER2} ${POOL} ${force_promote_image}
-#write_image ${CLUSTER2} ${POOL} ${force_promote_image} 370000 # ~ 1.5G
-write_image ${CLUSTER2} ${POOL} ${force_promote_image} 170000 
+write_image ${CLUSTER2} ${POOL} ${force_promote_image} 370000 # ~ 1.5G
 wait_for_status_in_pool_dir ${CLUSTER1} ${POOL} ${force_promote_image} 'up+replaying'
 wait_for_status_in_pool_dir ${CLUSTER2} ${POOL} ${force_promote_image} 'up+stopped'
 mirror_image_snapshot ${CLUSTER2} ${POOL} ${force_promote_image}
@@ -275,10 +275,9 @@ wait_for_image_copying_start ${CLUSTER1} ${POOL} ${force_promote_image}
 promote_image ${CLUSTER1} ${POOL} ${force_promote_image} '--force'
 wait_for_status_in_pool_dir ${CLUSTER2} ${POOL} ${force_promote_image} 'up+stopped'
 wait_for_status_in_pool_dir ${CLUSTER1} ${POOL} ${force_promote_image} 'down+stopped'
-#snap_rollback ${CLUSTER2} ${POOL} ${force_promote_image} ${snap_name}
 compare_images ${POOL} ${force_promote_image}
 remove_image_retry ${CLUSTER1} ${POOL} ${force_promote_image}
-remove_image_retry ${CLUSTER2} ${POOL} ${force_promote_image}
+remove_image_retry ${CLUSTER1} ${POOL} ${force_promote_image}
 start_mirrors ${CLUSTER1}
 
 testlog "TEST: cloned images"

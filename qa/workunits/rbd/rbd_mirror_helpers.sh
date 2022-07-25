@@ -747,6 +747,17 @@ mirror_image_snapshot()
     rbd --cluster "${cluster}" mirror image snapshot "${pool}/${image}"
 }
 
+snap_rollback()
+{
+    local cluster=$1
+    local pool=$2
+    local image=$3
+    local snap_name=$4
+
+    rbd --cluster "${cluster}" snap rollback "${pool}/${image}@${snap_name}"
+
+}
+
 get_newest_mirror_snapshot()
 {
     local cluster=$1
@@ -1237,6 +1248,18 @@ compare_images()
     return ${ret}
 }
 
+wait_for_image_copying_start()
+{
+    local cluster=$1
+    local pool=$2
+    local image=$3
+
+    for s in 0.2 0.4 0.8 1.6 2 2 4 4 8 8 16 16 32 32; do
+        sleep ${s}
+        rbd --cluster=${cluster} snap ls --all ${pool}/${image} | grep "% copied" && return 0
+    done
+}
+
 compare_image_snapshots()
 {
     local pool=$1
@@ -1274,12 +1297,12 @@ demote_image()
 
 promote_image()
 {
-    local cluster=$1
-    local pool=$2
-    local image=$3
-    local force=$4
+    local cluster=$1; shift
+    local pool=$1; shift
+    local image=$1; shift
 
-    rbd --cluster=${cluster} mirror image promote ${pool}/${image} ${force} --debug-rbd 30 --debug-rbd-mirror 30
+
+    rbd --cluster=${cluster} mirror image promote ${pool}/${image} $@ --debug-rbd 30 --debug-rbd-mirror 30
 }
 
 set_pool_mirror_mode()
