@@ -1216,15 +1216,33 @@ stress_write_image()
     return 1
 }
 
+xfs_io_write_image() {
+    local cluster=$1
+    local pool=$2
+    local image=$3
+    local pattern=$4
+    local offset=$5
+    local count=$6
+    local size=$7
+
+    test -n "${size}" || size=4096
+
+    DEV=$(sudo -E /home/ideepika/sdc/ceph1/ceph/build/bin/rbd --cluster ${cluster} device map ${pool}/${image})
+    sudo xfs_io -d -c "pwrite -S ${pattern} -b 4M $((size * offset)) $((size * count))" $DEV
+    
+    sudo /home/ideepika/sdc/ceph1/ceph/build/bin/rbd device unmap $DEV
+}
+
 show_diff()
 {
     local file1=$1
     local file2=$2
 
+    rm -f ${file1}.xxd ${file2}.xxd
     xxd ${file1} > ${file1}.xxd
     xxd ${file2} > ${file2}.xxd
     sdiff -s ${file1}.xxd ${file2}.xxd | head -n 64
-    rm -f ${file1}.xxd ${file2}.xxd
+    #rm -f ${file1}.xxd ${file2}.xxd
 }
 
 compare_images()
@@ -1239,6 +1257,30 @@ compare_images()
     rm -f ${rmt_export} ${loc_export}
     rbd --cluster ${CLUSTER2} export ${pool}/${image} ${rmt_export}
     rbd --cluster ${CLUSTER1} export ${pool}/${image} ${loc_export}
+    if ! cmp ${rmt_export} ${loc_export}
+    then
+        show_diff ${rmt_export} ${loc_export}
+        ret=1
+    fi
+   # rm -f ${rmt_export} ${loc_export}
+    return ${ret}
+}
+
+compare_two_snaps()
+{
+    local pool=$1
+    local image=$2
+    local snap1=$3
+    local snap2=$4
+    local ret=0
+
+
+    local rmt_export=${TEMPDIR}/$(mkfname ${CLUSTER2}-${pool}-${image}.export)
+    local loc_export=${TEMPDIR}/$(mkfname ${CLUSTER1}-${pool}-${image}.export)
+
+    rm -f ${rmt_export} ${loc_export}
+    rbd --cluster ${CLUSTER2} export ${pool}/${image}@${snap2} ${rmt_export}
+    rbd --cluster ${CLUSTER1} export ${pool}/${image}@${snap1} ${loc_export}
     if ! cmp ${rmt_export} ${loc_export}
     then
         show_diff ${rmt_export} ${loc_export}
@@ -1383,6 +1425,23 @@ get_image_id()
 
     rbd --cluster=${cluster} info ${pool}/${image} |
         sed -ne 's/^.*block_name_prefix: rbd_data\.//p'
+}
+
+get_latest_mirror_snap_id()
+{
+    local cluster=$1
+    local pool=$2
+    local image=$3
+    
+    rbd snap ls --cluster=${cluster} ${pool}/${image} --format=json --pretty-format --all | jq -c '.[0] | .id'
+}
+
+get_snap_by_key()
+{
+    local cluster=$1
+    local pool=$2
+    local image=$3
+
 }
 
 request_resync_image()

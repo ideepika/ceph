@@ -57,10 +57,11 @@ bool can_create_primary_snapshot(I *image_ctx, bool demoted, bool force,
                                  bool* requires_orphan,
                                  uint64_t *rollback_snap_id) {
   CephContext *cct = image_ctx->cct;
-
+  ldout(cct, 20) << dendl;
   if (requires_orphan != nullptr) {
     *requires_orphan = false;
   }
+  
   if (rollback_snap_id) {
     *rollback_snap_id = CEPH_NOSNAP;
   }
@@ -101,13 +102,13 @@ bool can_create_primary_snapshot(I *image_ctx, bool demoted, bool force,
         if (!mirror_ns->is_orphan()) {
           *requires_orphan = true;
          }
-        // else {
-        //   // for latest snap rollback during promotion
-        //    ++it;
-        // mirror_ns = std::get_if<cls::rbd::MirrorSnapshotNamespace>(&it->second.snap_namespace);
-        // ldout(cct, 20) << "last snapshot in sync before orphan " << it->first << " "
-        //                << *mirror_ns << dendl;
-        // }
+        else {
+          // for latest snap rollback during promotion
+           ++it;
+        mirror_ns = std::get_if<cls::rbd::MirrorSnapshotNamespace>(&it->second.snap_namespace);
+        ldout(cct, 20) << "last snapshot in sync before orphan " << it->first << " "
+                       << *mirror_ns << dendl;
+        }
       }
 
       if (!mirror_ns->complete) {
@@ -118,6 +119,8 @@ bool can_create_primary_snapshot(I *image_ctx, bool demoted, bool force,
                      << dendl;
           return false;
         }
+        ldout(cct, 20) << "rollback snap id exists" << dendl;
+
         if (!get_rollback_snap_id(++it, image_ctx->snap_info.rend(),
                                   rollback_snap_id)) {
           lderr(cct) << "cannot rollback" << dendl;

@@ -7,6 +7,7 @@
 #include "include/int_types.h"
 #include "include/stringify.h"
 #include <string>
+#include "librbd/ImageCtx.h"
 
 namespace librbd {
 
@@ -17,6 +18,7 @@ namespace snapshot {
 namespace util {
 
 std::string get_image_meta_key(const std::string& mirror_uuid);
+
 
 template <typename ImageCtxT = librbd::ImageCtx>
 bool can_create_primary_snapshot(ImageCtxT *image_ctx, bool demoted, bool force,
@@ -29,7 +31,6 @@ bool can_create_non_primary_snapshot(ImageCtxT *image_ctx);
 template <typename ImageCtxT = librbd::ImageCtx>
 std::string image_state_object_name(ImageCtxT *image_ctx, uint64_t snap_id,
                                     uint64_t index);
-
 } // namespace util
 } // namespace snapshot
 } // namespace mirror
