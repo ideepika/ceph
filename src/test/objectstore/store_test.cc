@@ -7002,10 +7002,13 @@ TEST_P(StoreTestSpecificAUSize, OnodeSizeTracking) {
   coll_t cid;
   ghobject_t hoid(hobject_t("test_hint", "", CEPH_NOSNAP, 0, -1, ""));
   size_t obj_size = 4 * 1024  * 1024;
+  uint64_t total_bytes_prev;
   uint64_t total_bytes, total_bytes2;
   uint64_t total_onodes;
   get_mempool_stats(&total_bytes, &total_onodes);
+  total_bytes_prev = total_bytes;
   ASSERT_EQ(total_onodes, 0u);
+  ASSERT_EQ(total_bytes, 0u);
 
   auto ch = store->create_new_collection(cid);
   {
@@ -7024,7 +7027,7 @@ TEST_P(StoreTestSpecificAUSize, OnodeSizeTracking) {
     ASSERT_EQ(r, 0);
   }
   get_mempool_stats(&total_bytes, &total_onodes);
-  ASSERT_NE(total_bytes, 0u);
+  ASSERT_GT(total_bytes - total_bytes_prev, 0u);
   ASSERT_EQ(total_onodes, 1u);
 
   {
@@ -7159,6 +7162,8 @@ TEST_P(StoreTestSpecificAUSize, BlobReuseOnOverwrite) {
     ASSERT_TRUE(bl_eq(expected, bl));
     ASSERT_EQ(logger->get(l_bluestore_blobs), 1u);
     ASSERT_EQ(logger->get(l_bluestore_extents), 2u);
+    ASSERT_EQ(mempool::bluestore_blob::allocated_items(), 1u);
+    ASSERT_EQ(mempool::bluestore_extent::allocated_items(), 2u);
   }
   {
     // overwrite at end

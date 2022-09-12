@@ -27,7 +27,6 @@
 #include "common/hobject.h"
 #include "compressor/Compressor.h"
 #include "common/Checksummer.h"
-#include "include/mempool.h"
 #include "include/ceph_hash.h"
 
 namespace ceph {
@@ -114,7 +113,7 @@ WRITE_CLASS_DENC(bluestore_pextent_t)
 
 std::ostream& operator<<(std::ostream& out, const bluestore_pextent_t& o);
 
-typedef mempool::bluestore_cache_other::vector<bluestore_pextent_t> PExtentVector;
+typedef mempool::bluestore_blob::vector<bluestore_pextent_t> PExtentVector;
 
 template<>
 struct denc_traits<PExtentVector> {
