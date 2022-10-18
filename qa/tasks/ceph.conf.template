@@ -83,6 +83,7 @@
 	debug ms = 1
 	debug mon = 20
 	debug paxos = 20
+	debug crush = 20
 	debug auth = 20
 	mon data avail warn = 5
 	mon mgr mkfs grace = 240

@@ -16,3 +16,8 @@ tasks:
     clients:
       all:
         - crush
+overrides:
+  ceph:
+    conf:
+      global:
+        debug crush: 20
