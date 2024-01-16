@@ -187,6 +187,7 @@ PG::PG(OSDService *o, OSDMapRef curmap,
   pg_whoami(o->whoami, p.shard),
   pg_id(p),
   coll(p),
+  backfill_tree(o->cct->_conf.get_val<uint64_t>("osd_pg_object_info_size")),
   osd(o),
   cct(o->cct),
   osdriver(osd->store, coll_t(), OSD::make_snapmapper_oid()),
@@ -876,6 +877,7 @@ void PG::shutdown()
 {
   ch->flush();
   std::scoped_lock l{*this};
+  persist_object_info();
   recovery_state.shutdown();
   on_shutdown();
 }

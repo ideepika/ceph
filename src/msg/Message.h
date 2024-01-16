@@ -111,6 +111,7 @@
 #define MSG_OSD_SCRUB_RESERVE  92  // previous PG_MISSING
 #define MSG_OSD_REP_SCRUB      93
 
+#define MSG_OSD_PG_OBJECT_INFO 152
 #define MSG_OSD_PG_SCAN        94
 #define MSG_OSD_PG_BACKFILL    95
 #define MSG_OSD_PG_BACKFILL_REMOVE 96

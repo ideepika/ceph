@@ -39,6 +39,8 @@
 #include "PeeringState.h"
 #include "recovery_types.h"
 #include "MissingLoc.h"
+#include "MerkleTree.h"
+#include "HashRangeIndex.h"
 #include "scrubber_common.h"
 
 #include "mgr/OSDPerfMetricTypes.h"
@@ -48,12 +50,15 @@
 #include <memory>
 #include <string>
 #include <tuple>
+#include <vector>
+#include <queue>
 
 //#define DEBUG_RECOVERY_OIDS   // track std::set of recovering oids explicitly, to find counting bugs
 //#define PG_DEBUG_REFS    // track provenance of pg refs, helpful for finding leaks
 
 class OSD;
 class OSDService;
+class MOSDPGObjectInfo;
 struct OSDShard;
 struct OSDShardPGSlot;
 
@@ -371,6 +376,12 @@ public:
   static bool has_shard(bool ec, const std::vector<int>& v, pg_shard_t osd) {
     return PeeringState::has_shard(ec, v, osd);
   }
+
+  // PG objects info
+  MerkleTree backfill_tree;
+  bool build_tree_by_scan();
+  void get_or_create_object_info();
+  void persist_object_info();
 
   /// initialize created PG
   void init(
@@ -1394,6 +1405,7 @@ protected:
 
   // OpRequest queueing
   bool can_discard_op(OpRequestRef& op);
+  bool can_discard_object_info(OpRequestRef op);
   bool can_discard_scan(OpRequestRef op);
   bool can_discard_backfill(OpRequestRef op);
   bool can_discard_request(OpRequestRef& op);

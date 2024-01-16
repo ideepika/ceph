@@ -56,6 +56,10 @@ public:
   eversion_t pg_trim_to;   // primary->replica: trim to here
   eversion_t min_last_complete_ondisk; // lower bound on committed version
 
+  //versions to get updated 
+  eversion_t object_ctx_old_v;
+  eversion_t object_ctx_new_v;
+
   hobject_t new_temp_oid;      ///< new temp object that we must now start tracking
   hobject_t discard_temp_oid;  ///< previously used temp object that we can now stop tracking
 
@@ -99,6 +103,8 @@ public:
 
     decode(acks_wanted, p);
     decode(version, p);
+    decode(object_ctx_old_v, p);
+    decode(object_ctx_new_v, p);
     decode(logbl, p);
     decode(pg_stats, p);
     decode(pg_trim_to, p);
@@ -134,6 +140,8 @@ public:
 
     encode(acks_wanted, payload);
     encode(version, payload);
+    encode(object_ctx_old_v, payload);
+    encode(object_ctx_new_v, payload);
     encode(logbl, payload);
     encode(pg_stats, payload);
     encode(pg_trim_to, payload);

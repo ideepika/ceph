@@ -43,6 +43,7 @@
 #include "messages/MOSDPGBackfillRemove.h"
 #include "messages/MOSDPGLog.h"
 #include "messages/MOSDPGScan.h"
+#include <messages/MOSDPGObjectInfo.h>
 #include "messages/MOSDPGTrim.h"
 #include "messages/MOSDPGUpdateLogMissing.h"
 #include "messages/MOSDPGUpdateLogMissingReply.h"
@@ -574,6 +575,11 @@ bool PrimaryLogPG::should_send_op(
              << " which is pending recovery in async_recovery_targets" << dendl;
   }
   return should_send;
+}
+
+void PrimaryLogPG::update_oi_skip_ranges(hobject_t hoid) {
+    //TODO: delete ranges or split in two excluding hoid
+    backfill_ranges_to_skip.remove(hoid, pg_whoami);
 }
 
 
@@ -1922,6 +1928,10 @@ void PrimaryLogPG::do_request(
       handle_backoff(op);
       break;
     }
+    break;
+
+  case MSG_OSD_PG_OBJECT_INFO:
+    do_object_info(op);
     break;
 
   case MSG_OSD_PG_SCAN:
@@ -4211,7 +4221,9 @@ void PrimaryLogPG::execute_ctx(OpContext *ctx)
   }
 
 
+  eversion_t prev = ctx->obs->oi.version;
   int result = prepare_transaction(ctx);
+  ctx->new_obs.oi.version = prev; //hack to keep old version
 
   {
 #ifdef WITH_LTTNG
@@ -4446,6 +4458,79 @@ void PrimaryLogPG::set_dynamic_perf_stats_queries(
 void PrimaryLogPG::get_dynamic_perf_stats(DynamicPerfStats *stats)
 {
   std::swap(m_dynamic_perf_stats, *stats);
+}
+
+void PrimaryLogPG::do_object_info(OpRequestRef op)
+{
+  const MOSDPGObjectInfo *m = static_cast<const MOSDPGObjectInfo*>(op->get_req());
+  ceph_assert(m->get_type() == MSG_OSD_PG_OBJECT_INFO);
+  dout(10) << "do_object_info " << *m << dendl;
+
+  bool is_reply = false;
+  op->mark_started();
+  switch(m->op) {
+    case MOSDPGObjectInfo::OP_GET_DIFF:
+    {
+      uint64_t from_top_hash;
+      auto p = m->get_data().cbegin();
+      decode(from_top_hash, p);
+      bool top_hash_eq = from_top_hash == backfill_tree.get_root()->value;
+      MOSDPGObjectInfo *reply;
+      if (top_hash_eq) {
+        reply = new MOSDPGObjectInfo(
+          MOSDPGObjectInfo::OP_HEAD,
+          pg_whoami, spg_t(info.pgid.pgid, get_primary().shard),
+          get_osdmap_epoch(), m->query_epoch);
+      } else {
+        reply = new MOSDPGObjectInfo(
+          MOSDPGObjectInfo::OP_FULL,
+          pg_whoami, spg_t(info.pgid.pgid, get_primary().shard),
+          get_osdmap_epoch(), m->query_epoch);
+        backfill_tree.encode(reply->get_data());
+      }
+      osd->send_message_osd_cluster(reply, m->get_connection());
+    }
+    break;
+
+    case MOSDPGObjectInfo::OP_FULL:
+    {
+      is_reply = is_primary();
+
+      MerkleTree bt_tree;
+      auto p = m->get_data().cbegin();
+      bt_tree.decode(p);
+      backfill_tree.compare(bt_tree, backfill_ranges_to_skip, m->from);
+      if (is_primary()) {
+        MOSDPGObjectInfo *reply = new MOSDPGObjectInfo(
+          MOSDPGObjectInfo::OP_FULL,
+          pg_whoami, spg_t(info.pgid.pgid, m->from.shard),
+          get_osdmap_epoch(), m->query_epoch);
+        backfill_tree.encode(reply->get_data());
+        osd->send_message_osd_cluster(reply, m->get_connection());
+      }
+    }
+    break;
+
+    case MOSDPGObjectInfo::OP_HEAD:
+    {
+      is_reply = true;
+      backfill_ranges_to_skip.ignore(m->from);
+    }
+    break;
+  }
+
+  if(is_reply) {
+    if (waiting_on_backfill.erase(m->from)) {
+      if (waiting_on_backfill.empty()) {
+        ceph_assert(
+                peer_backfill_info.size() ==
+                get_backfill_targets().size());
+        finish_recovery_op(hobject_t::get_max());
+      }
+    } else {
+      dout(20) << __func__ << " canceled object info request" << dendl;
+    }
+  }
 }
 
 void PrimaryLogPG::do_scan(
@@ -9095,6 +9180,75 @@ void PrimaryLogPG::finish_ctx(OpContext *ctx, int log_op_type, int result)
   }
 }
 
+void PrimaryLogPG::update_object_info(hobject_t soid, uint64_t delta_hash) {
+  if(!backfill_tree.built) {
+    backfill_tree.build_tree();
+  }
+  backfill_tree.update_object(soid, delta_hash);
+  dout(20) << " mto: " << backfill_tree.objects
+           << " ru: " << backfill_tree.ranges_used
+           << " omin: " << backfill_tree.omin
+           << " omax: " << backfill_tree.omax
+           << dendl;
+  dout(20) << __func__
+           << " update object info (replica): " << soid
+           << " delta hash " << delta_hash
+           << " head hash after update: " << backfill_tree.get_root()->value
+           << dendl;
+}
+
+void PrimaryLogPG::apply_stats(
+  const hobject_t &soid,
+  const object_stat_sum_t &delta_stats) {
+@@ -10530,7 +10631,7 @@ void PrimaryLogPG::eval_repop(RepGather *repop)
+
+    dout(10) << " removing " << *repop << dendl;
+    ceph_assert(!repop_queue.empty());
+    dout(20) << "   q front is " << *repop_queue.front() << dendl; 
+    dout(20) << "   q front is " << *repop_queue.front() << dendl;
+    if (repop_queue.front() == repop) {
+      RepGather *to_remove = nullptr;
+      while (!repop_queue.empty() &&
+@@ -10574,6 +10675,42 @@ void PrimaryLogPG::issue_repop(RepGather *repop, OpContext *ctx)
+    projected_log.add(entry);
+  }
+
+  if (!ctx->update_log_only && ctx->op->may_write()) {
+    uint64_t delta_hash = 0;
+    if (ctx->obs->oi.version == eversion_t()) {
+      delta_hash = hash_pair(soid, ctx->new_obs.oi.version);
+    } else if (ctx->new_obs.oi.version == eversion_t()) {
+      delta_hash = hash_pair(soid, ctx->obs->oi.version);
+    } else {
+      delta_hash = hash_pair(soid, ctx->obs->oi.version) ^
+	               hash_pair(soid, ctx->new_obs.oi.version);
+    }
+
+    if (delta_hash) {
+      if(!backfill_tree.built) {
+        backfill_tree.build_tree();
+      }
+      backfill_tree.update_object(soid, delta_hash);
+
+      dout(20) << " mto: " << backfill_tree.objects
+               << " ru: " << backfill_tree.ranges_used
+               << " omin: " << backfill_tree.omin
+               << " omax: " << backfill_tree.omax
+               << dendl;
+      //dout(20) << " leave values:" << backfill_tree.print_leaves()
+      //         << dendl;
+      dout(20) << __func__
+               << " update object info (primary): " << soid.oid.name << "::" << soid.get_hash()
+               << " versions: "
+               << ctx->new_obs.oi.version
+               << " to "
+               << ctx->obs->oi.version
+               << " delta_hash " << delta_hash
+               << " head hash after update: " << backfill_tree.get_root()->value
+               << dendl;
+    }
+  }
+
 void PrimaryLogPG::apply_stats(
   const hobject_t &soid,
   const object_stat_sum_t &delta_stats) {
@@ -11470,6 +11624,8 @@ void PrimaryLogPG::issue_repop(RepGather *repop, OpContext *ctx)
     soid,
     ctx->delta_stats,
     ctx->at_version,
+    ctx->new_obs.oi.version,
+    ctx->obs->oi.version,
     std::move(ctx->op_t),
     recovery_state.get_pg_trim_to(),
     recovery_state.get_min_last_complete_ondisk(),
@@ -13874,17 +14030,41 @@ uint64_t PrimaryLogPG::recover_backfill(
     new_backfill = false;
 
     // initialize BackfillIntervals
-    for (set<pg_shard_t>::const_iterator i = get_backfill_targets().begin();
-	 i != get_backfill_targets().end();
-	 ++i) {
-      peer_backfill_info[*i].reset(
-	recovery_state.get_peer_info(*i).last_backfill);
+    for (auto& bt : get_backfill_targets()) {
+      peer_backfill_info[bt].reset(
+	recovery_state.get_peer_info(bt).last_backfill);
+      backfill_ranges_to_skip.clear();
+      MOSDPGObjectInfo *m = new MOSDPGObjectInfo(
+        MOSDPGObjectInfo::OP_GET_DIFF,
+        pg_whoami,
+        spg_t(info.pgid.pgid, bt.shard),
+        get_osdmap_epoch(), get_last_peering_reset()
+      );
+      encode(backfill_tree.get_root()->value, m->get_data());
+      osd->send_message_osd_cluster(bt.osd, m, get_osdmap_epoch());
+      ceph_assert(waiting_on_backfill.find(bt) == waiting_on_backfill.end());
+      waiting_on_backfill.insert(bt);
     }
     backfill_info.reset(last_backfill_started);
 
     backfills_in_flight.clear();
     pending_backfill_updates.clear();
+
+    start_recovery_op(hobject_t::get_max());
+    return 1; //Return an operation, wait for ObjectInfos to populate
   }
+
+  std::stringstream ss;
+  for(auto &i : backfill_ranges_to_skip.get()) {
+    segment_t seg= i.first;
+    ss << '[';
+    ss << ',' << bg::get<0, 0>(seg);
+    ss << ',' << bg::get<0, 1>(seg);
+    ss << ',' << bg::get<1, 0>(seg);
+    ss << ',' << bg::get<1, 1>(seg);
+    ss << "] ";
+  }
+  dout(20) << "skip range idx values: " << ss.str() << dendl;
 
   for (set<pg_shard_t>::const_iterator i = get_backfill_targets().begin();
        i != get_backfill_targets().end();
@@ -14328,11 +14508,12 @@ void PrimaryLogPG::scan_range(
 
   vector<hobject_t> ls;
   ls.reserve(max);
-  int r = pgbackend->objects_list_partial(bi->begin, min, max, &ls, &bi->end);
+  int r = pgbackend->objects_list_partial(bi->begin, min, max, &ls, &bi->end, &backfill_ranges_to_skip);
   ceph_assert(r >= 0);
   dout(10) << " got " << ls.size() << " items, next " << bi->end << dendl;
   dout(20) << ls << dendl;
 
+ //TODO: trim backfill ranges to bi->end
   for (vector<hobject_t>::iterator p = ls.begin(); p != ls.end(); ++p) {
     handle.reset_tp_timeout();
     ObjectContextRef obc;

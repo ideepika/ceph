@@ -210,6 +210,8 @@ typedef std::shared_ptr<const OSDMap> OSDMapRef;
        pg_shard_t peer,
        const hobject_t &hoid) = 0;
 
+     virtual void update_oi_skip_ranges(hobject_t hoid) = 0;
+     virtual void update_object_info(hobject_t hoid, uint64_t delta_hash) = 0;
      virtual bool pg_is_undersized() const = 0;
      virtual bool pg_is_repair() const = 0;
 
@@ -432,6 +434,8 @@ typedef std::shared_ptr<const OSDMap> OSDMapRef;
      const hobject_t &hoid,               ///< [in] object
      const object_stat_sum_t &delta_stats,///< [in] stat change
      const eversion_t &at_version,        ///< [in] version
+     const eversion_t &old_version,
+     const eversion_t &new_version,
      PGTransactionUPtr &&t,               ///< [in] trans to execute (move)
      const eversion_t &trim_to,           ///< [in] trim log to here
      const eversion_t &min_last_complete_ondisk, ///< [in] lower bound on
@@ -526,7 +530,8 @@ typedef std::shared_ptr<const OSDMap> OSDMapRef;
      int min,
      int max,
      std::vector<hobject_t> *ls,
-     hobject_t *next);
+     hobject_t *next,
+     HashRangeIndex *exclude_list = nullptr);
 
    int objects_list_range(
      const hobject_t &start,

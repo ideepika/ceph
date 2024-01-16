@@ -1473,6 +1473,8 @@ void ECBackend::submit_transaction(
   const hobject_t &hoid,
   const object_stat_sum_t &delta_stats,
   const eversion_t &at_version,
+  const eversion_t &old_version,
+  const eversion_t &new_version,
   PGTransactionUPtr &&t,
   const eversion_t &trim_to,
   const eversion_t &min_last_complete_ondisk,

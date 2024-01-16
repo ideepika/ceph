@@ -348,7 +348,8 @@ int PGBackend::objects_list_partial(
   int min,
   int max,
   vector<hobject_t> *ls,
-  hobject_t *next)
+  hobject_t *next,
+  HashRangeIndex* exclude_ranges)
 {
   ceph_assert(ls);
   // Starts with the smallest generation to make sure the result list
@@ -367,13 +368,14 @@ int PGBackend::objects_list_partial(
     vector<ghobject_t> objects;
     if (HAVE_FEATURE(parent->min_upacting_features(),
                      OSD_FIXED_COLLECTION_LIST)) {
-      r = store->collection_list(
+      r = store->collection_list_filtered(
         ch,
         _next,
         ghobject_t::get_max(),
         max - ls->size(),
         &objects,
-        &_next);
+        &_next,
+	exclude_ranges);
     } else {
       r = store->collection_list_legacy(
         ch,

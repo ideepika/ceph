@@ -22,6 +22,7 @@
 #include "include/types.h"
 
 #include "osd/osd_types.h"
+#include "osd/HashRangeIndex.h"
 #include "common/TrackedOp.h"
 #include "common/WorkQueue.h"
 #include "ObjectMap.h"
@@ -672,7 +673,6 @@ public:
    */
   virtual int collection_bits(CollectionHandle& c) = 0;
 
-
   /**
    * std::list contents of a collection that fall in the range [start, end) and no more than a specified many result
    *
@@ -689,6 +689,14 @@ public:
 			      const ghobject_t& start, const ghobject_t& end,
 			      int max,
 			      std::vector<ghobject_t> *ls, ghobject_t *next) = 0;
+
+  virtual int collection_list_filtered(CollectionHandle &c,
+			      const ghobject_t& start, const ghobject_t& end,
+			      int max,
+			      std::vector<ghobject_t> *ls, ghobject_t *next,
+                  HashRangeIndex* exclude_ranges) {
+                    return 0;
+                  }
 
   virtual int collection_list_legacy(CollectionHandle &c,
                                      const ghobject_t& start,

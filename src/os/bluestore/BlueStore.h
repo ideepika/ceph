@@ -2889,8 +2889,8 @@ private:
   }
 
   int _collection_list(
-    Collection *c, const ghobject_t& start, const ghobject_t& end,
-    int max, bool legacy, std::vector<ghobject_t> *ls, ghobject_t *next);
+      Collection *c, const ghobject_t &start, const ghobject_t &end,
+      int max, bool legacy, std::vector<ghobject_t> *ls, ghobject_t *next, HashRangeIndex *exclude_ranges);
 
   template <typename T, typename F>
   T select_option(const std::string& opt_name, T val1, F f) {
@@ -3215,6 +3215,13 @@ public:
 		      const ghobject_t& end,
 		      int max,
 		      std::vector<ghobject_t> *ls, ghobject_t *next) override;
+
+  int collection_list_filtered(CollectionHandle &c,
+                               const ghobject_t &start,
+                               const ghobject_t &end,
+                               int max,
+                               vector<ghobject_t> *ls, ghobject_t *next,
+                               HashRangeIndex *exclude_ranges) override;
 
   int collection_list_legacy(CollectionHandle &c,
                              const ghobject_t& start,

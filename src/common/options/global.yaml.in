@@ -2998,6 +2998,12 @@ options:
   fmt_desc: The minimum number of placement group logs to maintain
     when trimming log files.
   default: 250
+- name: osd_pg_object_info_size
+  type: uint
+  level: dev
+  desc: Size of pg object info structure
+  fmt_desc: Size of pg object info structure, bigger numbers may increase backfill performance at the cost of memory utilization. Should be a power of 2
+  default: 1024
   services:
   - osd
   see_also:

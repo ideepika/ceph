@@ -23,6 +23,7 @@
 #include "OSD.h"
 #include "PG.h"
 #include "Watch.h"
+#include "MerkleTree.h"
 #include "TierAgentState.h"
 #include "messages/MOSDOpReply.h"
 #include "common/Checksummer.h"
@@ -532,6 +533,9 @@ public:
     pg_shard_t peer,
     const hobject_t &hoid) override;
 
+  //oi = object info
+  void update_oi_skip_ranges(hobject_t hoid) override;
+
   bool pg_is_undersized() const override {
     return is_undersized();
   }
@@ -563,6 +567,8 @@ public:
   void schedule_recovery_work(
     GenContext<ThreadPool::TPHandle&> *c,
     uint64_t cost) override;
+
+  void update_object_info(hobject_t hoid, uint64_t delta_hash) override;
 
   pg_shard_t whoami_shard() const override {
     return pg_whoami;
@@ -1091,6 +1097,7 @@ protected:
    */
   std::set<hobject_t> backfills_in_flight;
   std::map<hobject_t, pg_stat_t> pending_backfill_updates;
+  HashRangeIndex backfill_ranges_to_skip;
 
   void dump_recovery_info(ceph::Formatter *f) const override {
     f->open_array_section("waiting_on_backfill");
@@ -1517,6 +1524,7 @@ public:
 			  MOSDOpReply *orig_reply, int r,
 			  OpContext *ctx_for_op_returns=nullptr);
   void do_pg_op(OpRequestRef op);
+  void do_object_info(OpRequestRef op);
   void do_scan(
     OpRequestRef op,
     ThreadPool::TPHandle &handle);

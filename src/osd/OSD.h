@@ -1170,6 +1170,14 @@ public:
     return ghobject_t(hobject_t(sobject_t("pg_num_history", CEPH_NOSNAP)));
   }
 
+  static ghobject_t make_pg_objectstate_oid(spg_t pg) {
+    stringstream ss;
+    ss << "pg_objectstate_" << pg;
+    string s;
+    getline(ss, s);
+    return ghobject_t(hobject_t(sobject_t(object_t(s.c_str()), 0)));
+  }
+  
   static void recursive_remove_collection(CephContext* cct,
 					  ObjectStore *store,
 					  spg_t pgid,
@@ -1903,6 +1911,7 @@ private:
     case MSG_OSD_PG_PUSH:
     case MSG_OSD_PG_PULL:
     case MSG_OSD_PG_PUSH_REPLY:
+    case MSG_OSD_PG_OBJECT_INFO:
     case MSG_OSD_PG_SCAN:
     case MSG_OSD_PG_BACKFILL:
     case MSG_OSD_PG_BACKFILL_REMOVE:

@@ -12504,7 +12504,28 @@ int BlueStore::collection_list(
   int r;
   {
     std::shared_lock l(c->lock);
-    r = _collection_list(c, start, end, max, false, ls, pnext);
+    r = _collection_list(c, start, end, max, false, ls, pnext, nullptr);
+  }
+
+  dout(10) << __func__ << " " << c->cid
+    << " start " << start << " end " << end << " max " << max
+    << " = " << r << ", ls.size() = " << ls->size()
+    << ", next = " << (pnext ? *pnext : ghobject_t())  << dendl;
+  return r;
+}
+
+int BlueStore::collection_list_filtered(
+  CollectionHandle &c_, const ghobject_t& start, const ghobject_t& end, int max,
+  vector<ghobject_t> *ls, ghobject_t *pnext, HashRangeIndex* exclude_ranges)
+{
+  Collection *c = static_cast<Collection *>(c_.get());
+  c->flush();
+  dout(15) << __func__ << " " << c->cid
+           << " start " << start << " end " << end << " max " << max << dendl;
+  int r;
+  {
+    std::shared_lock l(c->lock);
+    r = _collection_list(c, start, end, max, ls, pnext, exclude_ranges);
   }
 
   dout(10) << __func__ << " " << c->cid
@@ -12525,7 +12546,7 @@ int BlueStore::collection_list_legacy(
   int r;
   {
     std::shared_lock l(c->lock);
-    r = _collection_list(c, start, end, max, true, ls, pnext);
+    r = _collection_list(c, start, end, max, true, ls, pnext, nullptr);
   }
 
   dout(10) << __func__ << " " << c->cid
@@ -12537,7 +12558,7 @@ int BlueStore::collection_list_legacy(
 
 int BlueStore::_collection_list(
   Collection *c, const ghobject_t& start, const ghobject_t& end, int max,
-  bool legacy, vector<ghobject_t> *ls, ghobject_t *pnext)
+  bool legacy, vector<ghobject_t> *ls, ghobject_t *pnext, HashRangeIndex* exclude_ranges)
 {
 
   if (!c->exists)
@@ -12656,7 +12677,16 @@ int BlueStore::_collection_list(
       *pnext = it->oid();
       return 0;
     }
-    ls->push_back(it->oid());
+    if (exclude_ranges) {
+      if (exclude_ranges->count(oid.hobj)) {
+        dout(20) << __func__ << " backfill object skipped: " << oid.hobj.get_hash() << dendl;
+      } else {
+        dout(20) << __func__ << " backfill object counted: " << oid.hobj.get_hash() << dendl;
+        ls->push_back(oid);
+      }
+    } else {
+      ls->push_back(oid);
+    }
     it->next();
   }
   *pnext = ghobject_t::get_max();
@@ -17527,7 +17557,7 @@ int BlueStore::_remove_collection(TransContext *txc, const coll_t &cid,
     // then check if all of them are marked as non-existent.
     // Bypass the check if (next != ghobject_t::get_max())
     r = _collection_list(c->get(), ghobject_t(), ghobject_t::get_max(),
-                         nonexistent_count + 1, false, &ls, &next);
+                         nonexistent_count + 1, false, &ls, &next, nullptr);
     if (r >= 0) {
       // If true mean collecton has more objects than nonexistent_count,
       // so bypass check.
