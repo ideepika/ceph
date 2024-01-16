@@ -1171,9 +1171,9 @@ public:
   }
 
   static ghobject_t make_pg_objectstate_oid(spg_t pg) {
-    stringstream ss;
+    std::stringstream ss;
     ss << "pg_objectstate_" << pg;
-    string s;
+    std::string s;
     getline(ss, s);
     return ghobject_t(hobject_t(sobject_t(object_t(s.c_str()), 0)));
   }

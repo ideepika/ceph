@@ -3220,7 +3220,7 @@ public:
                                const ghobject_t &start,
                                const ghobject_t &end,
                                int max,
-                               vector<ghobject_t> *ls, ghobject_t *next,
+                               std::vector<ghobject_t> *ls, ghobject_t *next,
                                HashRangeIndex *exclude_ranges) override;
 
   int collection_list_legacy(CollectionHandle &c,

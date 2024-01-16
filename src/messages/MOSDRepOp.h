@@ -158,7 +158,8 @@ public:
       final_decode_needed(true), acks_wanted (0) {}
   MOSDRepOp(osd_reqid_t r, pg_shard_t from,
 	    spg_t p, const hobject_t& po, int aw,
-	    epoch_t mape, epoch_t min_epoch, ceph_tid_t rtid, eversion_t v)
+	    epoch_t mape, epoch_t min_epoch, ceph_tid_t rtid, eversion_t v,
+	    eversion_t old, eversion_t _new)
     : MOSDFastDispatchOp{MSG_OSD_REPOP, HEAD_VERSION, COMPAT_VERSION},
       map_epoch(mape),
       min_epoch(min_epoch),

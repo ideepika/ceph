@@ -12525,7 +12525,7 @@ int BlueStore::collection_list_filtered(
   int r;
   {
     std::shared_lock l(c->lock);
-    r = _collection_list(c, start, end, max, ls, pnext, exclude_ranges);
+    r = _collection_list(c, start, end, max, false, ls, pnext, exclude_ranges);
   }
 
   dout(10) << __func__ << " " << c->cid
