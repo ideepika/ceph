@@ -12677,15 +12677,16 @@ int BlueStore::_collection_list(
       *pnext = it->oid();
       return 0;
     }
+
     if (exclude_ranges) {
-      if (exclude_ranges->count(oid.hobj)) {
-        dout(20) << __func__ << " backfill object skipped: " << oid.hobj.get_hash() << dendl;
+      if (exclude_ranges->count((it->oid()).hobj)) {
+        dout(20) << __func__ << " backfill object skipped: " << (it->oid()).hobj.get_hash() << dendl;
       } else {
-        dout(20) << __func__ << " backfill object counted: " << oid.hobj.get_hash() << dendl;
-        ls->push_back(oid);
+        dout(20) << __func__ << " backfill object counted: " << (it->oid()).hobj.get_hash() << dendl;
+        ls->push_back(it->oid());
       }
     } else {
-      ls->push_back(oid);
+      ls->push_back(it->oid());
     }
     it->next();
   }

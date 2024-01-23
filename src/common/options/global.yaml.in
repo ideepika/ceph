@@ -2998,6 +2998,13 @@ options:
   fmt_desc: The minimum number of placement group logs to maintain
     when trimming log files.
   default: 250
+  services:
+  - osd
+  see_also:
+  - osd_max_pg_log_entries
+  - osd_pg_log_dups_tracked
+  - osd_target_pg_log_entries_per_osd
+  with_legacy: true
 - name: osd_pg_object_info_size
   type: uint
   level: dev

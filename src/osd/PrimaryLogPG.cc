@@ -43,10 +43,10 @@
 #include "messages/MOSDPGBackfillRemove.h"
 #include "messages/MOSDPGLog.h"
 #include "messages/MOSDPGScan.h"
-#include <messages/MOSDPGObjectInfo.h>
 #include "messages/MOSDPGTrim.h"
 #include "messages/MOSDPGUpdateLogMissing.h"
 #include "messages/MOSDPGUpdateLogMissingReply.h"
+#include <messages/MOSDPGObjectInfo.h>
 #include "messages/MOSDRepScrub.h"
 #include "messages/MOSDScrubReserve.h"
 #include "mon/MonClient.h"
@@ -581,7 +581,6 @@ void PrimaryLogPG::update_oi_skip_ranges(hobject_t hoid) {
     //TODO: delete ranges or split in two excluding hoid
     backfill_ranges_to_skip.remove(hoid, pg_whoami);
 }
-
 
 ConnectionRef PrimaryLogPG::get_con_osd_cluster(
   int peer, epoch_t from_epoch)
@@ -9200,58 +9199,6 @@ void PrimaryLogPG::update_object_info(hobject_t soid, uint64_t delta_hash) {
 void PrimaryLogPG::apply_stats(
   const hobject_t &soid,
   const object_stat_sum_t &delta_stats) {
-@@ -10530,7 +10631,7 @@ void PrimaryLogPG::eval_repop(RepGather *repop)
-
-    dout(10) << " removing " << *repop << dendl;
-    ceph_assert(!repop_queue.empty());
-    dout(20) << "   q front is " << *repop_queue.front() << dendl; 
-    dout(20) << "   q front is " << *repop_queue.front() << dendl;
-    if (repop_queue.front() == repop) {
-      RepGather *to_remove = nullptr;
-      while (!repop_queue.empty() &&
-@@ -10574,6 +10675,42 @@ void PrimaryLogPG::issue_repop(RepGather *repop, OpContext *ctx)
-    projected_log.add(entry);
-  }
-
-  if (!ctx->update_log_only && ctx->op->may_write()) {
-    uint64_t delta_hash = 0;
-    if (ctx->obs->oi.version == eversion_t()) {
-      delta_hash = hash_pair(soid, ctx->new_obs.oi.version);
-    } else if (ctx->new_obs.oi.version == eversion_t()) {
-      delta_hash = hash_pair(soid, ctx->obs->oi.version);
-    } else {
-      delta_hash = hash_pair(soid, ctx->obs->oi.version) ^
-	               hash_pair(soid, ctx->new_obs.oi.version);
-    }
-
-    if (delta_hash) {
-      if(!backfill_tree.built) {
-        backfill_tree.build_tree();
-      }
-      backfill_tree.update_object(soid, delta_hash);
-
-      dout(20) << " mto: " << backfill_tree.objects
-               << " ru: " << backfill_tree.ranges_used
-               << " omin: " << backfill_tree.omin
-               << " omax: " << backfill_tree.omax
-               << dendl;
-      //dout(20) << " leave values:" << backfill_tree.print_leaves()
-      //         << dendl;
-      dout(20) << __func__
-               << " update object info (primary): " << soid.oid.name << "::" << soid.get_hash()
-               << " versions: "
-               << ctx->new_obs.oi.version
-               << " to "
-               << ctx->obs->oi.version
-               << " delta_hash " << delta_hash
-               << " head hash after update: " << backfill_tree.get_root()->value
-               << dendl;
-    }
-  }
-
-void PrimaryLogPG::apply_stats(
-  const hobject_t &soid,
-  const object_stat_sum_t &delta_stats) {
 
   recovery_state.apply_op_stats(soid, delta_stats);
   for (set<pg_shard_t>::const_iterator i = get_backfill_targets().begin();
@@ -11614,6 +11561,42 @@ void PrimaryLogPG::issue_repop(RepGather *repop, OpContext *ctx)
   }
   for (auto &&entry: ctx->log) {
     projected_log.add(entry);
+  }
+
+ if (!ctx->update_log_only && ctx->op->may_write()) {
+    uint64_t delta_hash = 0;
+    if (ctx->obs->oi.version == eversion_t()) {
+      delta_hash = hash_pair(soid, ctx->new_obs.oi.version);
+    } else if (ctx->new_obs.oi.version == eversion_t()) {
+      delta_hash = hash_pair(soid, ctx->obs->oi.version);
+    } else {
+      delta_hash = hash_pair(soid, ctx->obs->oi.version) ^
+	               hash_pair(soid, ctx->new_obs.oi.version);
+    }
+
+    if (delta_hash) {
+      if(!backfill_tree.built) {
+        backfill_tree.build_tree();
+      }
+      backfill_tree.update_object(soid, delta_hash);
+
+      dout(20) << " mto: " << backfill_tree.objects
+               << " ru: " << backfill_tree.ranges_used
+               << " omin: " << backfill_tree.omin
+               << " omax: " << backfill_tree.omax
+               << dendl;
+      //dout(20) << " leave values:" << backfill_tree.print_leaves()
+      //         << dendl;
+      dout(20) << __func__
+               << " update object info (primary): " << soid.oid.name << "::" << soid.get_hash()
+               << " versions: "
+               << ctx->new_obs.oi.version
+               << " to "
+               << ctx->obs->oi.version
+               << " delta_hash " << delta_hash
+               << " head hash after update: " << backfill_tree.get_root()->value
+               << dendl;
+    }
   }
 
   recovery_state.pre_submit_op(
@@ -14064,6 +14047,7 @@ uint64_t PrimaryLogPG::recover_backfill(
     ss << ',' << bg::get<1, 1>(seg);
     ss << "] ";
   }
+
   dout(20) << "skip range idx values: " << ss.str() << dendl;
 
   for (set<pg_shard_t>::const_iterator i = get_backfill_targets().begin();
@@ -14513,7 +14497,7 @@ void PrimaryLogPG::scan_range(
   dout(10) << " got " << ls.size() << " items, next " << bi->end << dendl;
   dout(20) << ls << dendl;
 
- //TODO: trim backfill ranges to bi->end
+  //TODO: trim backfill ranges to bi->end
   for (vector<hobject_t>::iterator p = ls.begin(); p != ls.end(); ++p) {
     handle.reset_tp_timeout();
     ObjectContextRef obc;

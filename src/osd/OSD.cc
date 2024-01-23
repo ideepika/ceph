@@ -5108,9 +5108,8 @@ PG* OSD::_make_pg(
   PGPool pool(createmap, pgid.pool(), pi, name);
   PG *pg;
   if (pi.type == pg_pool_t::TYPE_REPLICATED ||
-      pi.type == pg_pool_t::TYPE_ERASURE) {
+      pi.type == pg_pool_t::TYPE_ERASURE)
     pg = new PrimaryLogPG(&service, createmap, pool, ec_profile, pgid);
-      }
   else
     ceph_abort();
   return pg;
@@ -9496,8 +9495,7 @@ unsigned OSDService::get_target_pg_log_entries() const
     // will work out.
     return std::max<unsigned>(
       std::min<unsigned>(target / num_pgs,
-			 cct->_conf->osd_max_pg_log_entries),
-      cct->_conf->osd_min_pg_log_entries);
+			 cct->_conf->osd_max_pg_log_entries), cct->_conf->osd_min_pg_log_entries);
   } else {
     // fall back to a per-pg value.
     return cct->_conf->osd_min_pg_log_entries;
