@@ -169,7 +169,9 @@ public:
       from(from),
       poid(po),
       acks_wanted(aw),
-      version(v) {
+      version(v),
+      object_ctx_old_v(old),
+      object_ctx_new_v(_new) {
     set_tid(rtid);
   }
 
