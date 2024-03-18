@@ -64,7 +64,9 @@ ReplicatedBackend::_submit_transaction(std::set<pg_shard_t>&& pg_shards,
 	map_epoch,
 	min_epoch,
 	tid,
-	osd_op_p.at_version);
+	osd_op_p.at_version,
+	eversion_t(),
+	eversion_t());
       m->set_data(encoded_txn);
       pending_txn->second.acked_peers.push_back({pg_shard, eversion_t{}});
       encode(log_entries, m->logbl);
