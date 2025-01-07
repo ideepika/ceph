@@ -117,10 +117,14 @@ public:
     return instance;
   }
 
-  bool find(const std::string& token_id, token_envelope_t& token, std::string& secret);
+  bool find(const std::string& token_id, token_envelope_t& token, std::string& secret, optional_yield y);
   boost::optional<boost::tuple<token_envelope_t, std::string>> find(const std::string& token_id) {
     token_envelope_t token_envlp;
     std::string secret;
+
+    auto authreq_cache_wait = std::make_shared<AuthRequestCache>();
+    ret = authreq_cache_wait->wait(y);
+    
     if (find(token_id, token_envlp, secret)) {
       return boost::make_tuple(token_envlp, secret);
     }
@@ -128,6 +132,38 @@ public:
   }
   void add(const std::string& token_id, const token_envelope_t& token, const std::string& secret);
 }; /* class SecretCache */
+
+class AuthRequestCache {
+   public:
+  // the blocking wait uses std::condition_variable::wait_for(), which uses the
+  // std::chrono::steady_clock. use that for the async waits as well
+  using Clock = std::chrono::steady_clock;
+ private:
+  const ceph::timespan duration;
+  ceph::mutex mutex = ceph::make_mutex("AuthRequestCache::lock");
+  ceph::condition_variable cond;
+
+  struct Waiter : boost::intrusive::list_base_hook<> {
+    using Executor = boost::asio::any_io_executor;
+    using Timer = boost::asio::basic_waitable_timer<Clock,
+          boost::asio::wait_traits<Clock>, Executor>;
+    Timer timer;
+    explicit Waiter(boost::asio::any_io_executor ex) : timer(ex) {}
+  };
+  boost::intrusive::list<Waiter> waiters;
+
+  bool going_down{false};
+
+public:
+  AuthRequestCache(ceph::timespan duration = std::chrono::seconds(5))
+    : duration(duration) {}
+  ~AuthRequestCache() {
+    ceph_assert(going_down);
+  }
+  int wait(const DoutPrefixProvider* dpp, optional_yield y);
+  // unblock any threads waiting on reshard
+  void stop();
+}; /* class AuthRequestCache */
 
 class EC2Engine : public rgw::auth::s3::AWSEngine {
   using acl_strategy_t = rgw::auth::RemoteApplier::acl_strategy_t;
@@ -157,6 +193,9 @@ class EC2Engine : public rgw::auth::s3::AWSEngine {
     boost::optional<token_envelope_t> token;
     boost::optional<std::string> secret_key;
     int failure_reason = 0;
+  
+  private:
+    mutable std::mutex cache_mutex;
   };
   access_token_result
   get_access_token(const DoutPrefixProvider* dpp,
