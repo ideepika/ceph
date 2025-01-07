@@ -578,9 +578,10 @@ auto EC2Engine::get_access_token(const DoutPrefixProvider* dpp,
   boost::optional<std::string> secret;
   int failure_reason;
 
+
   /* Get a token from the cache if one has already been stored */
   boost::optional<boost::tuple<rgw::keystone::TokenEnvelope, std::string>>
-    t = secret_cache.find(std::string(access_key_id));
+    t = secret_cache.find(std::string(access_key_id), y);
 
   /* Check that credentials can correctly be used to sign data */
   if (t) {
@@ -590,23 +591,29 @@ auto EC2Engine::get_access_token(const DoutPrefixProvider* dpp,
       return {t->get<0>(), t->get<1>(), 0};
     } else {
       ldpp_dout(dpp, 0) << "Secret string does not correctly sign payload, cache miss" << dendl;
+      // Deepika: add special cache entry here
+      // duplicate auth: verify that special cache has this entry and wait for response
+      // special cache should enforce time for response
     }
   } else {
     ldpp_dout(dpp, 0) << "No stored secret string, cache miss" << dendl;
   }
 
-  /* No cached token, token expired, or secret invalid: fall back to keystone */
-  std::tie(token, failure_reason) =
-      get_from_keystone(dpp, access_key_id, string_to_sign, signature, y);
+  { 
 
-  if (token) {
-    /* Fetch secret from keystone for the access_key_id */
-    std::tie(secret, failure_reason) =
-        get_secret_from_keystone(dpp, token->get_user_id(), access_key_id, y);
+    /* No cached token, token expired, or secret invalid: fall back to keystone */
+    std::tie(token, failure_reason) =
+        get_from_keystone(dpp, access_key_id, string_to_sign, signature, y);
 
-    if (secret) {
-      /* Add token, secret pair to cache, and set timeout */
-      secret_cache.add(std::string(access_key_id), *token, *secret);
+    if (token) {
+      /* Fetch secret from keystone for the access_key_id */
+      std::tie(secret, failure_reason) =
+          get_secret_from_keystone(dpp, token->get_user_id(), access_key_id, y);
+
+      if (secret) {
+        /* Add token, secret pair to cache, and set timeout */
+        secret_cache.add(std::string(access_key_id), *token, *secret);
+      }
     }
   }
 
@@ -681,6 +688,7 @@ rgw::auth::Engine::result_t EC2Engine::authenticate(
     std::vector<std::string> admin;
   } accepted_roles(cct);
 
+// Deepika
   auto [t, secret_key, failure_reason] =
     get_access_token(dpp, access_key_id, string_to_sign,
                      signature, signature_factory, y);
@@ -785,6 +793,51 @@ void SecretCache::add(const std::string& token_id,
   }
 }
 
+int AuthRequestCache::wait(const DoutPrefixProvider* dpp, optional_yield y)
+{
+  std::unique_lock lock(mutex);
+
+  if (going_down) {
+    return -ECANCELED;
+  }
+
+  if (y) {
+    auto& yield = y.get_yield_context();
+
+    Waiter waiter(yield.get_executor());
+    waiters.push_back(waiter);
+    lock.unlock();
+
+    waiter.timer.expires_after(duration);
+
+    boost::system::error_code ec;
+    waiter.timer.async_wait(yield[ec]);
+
+    lock.lock();
+    waiters.erase(waiters.iterator_to(waiter));
+    return -ec.value();
+  }
+  maybe_warn_about_blocking(dpp);
+
+  cond.wait_for(lock, duration);
+
+  if (going_down) {
+    return -ECANCELED;
+  }
+
+  return 0;
+}
+
+void AuthRequestCache::stop()
+{
+  std::scoped_lock lock(mutex);
+  going_down = true;
+  cond.notify_all();
+  for (auto& waiter : waiters) {
+    // unblock any waiters with ECANCELED
+    waiter.timer.cancel();
+  }
+}
 }; /* namespace keystone */
 }; /* namespace auth */
 }; /* namespace rgw */
