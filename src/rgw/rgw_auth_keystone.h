@@ -118,18 +118,30 @@ public:
   }
 
   bool find(const std::string& token_id, token_envelope_t& token, std::string& secret, optional_yield y);
-  boost::optional<boost::tuple<token_envelope_t, std::string>> find(const std::string& token_id) {
+  boost::optional<boost::tuple<token_envelope_t, std::string>> find(const std::string& token_id, optional_yield y) {
     token_envelope_t token_envlp;
     std::string secret;
 
-    auto authreq_cache_wait = std::make_shared<AuthRequestCache>();
-    ret = authreq_cache_wait->wait(y);
-    
-    if (find(token_id, token_envlp, secret)) {
-      return boost::make_tuple(token_envlp, secret);
+    // Attempt to find the token
+    bool found = find(token_id, token_envlp, secret, y);  // First, try to find the token
+
+    // If token is found, proceed with waiting only if necessary
+    if (found) {
+        // If found, wait for the result before returning
+        authreq_cache_wait = std::make_shared<AuthRequestCache>();
+        
+        // Wait only if necessary (after confirming find success)
+        int ret = authreq_cache_wait->wait(y);
+        
+        if (ret == 0) {
+            // Return the token and secret in a tuple if wait succeeds
+            return boost::make_tuple(token_envlp, secret);
+        }
     }
+
+    // Return boost::none if find fails or waiting fails
     return boost::none;
-  }
+}
   void add(const std::string& token_id, const token_envelope_t& token, const std::string& secret);
 }; /* class SecretCache */
 
