@@ -11,6 +11,7 @@
 #include "rgw_rest_s3.h"
 #include "rgw_common.h"
 #include "rgw_keystone.h"
+#include <boost/asio/basic_waitable_timer.hpp>
 
 namespace rgw {
 namespace auth {
@@ -77,7 +78,39 @@ public:
   }
 }; /* class TokenEngine */
 
-class SecretCache {
+class AuthRequestCache {
+   public:
+  // the blocking wait uses std::condition_variable::wait_for(), which uses the
+  // std::chrono::steady_clock. use that for the async waits as well
+  using Clock = std::chrono::steady_clock;
+ private:
+  const ceph::timespan duration;
+  ceph::mutex mutex = ceph::make_mutex("AuthRequestCache::lock");
+  ceph::condition_variable cond;
+
+  struct Waiter : boost::intrusive::list_base_hook<> {
+    using Executor = boost::asio::any_io_executor;
+    using Timer = boost::asio::basic_waitable_timer<Clock,
+          boost::asio::wait_traits<Clock>, Executor>;
+    Timer timer;
+    explicit Waiter(boost::asio::any_io_executor ex) : timer(ex) {}
+  };
+  boost::intrusive::list<Waiter> waiters;
+
+  bool going_down{false};
+
+public:
+  AuthRequestCache(ceph::timespan duration = std::chrono::seconds(5))
+    : duration(duration) {}
+  ~AuthRequestCache() {
+    ceph_assert(going_down);
+  }
+  int wait(optional_yield y);
+  // unblock any threads waiting on reshard
+  void stop();
+}; /* class AuthRequestCache */
+
+class SecretCache : private AuthRequestCache {
   using token_envelope_t = rgw::keystone::TokenEnvelope;
 
   struct secret_entry {
@@ -128,7 +161,7 @@ public:
     // If token is found, proceed with waiting only if necessary
     if (found) {
         // If found, wait for the result before returning
-        authreq_cache_wait = std::make_shared<AuthRequestCache>();
+        auto authreq_cache_wait = std::make_shared<AuthRequestCache>();
         
         // Wait only if necessary (after confirming find success)
         int ret = authreq_cache_wait->wait(y);
@@ -145,37 +178,6 @@ public:
   void add(const std::string& token_id, const token_envelope_t& token, const std::string& secret);
 }; /* class SecretCache */
 
-class AuthRequestCache {
-   public:
-  // the blocking wait uses std::condition_variable::wait_for(), which uses the
-  // std::chrono::steady_clock. use that for the async waits as well
-  using Clock = std::chrono::steady_clock;
- private:
-  const ceph::timespan duration;
-  ceph::mutex mutex = ceph::make_mutex("AuthRequestCache::lock");
-  ceph::condition_variable cond;
-
-  struct Waiter : boost::intrusive::list_base_hook<> {
-    using Executor = boost::asio::any_io_executor;
-    using Timer = boost::asio::basic_waitable_timer<Clock,
-          boost::asio::wait_traits<Clock>, Executor>;
-    Timer timer;
-    explicit Waiter(boost::asio::any_io_executor ex) : timer(ex) {}
-  };
-  boost::intrusive::list<Waiter> waiters;
-
-  bool going_down{false};
-
-public:
-  AuthRequestCache(ceph::timespan duration = std::chrono::seconds(5))
-    : duration(duration) {}
-  ~AuthRequestCache() {
-    ceph_assert(going_down);
-  }
-  int wait(const DoutPrefixProvider* dpp, optional_yield y);
-  // unblock any threads waiting on reshard
-  void stop();
-}; /* class AuthRequestCache */
 
 class EC2Engine : public rgw::auth::s3::AWSEngine {
   using acl_strategy_t = rgw::auth::RemoteApplier::acl_strategy_t;
@@ -205,9 +207,6 @@ class EC2Engine : public rgw::auth::s3::AWSEngine {
     boost::optional<token_envelope_t> token;
     boost::optional<std::string> secret_key;
     int failure_reason = 0;
-  
-  private:
-    mutable std::mutex cache_mutex;
   };
   access_token_result
   get_access_token(const DoutPrefixProvider* dpp,

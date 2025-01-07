@@ -578,12 +578,12 @@ auto EC2Engine::get_access_token(const DoutPrefixProvider* dpp,
   boost::optional<std::string> secret;
   int failure_reason;
 
-
   /* Get a token from the cache if one has already been stored */
   boost::optional<boost::tuple<rgw::keystone::TokenEnvelope, std::string>>
     t = secret_cache.find(std::string(access_key_id), y);
 
-  /* Check that credentials can correctly be used to sign data */
+  /* Check that credentials can 
+  correctly be used to sign data */
   if (t) {
     std::string sig(signature);
     server_signature_t server_signature = signature_factory(cct, t->get<1>(), string_to_sign);
@@ -738,7 +738,7 @@ rgw::auth::Engine::result_t EC2Engine::authenticate(
 
 bool SecretCache::find(const std::string& token_id,
                        SecretCache::token_envelope_t& token,
-		       std::string &secret)
+		       std::string &secret, optional_yield y)
 {
   std::lock_guard<std::mutex> l(lock);
 
@@ -793,7 +793,7 @@ void SecretCache::add(const std::string& token_id,
   }
 }
 
-int AuthRequestCache::wait(const DoutPrefixProvider* dpp, optional_yield y)
+int AuthRequestCache::wait(optional_yield y)
 {
   std::unique_lock lock(mutex);
 
@@ -802,9 +802,10 @@ int AuthRequestCache::wait(const DoutPrefixProvider* dpp, optional_yield y)
   }
 
   if (y) {
+    auto& context = y.get_io_context();
     auto& yield = y.get_yield_context();
 
-    Waiter waiter(yield.get_executor());
+    Waiter waiter(context.get_executor());
     waiters.push_back(waiter);
     lock.unlock();
 
@@ -817,7 +818,6 @@ int AuthRequestCache::wait(const DoutPrefixProvider* dpp, optional_yield y)
     waiters.erase(waiters.iterator_to(waiter));
     return -ec.value();
   }
-  maybe_warn_about_blocking(dpp);
 
   cond.wait_for(lock, duration);
 
