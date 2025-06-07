@@ -664,44 +664,9 @@ int RGWGetObj_ObjStore_S3::get_decrypt_filter(std::unique_ptr<RGWGetObj_Filter> 
     return 0;
   }
 
-  std::unique_ptr<BlockCrypt> block_crypt;
-  int res = rgw_s3_prepare_decrypt(s, s->yield, attrs, &block_crypt,
-                                   crypt_http_responses);
-  if (res < 0) {
-    return res;
-  }
-  if (block_crypt == nullptr) {
-    return 0;
-  }
-
-  // in case of a multipart upload, we need to know the part lengths to
-  // correctly decrypt across part boundaries
-  std::vector<size_t> parts_len;
-
-  // for replicated objects, the original part lengths are preserved in an xattr
-  if (auto i = attrs.find(RGW_ATTR_CRYPT_PARTS); i != attrs.end()) {
-    try {
-      auto p = i->second.cbegin();
-      using ceph::decode;
-      decode(parts_len, p);
-    } catch (const buffer::error&) {
-      ldpp_dout(this, 1) << "failed to decode RGW_ATTR_CRYPT_PARTS" << dendl;
-      return -EIO;
-    }
-  } else if (manifest_bl) {
-    // otherwise, we read the part lengths from the manifest
-    res = RGWGetObj_BlockDecrypt::read_manifest_parts(this, *manifest_bl,
-                                                      parts_len);
-    if (res < 0) {
-      return res;
-    }
-  }
-
-  *filter = std::make_unique<RGWGetObj_BlockDecrypt>(
-      s, s->cct, cb, std::move(block_crypt),
-      std::move(parts_len), s->yield);
-  return 0;
+  return ::get_decrypt_filter(filter, cb, s, attrs, manifest_bl, &crypt_http_responses);
 }
+
 int RGWGetObj_ObjStore_S3::verify_requester(const rgw::auth::StrategyRegistry& auth_registry, optional_yield y) 
 {
   int ret = -EINVAL;
@@ -2802,45 +2767,7 @@ int RGWPutObj_ObjStore_S3::get_decrypt_filter(
     map<string, bufferlist>& attrs,
     bufferlist* manifest_bl)
 {
-  std::map<std::string, std::string> crypt_http_responses_unused;
-
-  std::unique_ptr<BlockCrypt> block_crypt;
-  int res = rgw_s3_prepare_decrypt(s, s->yield, attrs, &block_crypt,
-                                   crypt_http_responses_unused);
-  if (res < 0) {
-    return res;
-  }
-  if (block_crypt == nullptr) {
-    return 0;
-  }
-
-  // in case of a multipart upload, we need to know the part lengths to
-  // correctly decrypt across part boundaries
-  std::vector<size_t> parts_len;
-
-  // for replicated objects, the original part lengths are preserved in an xattr
-  if (auto i = attrs.find(RGW_ATTR_CRYPT_PARTS); i != attrs.end()) {
-    try {
-      auto p = i->second.cbegin();
-      using ceph::decode;
-      decode(parts_len, p);
-    } catch (const buffer::error&) {
-      ldpp_dout(this, 1) << "failed to decode RGW_ATTR_CRYPT_PARTS" << dendl;
-      return -EIO;
-    }
-  } else if (manifest_bl) {
-    // otherwise, we read the part lengths from the manifest
-    res = RGWGetObj_BlockDecrypt::read_manifest_parts(this, *manifest_bl,
-                                                      parts_len);
-    if (res < 0) {
-      return res;
-    }
-  }
-
-  *filter = std::make_unique<RGWGetObj_BlockDecrypt>(
-      s, s->cct, cb, std::move(block_crypt),
-      std::move(parts_len), s->yield);
-  return 0;
+  return ::get_decrypt_filter(filter, cb, s, attrs, manifest_bl, nullptr);
 }
 
 int RGWPutObj_ObjStore_S3::get_encrypt_filter(
@@ -2860,7 +2787,7 @@ int RGWPutObj_ObjStore_S3::get_encrypt_filter(
       /* We are adding to existing object.
        * We use crypto mode that configured as if we were decrypting. */
       res = rgw_s3_prepare_decrypt(s, s->yield, obj->get_attrs(),
-                                   &block_crypt, crypt_http_responses);
+                                   &block_crypt, &crypt_http_responses);
       if (res == 0 && block_crypt != nullptr)
         filter->reset(new RGWPutObj_BlockEncrypt(s, s->cct, cb, std::move(block_crypt), s->yield));
     }
@@ -3654,6 +3581,204 @@ void RGWPutACLs_ObjStore_S3::send_response()
   end_header(s, this, to_mime_type(s->format));
   dump_start(s);
 }
+
+int RGWGetObjAttrs_ObjStore_S3::get_params(optional_yield y)
+{
+  string err;
+  auto& env = s->info.env;
+  version_id = s->info.args.get("versionId");
+
+  auto hdr = env->get_optional("HTTP_X_AMZ_EXPECTED_BUCKET_OWNER");
+  if (hdr) {
+    expected_bucket_owner = *hdr;
+  }
+
+  hdr = env->get_optional("HTTP_X_AMZ_MAX_PARTS");
+  if (hdr) {
+    max_parts = strict_strtol(hdr->c_str(), 10, &err);
+    if (!err.empty()) {
+      s->err.message = "Invalid value for MaxParts: " + err;
+      ldpp_dout(s, 10) << "Invalid value for MaxParts " << *hdr << ": "
+		       << err << dendl;
+      return -ERR_INVALID_PART;
+    }
+    max_parts = std::min(*max_parts, 1000);
+  }
+
+  hdr = env->get_optional("HTTP_X_AMZ_PART_NUMBER_MARKER");
+  if (hdr) {
+    marker = strict_strtol(hdr->c_str(), 10, &err);
+    if (!err.empty()) {
+      s->err.message = "Invalid value for PartNumberMarker: " + err;
+      ldpp_dout(s, 10) << "Invalid value for PartNumberMarker " << *hdr << ": "
+		       << err << dendl;
+      return -ERR_INVALID_PART;
+    }
+  }
+
+  hdr = env->get_optional("HTTP_X_AMZ_OBJECT_ATTRIBUTES");
+  if (hdr) {
+    requested_attributes = recognize_attrs(*hdr);
+  }
+
+  /* XXX skipping SSE-C params for now */
+
+  return 0;
+} /* RGWGetObjAttrs_ObjStore_S3::get_params(...) */
+
+int RGWGetObjAttrs_ObjStore_S3::get_decrypt_filter(
+    std::unique_ptr<RGWGetObj_Filter> *filter,
+    RGWGetObj_Filter* cb, bufferlist* manifest_bl)
+{
+  // we aren't actually decrypting the data, but for objects encrypted with
+  // SSE-C we do need to verify that required headers are present and valid
+  //
+  // in the SSE-KMS and SSE-S3 cases, this unfortunately causes us to fetch
+  // decryption keys which we don't need :(
+  std::unique_ptr<BlockCrypt> block_crypt; // ignored
+  return rgw_s3_prepare_decrypt(s, s->yield, attrs, &block_crypt,
+                                nullptr);
+}
+
+void RGWGetObjAttrs_ObjStore_S3::send_response()
+{
+  if (op_ret)
+    set_req_state_err(s, op_ret);
+  dump_errno(s);
+
+  if (op_ret == 0) {
+    version_id = s->object->get_instance();
+
+    // x-amz-delete-marker: DeleteMarker // not sure we can plausibly do this?
+    dump_last_modified(s, lastmod);
+    dump_header_if_nonempty(s, "x-amz-version-id", version_id);
+    // x-amz-request-charged: RequestCharged
+  }
+
+  end_header(s, this, to_mime_type(s->format));
+  dump_start(s);
+
+  if (op_ret == 0) {
+    s->formatter->open_object_section("GetObjectAttributes");
+    if (requested_attributes & as_flag(ReqAttributes::Etag)) {
+      if (lo_etag.empty()) {
+       auto iter = attrs.find(RGW_ATTR_ETAG);
+       if (iter != attrs.end()) {
+	 lo_etag = iter->second.to_str();
+       }
+      }
+      s->formatter->dump_string("ETag", lo_etag);
+    }
+
+    if (requested_attributes & as_flag(ReqAttributes::Checksum)) {
+      s->formatter->open_object_section("Checksum");
+      auto iter = attrs.find(RGW_ATTR_CKSUM);
+      if (iter != attrs.end()) {
+	try {
+	  rgw::cksum::Cksum cksum;
+	  auto bliter = iter->second.cbegin();
+	  cksum.decode(bliter);
+	  auto cksum_type =
+	    rgw::cksum::get_checksum_type(cksum,
+	      (multipart_parts_count && multipart_parts_count > 0) /* is_multipart */);
+	  if (std::get<0>(cksum_type) == rgw::cksum::Cksum::FLAG_COMPOSITE) {
+	    /* cksum was computed with a digest algorithm, or predates the 2025
+	       update that introduced CRC combining */
+	    s->formatter->dump_string(cksum.element_name(),
+				      fmt::format("{}-{}", cksum.to_armor(),
+						  *multipart_parts_count));
+	  } else {
+	    /* a full object checksum, if multipart, because the checksum is CRC family */
+	    s->formatter->dump_string(cksum.element_name(), cksum.to_armor());
+	  }
+	  s->formatter->dump_string("ChecksumType", std::get<1>(cksum_type));
+	} catch (buffer::error& err) {
+	  ldpp_dout(this, 0)
+	    << "ERROR: could not decode stored cksum, caught buffer::error" << dendl;
+	}
+      }
+      s->formatter->close_section(); /* Checksum */
+    } /* Checksum */
+
+    if (requested_attributes & as_flag(ReqAttributes::ObjectParts)) {
+      if (multipart_parts_count && multipart_parts_count > 0) {
+
+	/* XXX the following was needed to see a manifest at list_parts()! */
+	op_ret = s->object->load_obj_state(s, s->yield);
+	if (op_ret < 0) {
+	  ldpp_dout_fmt(this, 0,
+			"ERROR: {} load_obj_state() failed ret={}", __func__,
+			op_ret);
+	}
+
+	ldpp_dout_fmt(this, 16,
+		      "{} attr flags={} parts_count={}",
+		      __func__, requested_attributes, *multipart_parts_count);
+
+        s->formatter->open_object_section("ObjectParts");
+
+	bool truncated = false;
+	int next_marker;
+
+	using namespace rgw::sal;
+
+	int ret =
+	  s->object->list_parts(
+            this, s->cct,
+	    max_parts ? *max_parts : 1000,
+	    marker ? *marker : 0,
+	    &next_marker, &truncated,
+	    [&](const Object::Part& part) -> int {
+	      s->formatter->open_object_section("Part");
+	      s->formatter->dump_int("PartNumber", part.part_number);
+	      s->formatter->dump_unsigned("Size", part.part_size);
+	      if (part.cksum.type != rgw::cksum::Type::none) {
+		/* parts always have a non-digest checksum */
+		s->formatter->dump_string(part.cksum.element_name(), part.cksum.to_armor());
+	      }
+	      s->formatter->close_section(); /* Part */
+	      return 0;
+	    }, s->yield);
+
+	if (ret < 0) {
+	  ldpp_dout_fmt(this, 0,
+			"ERROR: {} list-parts failed for {}",
+			__func__, s->object->get_name());
+	}
+	/* AWS docs disagree on the name of this element */
+	s->formatter->dump_int("PartsCount", *multipart_parts_count);
+	s->formatter->dump_int("TotalPartsCount", *multipart_parts_count);
+	s->formatter->dump_bool("IsTruncated", truncated);
+	if (max_parts) {
+	  s->formatter->dump_int("MaxParts", *max_parts);
+	}
+	if(truncated) {
+	  s->formatter->dump_int("NextPartNumberMarker", next_marker);
+	}
+	if (marker) {
+	  s->formatter->dump_int("PartNumberMarker", *marker);
+	}
+	s->formatter->close_section();
+      } /* multipart_parts_count positive */
+    } /* ObjectParts */
+
+    if (requested_attributes & as_flag(ReqAttributes::ObjectSize)) {
+      s->formatter->dump_int("ObjectSize", s->obj_size);
+    }
+
+    if (requested_attributes & as_flag(ReqAttributes::StorageClass)) {
+      auto iter = attrs.find(RGW_ATTR_STORAGE_CLASS);
+      if (iter != attrs.end()) {
+	s->formatter->dump_string("StorageClass", iter->second.to_str());
+      } else {
+	s->formatter->dump_string("StorageClass", "STANDARD");
+      }
+    }
+    s->formatter->close_section();
+  } /* op_ret == 0 */
+
+  rgw_flush_formatter_and_reset(s, s->formatter);
+} /* RGWGetObjAttrs_ObjStore_S3::send_response */
 
 void RGWGetLC_ObjStore_S3::execute(optional_yield y)
 {
