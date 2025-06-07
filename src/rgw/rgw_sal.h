@@ -309,6 +309,29 @@ class DataProcessorFactory {
 };
 
 /**
+ * @brief A factory for DataProcessor instances
+ *
+ * This factory is used to create DataProcessor instances that can process data
+ * in a streaming fashion. It is used by the RGWGetDataCB interface to allow
+ * data to be processed as it is read from the backing store.
+ * The factory is responsible for passing the read data to the DataProcessor
+ * passed through the set_writer() method.
+ */
+class DataProcessorFactory {
+ public:
+  DataProcessorFactory() {}
+  virtual ~DataProcessorFactory() {}
+
+  virtual int set_writer(DataProcessor* writer,
+                         Attrs& attrs,
+                         const DoutPrefixProvider *dpp,
+                         optional_yield y) = 0;
+  virtual RGWGetObj_Filter* get_filter() = 0;
+  virtual bool need_copy_data() = 0;
+  virtual void finalize_attrs(Attrs& attrs) { /* default implementation does nothing */ }
+};
+
+/**
  * @brief Base singleton representing a Store or Filter
  *
  * The Driver is the base abstraction of the SAL layer.  It represents a base storage
