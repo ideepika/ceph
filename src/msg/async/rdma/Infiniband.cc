@@ -429,18 +429,15 @@ int Infiniband::QueuePair::recv_cm_meta(CephContext *cct, int socket_fd)
 
 int Infiniband::QueuePair::send_cm_meta(CephContext *cct, int socket_fd)
 {
-  int retry = 0;
-  ssize_t r;
-
   char msg[TCP_MSG_LEN];
   char gid[33];
-retry:
+
   gid_to_wire_gid(local_cm_meta, gid);
   sprintf(msg, "%04x:%08x:%08x:%08x:%s", local_cm_meta.lid, local_cm_meta.local_qpn, local_cm_meta.psn, local_cm_meta.peer_qpn, gid);
   ldout(cct, 10) << __func__ << " sending: " << local_cm_meta.lid << ", " << local_cm_meta.local_qpn
                  << ", " << local_cm_meta.psn << ", " << local_cm_meta.peer_qpn << ", "  << gid  << dendl;
-  r = ::write(socket_fd, msg, sizeof(msg));
-  // Drop incoming qpt
+
+  // Drop outgoing meta for fault injection
   if (cct->_conf->ms_inject_socket_failures && socket_fd >= 0) {
     if (rand() % cct->_conf->ms_inject_socket_failures == 0) {
       ldout(cct, 0) << __func__ << " injecting socket failure" << dendl;
@@ -448,20 +445,23 @@ retry:
     }
   }
 
-  if ((size_t)r != sizeof(msg)) {
-    // FIXME need to handle EAGAIN instead of retry
-    if (r < 0 && (errno == EINTR || errno == EAGAIN) && retry < 3) {
-      retry++;
-      goto retry;
+  for (int retry = 0; retry <= 3; retry++) {
+    ssize_t r = ::write(socket_fd, msg, sizeof(msg));
+    if ((size_t)r == sizeof(msg))
+      return 0;
+    if (r < 0) {
+      if ((errno == EINTR || errno == EAGAIN) && retry < 3)
+        continue;
+      int err = errno;
+      lderr(cct) << __func__ << " send returned error " << err << ": "
+                 << cpp_strerror(err) << dendl;
+      return -err;
     }
-    if (r < 0)
-      lderr(cct) << __func__ << " send returned error " << errno << ": "
-                 << cpp_strerror(errno) << dendl;
-    else
-      lderr(cct) << __func__ << " send got bad length (" << r << ") " << cpp_strerror(errno) << dendl;
-    return -errno;
+    // partial write — not recoverable without re-sending from the offset
+    lderr(cct) << __func__ << " send got bad length (" << r << ")" << dendl;
+    return -EIO;
   }
-  return 0;
+  return -EIO;
 }
 
 /**

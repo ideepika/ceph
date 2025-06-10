@@ -141,10 +141,14 @@ void RDMAIWARPConnectedSocketImpl::handle_cm_connection() {
       break;
 
     case RDMA_CM_EVENT_DEVICE_REMOVAL:
+      lderr(cct) << __func__ << " RDMA device removed, closing connection" << dendl;
+      connected = -ECONNRESET;
+      notify();
       break;
 
     default:
-      ceph_abort_msg("unhandled event");
+      ldout(cct, 1) << __func__ << " ignoring unhandled CM event: "
+                    << rdma_event_str(event->event) << dendl;
       break;
   }
   rdma_ack_cm_event(event);
