@@ -520,17 +520,34 @@ auto EC2Engine::get_secret_from_keystone(const DoutPrefixProvider* dpp,
   /* get authentication token for Keystone. */
   std::string auth_token;
   bool admin_token_cached = false;
-  int ret = rgw::keystone::Service::get_admin_token(dpp, token_cache, config,
+  int ret = rgw::keystone::Service::get_auth_token(dpp, token_cache, config,
                                                     y, auth_token, admin_token_cached);
   bool use_user_token = false;
+  bool use_service_token = false;
+
   if (ret == -ENOENT) {
-    // No admin token configured; we need to use user token instead
-    ldpp_dout(dpp, 20) << "no admin token configured, will use user token for secret fetching" << dendl;
-    use_user_token = true;
+      // No admin token configured
+      bool is_cross_tenant = (user_tenant != target_tenant);
+      
+      if (is_cross_tenant) {
+          // Cross-tenant: try to get service token
+          TokenEnvelope service_token_env;
+          if (token_cache.find_service("service_token_id", service_token_env)) {
+              auth_token = service_token_env.token.id;
+              use_service_token = true;
+          } else {
+              // No service token available for cross-tenant operation
+              ldpp_dout(dpp, 2) << "cross-tenant operation requires service token, but none available" << dendl;
+              return make_pair(boost::none, -EACCES);
+          }
+      } else {
+          // Same tenant: use user token
+          use_user_token = true;
+      }
   } else if (ret < 0) {
-    ldpp_dout(dpp, 2) << "s3 keystone: cannot get admin token for keystone access"
-                  << dendl;
-    return make_pair(boost::none, ret);
+      ldpp_dout(dpp, 2) << "s3 keystone: cannot get admin token for keystone access"
+              << dendl;
+      return make_pair(boost::none, ret);
   }
 
   using RGWGetAccessSecret
