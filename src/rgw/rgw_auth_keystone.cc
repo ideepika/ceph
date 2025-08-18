@@ -518,12 +518,17 @@ auto EC2Engine::get_secret_from_keystone(const DoutPrefixProvider* dpp,
   keystone_url.append(std::string(access_key_id));
 
   /* get authentication token for Keystone. */
-  std::string admin_token;
+  std::string auth_token;
   bool admin_token_cached = false;
   int ret = rgw::keystone::Service::get_admin_token(dpp, token_cache, config,
-                                                    y, admin_token, admin_token_cached);
-  if (ret < 0) {
-    ldpp_dout(dpp, 2) << "s3 keystone: cannot get token for keystone access"
+                                                    y, auth_token, admin_token_cached);
+  bool use_user_token = false;
+  if (ret == -ENOENT) {
+    // No admin token configured; we need to use user token instead
+    ldpp_dout(dpp, 20) << "no admin token configured, will use user token for secret fetching" << dendl;
+    use_user_token = true;
+  } else if (ret < 0) {
+    ldpp_dout(dpp, 2) << "s3 keystone: cannot get admin token for keystone access"
                   << dendl;
     return make_pair(boost::none, ret);
   }
@@ -535,8 +540,22 @@ auto EC2Engine::get_secret_from_keystone(const DoutPrefixProvider* dpp,
   ceph::bufferlist token_body_bl;
   RGWGetAccessSecret secret(cct, "GET", keystone_url, &token_body_bl);
 
-  /* set required headers for keystone request */
-  secret.append_header("X-Auth-Token", admin_token);
+ if (use_user_token) {
+    // For user token approach, we need to get the user's token
+    // This requires modification to accept user_token as parameter
+    // or get it from the current authentication context
+    
+    // Option 1: Get user token from current request context (preferred)
+    std::string user_token = get_current_user_token(dpp);
+    if (user_token.empty()) {
+      ldpp_dout(dpp, 2) << "s3 keystone: no user token available for secret fetching" << dendl;
+      return make_pair(boost::none, -EACCES);
+    }
+    secret.append_header("X-Auth-Token", user_token);
+  } else {
+    // Use admin token (backward compatibility)
+    secret.append_header("X-Auth-Token", auth_token);
+  }
 
   /* check if we want to verify keystone's ssl certs */
   secret.set_verify_ssl(cct->_conf->rgw_keystone_verify_ssl);
@@ -601,6 +620,7 @@ auto EC2Engine::get_access_token(const DoutPrefixProvider* dpp,
 
   /* Get a token from the cache if one has already been stored */
   boost::optional<boost::tuple<rgw::keystone::TokenEnvelope, std::string>>
+  //TODO
     t = secret_cache.find(std::string(access_key_id));
 
   /* Check that credentials can correctly be used to sign data */
