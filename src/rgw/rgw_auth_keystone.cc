@@ -415,6 +415,7 @@ std::pair<boost::optional<rgw::keystone::TokenEnvelope>, int>
 EC2Engine::get_from_keystone(const DoutPrefixProvider* dpp, const std::string_view& access_key_id,
                              const std::string& string_to_sign,
                              const std::string_view& signature,
+                             const req_state* s,
                              optional_yield y) const
 {
   /* prepare keystone url */
@@ -499,6 +500,7 @@ EC2Engine::get_from_keystone(const DoutPrefixProvider* dpp, const std::string_vi
 auto EC2Engine::get_secret_from_keystone(const DoutPrefixProvider* dpp,
                                          const std::string& user_id,
                                          const std::string_view& access_key_id,
+                                         const req_state* s,
                                          optional_yield y) const
     -> std::pair<boost::optional<std::string>, int>
 {
@@ -520,34 +522,21 @@ auto EC2Engine::get_secret_from_keystone(const DoutPrefixProvider* dpp,
   /* get authentication token for Keystone. */
   std::string auth_token;
   bool admin_token_cached = false;
-  int ret = rgw::keystone::Service::get_auth_token(dpp, token_cache, config,
+  int ret = rgw::keystone::Service::get_admin_token(dpp, token_cache, config,
                                                     y, auth_token, admin_token_cached);
-  bool use_user_token = false;
-  bool use_service_token = false;
-
   if (ret == -ENOENT) {
-      // No admin token configured
-      bool is_cross_tenant = (user_tenant != target_tenant);
-      
-      if (is_cross_tenant) {
-          // Cross-tenant: try to get service token
-          TokenEnvelope service_token_env;
-          if (token_cache.find_service("service_token_id", service_token_env)) {
-              auth_token = service_token_env.token.id;
-              use_service_token = true;
-          } else {
-              // No service token available for cross-tenant operation
-              ldpp_dout(dpp, 2) << "cross-tenant operation requires service token, but none available" << dendl;
-              return make_pair(boost::none, -EACCES);
-          }
-      } else {
-          // Same tenant: use user token
-          use_user_token = true;
-      }
+    ldpp_dout(dpp, 20) << "no admin token configured, using user token for secret fetching" << dendl;
+    
+    if (s) {
+      auth_token = get_current_user_token(s);
+    }
+    
+    if (auth_token.empty()) {
+      ldpp_dout(dpp, 2) << "no authentication token available for secret fetching" << dendl;
+      return make_pair(boost::none, -EACCES);
+    }
   } else if (ret < 0) {
-      ldpp_dout(dpp, 2) << "s3 keystone: cannot get admin token for keystone access"
-              << dendl;
-      return make_pair(boost::none, ret);
+    return make_pair(boost::none, ret);
   }
 
   using RGWGetAccessSecret
@@ -556,18 +545,6 @@ auto EC2Engine::get_secret_from_keystone(const DoutPrefixProvider* dpp,
   /* The container for plain response obtained from Keystone.*/
   ceph::bufferlist token_body_bl;
   RGWGetAccessSecret secret(cct, "GET", keystone_url, &token_body_bl);
-
- if (use_user_token) {
-    // For user token approach, we need to get the user's token
-    // This requires modification to accept user_token as parameter
-    // or get it from the current authentication context
-    
-    // Option 1: Get user token from current request context (preferred)
-    std::string user_token = get_current_user_token(dpp);
-    if (user_token.empty()) {
-      ldpp_dout(dpp, 2) << "s3 keystone: no user token available for secret fetching" << dendl;
-      return make_pair(boost::none, -EACCES);
-    }
     secret.append_header("X-Auth-Token", user_token);
   } else {
     // Use admin token (backward compatibility)
@@ -627,6 +604,7 @@ auto EC2Engine::get_access_token(const DoutPrefixProvider* dpp,
                                  const std::string_view& signature,
                                  const signature_factory_t& signature_factory,
                                  bool ignore_signature,
+                                 const req_state* s,
                                  optional_yield y) const
     -> access_token_result
 {
@@ -662,12 +640,12 @@ auto EC2Engine::get_access_token(const DoutPrefixProvider* dpp,
 
   /* No cached token, token expired, or secret invalid: fall back to keystone */
   std::tie(token, failure_reason) =
-      get_from_keystone(dpp, access_key_id, string_to_sign, signature, y);
+      get_from_keystone(dpp, access_key_id, string_to_sign, signature, s, y);
 
   if (token) {
     /* Fetch secret from keystone for the access_key_id */
     std::tie(secret, failure_reason) =
-        get_secret_from_keystone(dpp, token->get_user_id(), access_key_id, y);
+        get_secret_from_keystone(dpp, token->get_user_id(), access_key_id, s, y);
 
     if (secret) {
       /* Add token, secret pair to cache, and set timeout */

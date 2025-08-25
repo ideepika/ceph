@@ -43,6 +43,7 @@ public:
   virtual std::string_view get_admin_tenant() const noexcept = 0;
   virtual std::string_view get_admin_project() const noexcept = 0;
   virtual std::string_view get_admin_domain() const noexcept = 0;
+  virtual bool keystone_admin_token_required() const noexcept = 0;
 };
 
 class CephCtxConfig : public Config {
@@ -60,7 +61,7 @@ public:
 
   std::string get_endpoint_url() const noexcept override;
 
-  bool keystone_admin_token_required() const {
+  bool keystone_admin_token_required() const noexcept override {
     return g_ceph_context->_conf->rgw_keystone_admin_token_required;
   }
 
