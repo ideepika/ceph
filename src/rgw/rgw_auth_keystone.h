@@ -206,6 +206,8 @@ public:
     return "rgw::auth::keystone::EC2Engine";
   }
 
+  std::string get_current_user_token(const req_state* s) const;
+
 }; /* class EC2Engine */
 
 }; /* namespace keystone */

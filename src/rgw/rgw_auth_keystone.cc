@@ -545,11 +545,7 @@ auto EC2Engine::get_secret_from_keystone(const DoutPrefixProvider* dpp,
   /* The container for plain response obtained from Keystone.*/
   ceph::bufferlist token_body_bl;
   RGWGetAccessSecret secret(cct, "GET", keystone_url, &token_body_bl);
-    secret.append_header("X-Auth-Token", user_token);
-  } else {
-    // Use admin token (backward compatibility)
-    secret.append_header("X-Auth-Token", auth_token);
-  }
+  secret.append_header("X-Auth-Token", auth_token);
 
   /* check if we want to verify keystone's ssl certs */
   secret.set_verify_ssl(cct->_conf->rgw_keystone_verify_ssl);
@@ -729,7 +725,7 @@ rgw::auth::Engine::result_t EC2Engine::authenticate(
 
   auto [t, secret_key, failure_reason] =
     get_access_token(dpp, access_key_id, string_to_sign,
-                     signature, signature_factory, ignore_signature, y);
+                     signature, signature_factory, ignore_signature, s, y);
   if (! t) {
     if (failure_reason == -ERR_SIGNATURE_NO_MATCH) {
       // we looked up a secret but it didn't generate the same signature as
