@@ -232,6 +232,8 @@ class TokenCache {
 
   const size_t max;
 
+public:
+
   explicit TokenCache(const rgw::keystone::Config& config)
     : cct(g_ceph_context),
       max(cct->_conf->rgw_keystone_token_cache_size) {
@@ -241,7 +243,6 @@ class TokenCache {
     down_flag = true;
   }
 
-public:
   TokenCache(const TokenCache&) = delete;
   void operator=(const TokenCache&) = delete;
 
