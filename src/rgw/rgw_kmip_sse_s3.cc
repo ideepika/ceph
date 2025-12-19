@@ -175,7 +175,7 @@ int RGWKmipSSES3::destroy_bucket_key(const DoutPrefixProvider* dpp,
     kek_id(kek) {}
 
     
-    int execute(KMIP* ctx, BIO* bio) {
+    int execute(KMIP* ctx, BIO* bio)  override {
       int ret = kmip_bio_destroy_symmetric_key_with_context(
             ctx, bio, const_cast<char*>(kek_id.c_str()), static_cast<int>(kek_id.length())
       );
@@ -226,7 +226,7 @@ int RGWKmipSSES3::generate_and_wrap_dek(const DoutPrefixProvider* dpp,
     dpp(dpp_in) {}
 
     
-    int execute(KMIP* ctx, BIO* bio) {
+    int execute(KMIP* ctx, BIO* bio)  override {
         // Set up cryptographic parameters
         CryptographicParameters params;
         memset(&params, 0, sizeof(params));
@@ -312,7 +312,7 @@ int RGWKmipSSES3::unwrap_dek(const DoutPrefixProvider* dpp,
       wrapped_dek(wrapped),
       dpp(dpp_in) {}
     
-    int execute(KMIP* ctx, BIO* bio) {
+    int execute(KMIP* ctx, BIO* bio)  override {
       // 1. Unpack wrapped DEK: [IV_SIZE][IV][CIPHERTEXT]
       const char* data = wrapped_dek.c_str();
       uint32_t iv_size;

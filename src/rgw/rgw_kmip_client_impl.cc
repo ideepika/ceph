@@ -406,11 +406,13 @@ RGWKMIPManagerImpl::stop()
     delete worker;
     worker = 0;
   }
-}
+  }
 
-int
-RGWKMIPManagerImpl::add_request(RGWKMIPTransceiver *req)
-{
+  int
+  RGWKMIPManagerImpl::add_request(RGWKMIPTransceiver *req)
+  {
+  ldout(cct, 0) << "KMIP add_request(): op=" << (int)req->operation 
+                << " done=" << req->done << " requests.size()=" << requests.size() << dendl;
   std::unique_lock l{lock};
   if (going_down) {
     ldout(cct, 0) << "KMIP add_request(): going_down=true, rejecting" << dendl;

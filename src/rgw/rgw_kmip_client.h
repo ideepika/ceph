@@ -2,13 +2,13 @@
 // vim: ts=8 sw=2 sts=2 expandtab ft=cpp
 
 #pragma once
-extern "C" {
-struct KMIP;
-struct BIO;
-}
 
 class DoutPrefixProvider;
 class RGWKMIPManager;
+extern "C" {
+#include "kmip.h"
+#include "kmip_bio.h"
+} 
 
 class RGWKMIPTransceiver {
 public:
@@ -41,7 +41,6 @@ public:
   bool done;
   ceph::mutex lock = ceph::make_mutex("rgw_kmip_req::lock");
   ceph::condition_variable cond;
-  //TODO: virtual int execute(KMIP *ctx, BIO *bio) = 0;
 
   int wait(const DoutPrefixProvider* dpp, optional_yield y);
   RGWKMIPTransceiver(CephContext * const cct,
@@ -55,7 +54,7 @@ public:
 
   int send();
   int process(const DoutPrefixProvider* dpp, optional_yield y);
-   virtual int execute(KMIP* ctx, BIO* bio) {
+  virtual int execute(KMIP* ctx, BIO* bio) {
     return 0;
   }
 };
