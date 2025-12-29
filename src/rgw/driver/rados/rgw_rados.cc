@@ -40,6 +40,8 @@
 #include "rgw_putobj_processor.h"
 #include "rgw_lc_tier.h"
 #include "rgw_restore.h"
+#include "rgw_kmip_sse_s3.h"
+
 
 #include "cls/rgw/cls_rgw_ops.h"
 #include "cls/rgw/cls_rgw_client.h"
@@ -7862,6 +7864,30 @@ int RGWRados::Object::Read::prepare(optional_yield y, const DoutPrefixProvider *
     if (cct->_conf->subsys.should_gather<ceph_subsys_rgw, 20>()) {
       for (iter = params.attrs->begin(); iter != params.attrs->end(); ++iter) {
         ldpp_dout(dpp, 20) << "Read xattr rgw_rados: " << iter->first << dendl;
+      }
+    }
+
+    auto wrapped_dek_iter = params.attrs->find("wrapped-dek");
+    if (wrapped_dek_iter != params.attrs->end()) {
+      auto kek_iter = params.attrs->find(RGW_ATTR_CRYPT_KMIP_KEK_ID);
+      if (kek_iter != params.attrs->end()) {
+        std::string kek_id = kek_iter->second.to_str();
+        bufferlist wrapped_dek = wrapped_dek_iter->second;
+
+        RGWKmipSSES3* kmip_backend = get_kmip_sse_s3_backend(store->ctx());
+        if (kmip_backend) {
+          bufferlist plaintext_dek;
+          std::string encryption_context = "";
+
+          int ret = kmip_backend->unwrap_dek(
+            dpp, kek_id, wrapped_dek, encryption_context, plaintext_dek
+          );
+
+          if (ret >= 0) {
+            // Use plaintext_dek for decryption during read
+            // Store it in state for use in iterate()
+          }
+        }
       }
     }
   }

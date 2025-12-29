@@ -18,6 +18,8 @@
 #include <rapidjson/writer.h>
 #include "rapidjson/error/error.h"
 #include "rapidjson/error/en.h"
+#include "rgw_common.h"
+#include "rgw_kmip_sse_s3.h"
 #include <regex>
 
 #define dout_context g_ceph_context
@@ -1071,6 +1073,24 @@ static int make_actual_key_from_vault(const DoutPrefixProvider *dpp,
   return get_actual_key_from_vault(dpp, kctx, attrs, y, actual_key, true);
 }
 
+static int make_actual_key_from_kmip(const DoutPrefixProvider *dpp,
+                                     SSEContext & kctx,
+                                     map<string, bufferlist>& attrs,
+                                     optional_yield y,
+                                     std::string& actual_key)
+{
+  CephContext* cct = dpp->get_cct();
+  RGWKmipSSES3* kmip_backend = get_kmip_sse_s3_backend(cct);
+  std::string kek_id = get_str_attribute(attrs, RGW_ATTR_CRYPT_KEYID);
+
+  bufferlist unwrapped_dek;
+  bufferlist wrapped_dek;
+  kmip_backend->generate_and_wrap_dek(dpp, kek_id, "", unwrapped_dek, wrapped_dek);
+  set_attr(attrs, RGW_ATTR_CRYPT_DATAKEY, wrapped_dek.to_str());
+  actual_key = unwrapped_dek.to_str();
+  return 0;
+}
+
 
 static int reconstitute_actual_key_from_vault(const DoutPrefixProvider *dpp,
                                               SSEContext & kctx,
@@ -1079,6 +1099,28 @@ static int reconstitute_actual_key_from_vault(const DoutPrefixProvider *dpp,
                                               std::string& actual_key)
 {
   return get_actual_key_from_vault(dpp, kctx, attrs, y, actual_key, false);
+}
+
+static int reconstitute_actual_key_from_kmip(const DoutPrefixProvider *dpp,
+                                              SSEContext & kctx,
+                                              map<string, bufferlist>& attrs,
+                                              optional_yield y,
+                                              std::string& actual_key)
+{
+  CephContext* cct = dpp->get_cct();
+  RGWKmipSSES3* kmip_backend = get_kmip_sse_s3_backend(cct);
+  std::string kek_id = get_str_attribute(attrs, RGW_ATTR_CRYPT_KEYID);
+  std::string dek = get_str_attribute(attrs, RGW_ATTR_CRYPT_DATAKEY);
+  bufferlist dek_bl;
+  dek_bl.append(dek);
+  if (kmip_backend == nullptr) {
+    ldpp_dout(dpp, 0) << "ERROR: KMIP backend not available" << dendl;
+    return -EIO;
+  }
+  bufferlist unwrapped_dek;
+  kmip_backend->unwrap_dek(dpp, kek_id, dek_bl, "", unwrapped_dek);
+  actual_key = unwrapped_dek.to_str();
+  return 0;
 }
 
 
@@ -1239,6 +1281,9 @@ int reconstitute_actual_key_from_sse_s3(const DoutPrefixProvider *dpp,
   if (RGW_SSE_KMS_BACKEND_VAULT == kms_backend) {
     return reconstitute_actual_key_from_vault(dpp, kctx, attrs, y, actual_key);
   }
+  if (RGW_SSE_KMS_BACKEND_KMIP == kms_backend) {
+    return reconstitute_actual_key_from_kmip(dpp, kctx, attrs, y, actual_key);
+  }
 
   ldpp_dout(dpp, 0) << "ERROR: Invalid rgw_crypt_sse_s3_backend: " << kms_backend << dendl;
   return -EINVAL;
@@ -1251,11 +1296,14 @@ int make_actual_key_from_sse_s3(const DoutPrefixProvider *dpp,
 {
   SseS3Context kctx { dpp->get_cct() };
   const std::string kms_backend { kctx.backend() };
-  if (RGW_SSE_KMS_BACKEND_VAULT != kms_backend) {
-    ldpp_dout(dpp, 0) << "ERROR: Unsupported rgw_crypt_sse_s3_backend: " << kms_backend << dendl;
-    return -EINVAL;
+  if (RGW_SSE_KMS_BACKEND_VAULT == kms_backend) {
+    return make_actual_key_from_vault(dpp, kctx, attrs, y, actual_key);
   }
-  return make_actual_key_from_vault(dpp, kctx, attrs, y, actual_key);
+  if (RGW_SSE_KMS_BACKEND_KMIP == kms_backend) {
+    return make_actual_key_from_kmip(dpp, kctx, attrs, y, actual_key);
+  }
+  ldpp_dout(dpp, 0) << "ERROR: Unsupported rgw_crypt_sse_s3_backend: " << kms_backend << dendl;
+  return -EINVAL;
 }
 
 
@@ -1279,6 +1327,7 @@ int create_sse_s3_bucket_key(const DoutPrefixProvider *dpp,
     secret_engine_str, secret_engine_parms) };
   if (RGW_SSE_KMS_VAULT_SE_TRANSIT == secret_engine){
     TransitSecretEngine engine(cct, kctx, std::move(secret_engine_parms));
+    ldpp_dout(dpp, 0)  << "trying to create bucket key " << dendl;
     return engine.create_bucket_key(dpp, bucket_key, y);
   }
   else {

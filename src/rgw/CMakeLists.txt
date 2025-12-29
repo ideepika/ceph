@@ -129,6 +129,8 @@ set(librgw_common_srcs
   rgw_object_lock.cc
   rgw_kms.cc
   rgw_kmip_client.cc
+  rgw_kmip_client_impl.cc
+  rgw_kmip_sse_s3.cc
   rgw_url.cc
   rgw_oidc_provider.cc
   rgw_log.cc
@@ -311,12 +313,15 @@ target_link_libraries(rgw_common
     ${LUA_LIBRARIES}
     RapidJSON::RapidJSON
     Boost::context
+    kmip
     ${FMT_LIB}
     OpenSSL::SSL
+    thrift
     BLAKE3::blake3)
 target_include_directories(rgw_common
   PUBLIC "${CMAKE_SOURCE_DIR}/src/rgw/services"
   PUBLIC "${CMAKE_SOURCE_DIR}/src/rgw"
+  PUBLIC "${CMAKE_SOURCE_DIR}/src/libkmip/include"
   PUBLIC "${LUA_INCLUDE_DIR}")
 
 # work around https://github.com/Cyan4973/xxHash/issues/943 for debug builds
@@ -404,7 +409,6 @@ set(rgw_a_srcs
   rgw_file.cc
   rgw_frontend.cc
   rgw_http_client_curl.cc
-  rgw_kmip_client_impl.cc
   rgw_lib.cc
   rgw_loadgen.cc
   rgw_loadgen_process.cc
@@ -450,8 +454,7 @@ target_compile_definitions(rgw_a PUBLIC "-DCLS_CLIENT_HIDE_IOCTX")
 target_include_directories(rgw_a
   PUBLIC "${CMAKE_SOURCE_DIR}/src/dmclock/support/src"
   PUBLIC "${CMAKE_SOURCE_DIR}/src/rgw"
-  PUBLIC "${CMAKE_SOURCE_DIR}/src/rgw/driver/rados"
-  PRIVATE "${CMAKE_SOURCE_DIR}/src/libkmip")
+  PUBLIC "${CMAKE_SOURCE_DIR}/src/rgw/driver/rados")
 
 if(WITH_RADOSGW_AMQP_ENDPOINT)
   find_package(RabbitMQ REQUIRED)
@@ -504,7 +507,7 @@ endif(WITH_RADOSGW_ARROW_FLIGHT)
 target_compile_definitions(radosgw PUBLIC "-DCLS_CLIENT_HIDE_IOCTX")
 target_include_directories(radosgw
   PUBLIC "${CMAKE_SOURCE_DIR}/src/dmclock/support/src"
-  PRIVATE "${CMAKE_SOURCE_DIR}/src/libkmip"
+  PUBLIC "${CMAKE_SOURCE_DIR}/src/libkmip/include"
   PUBLIC "${CMAKE_SOURCE_DIR}/src/rgw"
   PRIVATE "${LUA_INCLUDE_DIR}")
 
@@ -514,7 +517,6 @@ target_link_libraries(radosgw PRIVATE
   legacy-option-headers
   ${rgw_libs}
   rgw_schedulers
-  kmip
   ${ALLOC_LIBS})
 
 install(TARGETS radosgw DESTINATION bin)
@@ -599,7 +601,7 @@ add_library(rgw SHARED ${librgw_srcs})
 target_compile_definitions(rgw PUBLIC "-DCLS_CLIENT_HIDE_IOCTX")
 target_include_directories(rgw
   PUBLIC "${CMAKE_SOURCE_DIR}/src/dmclock/support/src"
-  PRIVATE "${CMAKE_SOURCE_DIR}/src/libkmip"
+  PUBLIC "${CMAKE_SOURCE_DIR}/src/libkmip/include"
   PUBLIC "${CMAKE_SOURCE_DIR}/src/rgw"
   PRIVATE "${LUA_INCLUDE_DIR}")
 
@@ -609,7 +611,6 @@ target_link_libraries(rgw
   PRIVATE
   ${rgw_libs}
   rgw_schedulers
-  kmip
   librados
   cls_rgw_client
   cls_otp_client

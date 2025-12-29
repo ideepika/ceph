@@ -512,6 +512,10 @@ RGWKmipHandles::do_one_entry(RGWKMIPTransceiver &element)
   kmip_init_request_batch_item(rbi);
   memset(u, 0, sizeof *u);
   rbi->request_payload = u;
+  if (element.operation == RGWKMIPTransceiver::LOCATE) {
+  ldout(cct, 1) << "LOCATE attributes: count=" << (ap - a)
+             << " name=" << (element.name ? element.name : "(null)") << dendl;
+  }
   switch(element.operation) {
   case RGWKMIPTransceiver::CREATE:
     memset(ta, 0, sizeof *ta);

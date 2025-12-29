@@ -14,7 +14,9 @@ public:
     GET,
     GET_ATTRIBUTES,
     GET_ATTRIBUTE_LIST,
-    DESTROY
+    DESTROY,
+    ENCRYPT,
+    DECRYPT
   };
   CephContext *cct;
   kmip_operation operation;
@@ -35,6 +37,7 @@ public:
   bool done;
   ceph::mutex lock = ceph::make_mutex("rgw_kmip_req::lock");
   ceph::condition_variable cond;
+  //TODO: virtual int execute(KMIP *ctx, BIO *bio) = 0;
 
   int wait(const DoutPrefixProvider* dpp, optional_yield y);
   RGWKMIPTransceiver(CephContext * const cct,
