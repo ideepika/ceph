@@ -58,8 +58,8 @@
 	url = https://github.com/ceph/cpp_redis.git
 [submodule "src/libkmip"]
 	path = src/libkmip
-	url = https://github.com/ceph/libkmip
-	branch = ceph-master
+	url = https://github.com/ideepika/libkmip
+	branch = wip-rebase-morestuff-compiling
 [submodule "src/arrow"]
 	path = src/arrow
 	url = https://github.com/apache/arrow.git

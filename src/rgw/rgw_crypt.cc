@@ -17,6 +17,7 @@
 #include "crypto/crypto_accel.h"
 #include "crypto/crypto_plugin.h"
 #include "rgw/rgw_kms.h"
+#include "rgw/rgw_kmip_sse_s3.h"
 #include "rapidjson/document.h"
 #include "rapidjson/writer.h"
 #include "rapidjson/error/error.h"
@@ -924,6 +925,31 @@ struct CryptAttributes {
   }
 };
 
+// Create SSE-S3 bucket key using KMIP backend
+int create_sse_s3_bucket_key(req_state* s, std::string& key_id, optional_yield y) {
+  auto backend = get_kmip_sse_s3_backend(s->cct);
+  if (!backend) {
+    ldpp_dout(s, 0) << "KMIP SSE-S3 backend unavailable" << dendl;
+    return -EIO;
+  }
+  ldpp_dout(s, 0) << "calling create bucket key " << dendl;
+  int ret = backend->create_bucket_key(s, s->bucket->get_name(), key_id);
+  if (ret < 0) {
+    ldpp_dout(s, 0) << "KMIP create_bucket_key failed: " << dendl;
+  }
+  return ret;
+}
+
+// Remove SSE-S3 bucket key using KMIP backend
+int remove_sse_s3_bucket_key(req_state* s, const std::string& key_id, optional_yield y) {
+  auto backend = get_kmip_sse_s3_backend(s->cct);
+  if (!backend) {
+    ldpp_dout(s, 0) << "KMIP SSE-S3 backend unavailable" << dendl;
+    return -EIO;
+  }
+  return backend->destroy_bucket_key(s, key_id);
+}
+
 std::string fetch_bucket_key_id(req_state *s)
 {
   auto kek_iter = s->bucket_attrs.find(RGW_ATTR_BUCKET_ENCRYPTION_KEY_ID);
@@ -1035,6 +1061,10 @@ int rgw_s3_prepare_encrypt(req_state* s, optional_yield y,
   int res = 0;
   CryptAttributes crypt_attributes { s };
   crypt_http_responses.clear();
+  std::string actualkey;
+
+  // int ret = make_actual_key_from_sse_s3(s, attrs, y, actualkey);
+  // if (ret<0) return ret;
 
   {
     std::string_view req_sse_ca =
@@ -1208,7 +1238,7 @@ int rgw_s3_prepare_encrypt(req_state* s, optional_yield y,
         return -EINVAL;
       }
 
-      if (s->cct->_conf->rgw_crypt_sse_s3_backend != "vault") {
+      if (s->cct->_conf->rgw_crypt_sse_s3_backend != "vault" && s->cct->_conf->rgw_crypt_sse_s3_backend != "kmip") {
         s->err.message = "Request specifies Server Side Encryption "
             "but server configuration does not support this.";
         return -EINVAL;
@@ -1229,6 +1259,8 @@ int rgw_s3_prepare_encrypt(req_state* s, optional_yield y,
       std::string key_selector = create_random_key_selector(s->cct);
 
       set_attr(attrs, RGW_ATTR_CRYPT_KEYSEL, key_selector);
+      ldpp_dout(s, 5) << "XXX get sse s3 bucket key: " << key_id << dendl;
+
       set_attr(attrs, RGW_ATTR_CRYPT_CONTEXT, cooked_context);
       set_attr(attrs, RGW_ATTR_CRYPT_MODE, "AES256");
       set_attr(attrs, RGW_ATTR_CRYPT_KEYID, key_id);
@@ -1309,6 +1341,9 @@ int rgw_s3_prepare_decrypt(req_state* s, optional_yield y,
   std::string stored_mode = get_str_attribute(attrs, RGW_ATTR_CRYPT_MODE);
   ldpp_dout(s, 15) << "Encryption mode: " << stored_mode << dendl;
 
+  int ret = reconstitute_actual_key_from_sse_s3(s, attrs, y, actualkey);
+  if (ret<0) return ret;
+  
   const char *req_sse = s->info.env->get("HTTP_X_AMZ_SERVER_SIDE_ENCRYPTION", NULL);
   if (nullptr != req_sse && (s->op == OP_GET || s->op == OP_HEAD)) {
     return -ERR_INVALID_REQUEST;
