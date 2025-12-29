@@ -3183,6 +3183,7 @@ options:
   - rgw
   enum_values:
   - vault
+  - kmip
   with_legacy: true
 
 - name: rgw_crypt_sse_s3_vault_secret_engine

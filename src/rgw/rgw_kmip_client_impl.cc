@@ -406,29 +406,47 @@ RGWKMIPManagerImpl::stop()
     delete worker;
     worker = 0;
   }
-}
+  }
 
-int
-RGWKMIPManagerImpl::add_request(RGWKMIPTransceiver *req)
-{
+  int
+  RGWKMIPManagerImpl::add_request(RGWKMIPTransceiver *req)
+  {
+  ldout(cct, 0) << "KMIP add_request(): op=" << (int)req->operation
+                << " done=" << req->done << " requests.size()=" << requests.size() << dendl;
   std::unique_lock l{lock};
-  if (going_down)
+  if (going_down) {
+    ldout(cct, 0) << "KMIP add_request(): going_down=true, rejecting" << dendl;
     return -ECANCELED;
+  }
   // requests is a boost::intrusive::list, which manages pointers and does not copy the instance
   // coverity[leaked_storage:SUPPRESS]
   // coverity[uninit_use_in_call:SUPPRESS]
   requests.push_back(*new Request{*req});
   l.unlock();
-  if (worker)
+  if (worker) {
+    ldout(cct, 0) << "KMIP add_request(): SIGNALING worker" << dendl;
     worker->signal();
+  }
   return 0;
-}
+  }
 
 int
 RGWKmipHandles::do_one_entry(RGWKMIPTransceiver &element)
 {
   auto h = get_kmip_handle();
   std::unique_lock l{element.lock};
+
+  if (h) {
+    int custom = element.execute(h->kmip_ctx, h->bio);
+    if (custom != 0) {
+      element.ret = custom;
+      element.done = true;
+      element.cond.notify_all();
+      release_kmip_handle(h);
+      return element.ret;
+    }
+  }
+
   Attribute a[8], *ap;
   TextString nvalue[1], uvalue[1];
   Name nattr[1];
@@ -466,8 +484,9 @@ RGWKmipHandles::do_one_entry(RGWKMIPTransceiver &element)
   for (i = 0; i < (int)(sizeof a/sizeof *a); ++i)
     kmip_init_attribute(a+i);
   ap = a;
-  switch(element.operation) {
+  switch(element.operation) {;
   case RGWKMIPTransceiver::CREATE:
+    ldout(cct, 1) << "reached case for create switch 1" << dendl;
     ap->type = KMIP_ATTR_CRYPTOGRAPHIC_ALGORITHM;
     ap->value = &alg;
     ++ap;
@@ -512,14 +531,20 @@ RGWKmipHandles::do_one_entry(RGWKMIPTransceiver &element)
   kmip_init_request_batch_item(rbi);
   memset(u, 0, sizeof *u);
   rbi->request_payload = u;
+  if (element.operation == RGWKMIPTransceiver::LOCATE) {
+  ldout(cct, 1) << "LOCATE attributes: count=" << (ap - a)
+              << " name=" << (element.name ? element.name : "(null)") << dendl;
+  }
   switch(element.operation) {
   case RGWKMIPTransceiver::CREATE:
+    ldout(cct, 1) << "reached case for create " << dendl;
     memset(ta, 0, sizeof *ta);
     ta->attributes = a;
     ta->attribute_count = ap-a;
     u->create_req->object_type = KMIP_OBJTYPE_SYMMETRIC_KEY;
     u->create_req->template_attribute = ta;
     rbi->operation = KMIP_OP_CREATE;
+    // rbi->request_payload = u->create_req;
     what = "create";
     break;
   case RGWKMIPTransceiver::GET:
@@ -684,44 +709,46 @@ RGWKmipHandles::do_one_entry(RGWKMIPTransceiver &element)
     goto Done;
   }
   element.ret = 0;
-Done:
+  Done:
   if (need_to_free_response)
     kmip_free_response_message(h->kmip_ctx, resp_m);
   element.done = true;
   element.cond.notify_all();
   release_kmip_handle(h);
   return element.ret;
-}
+  }
 
-void *
-RGWKmipWorker::entry()
-{
-  std::unique_lock entry_lock{m.lock};
-  ldout(m.cct, 10) << __func__ << " start" << dendl;
-  RGWKmipHandles handles{m.cct};
-  handles.start();
-  while (!m.going_down) {
-    if (m.requests.empty()) {
-      m.cond.wait_for(entry_lock, std::chrono::seconds(MAXIDLE));
-      continue;
+  void *
+  RGWKmipWorker::entry()
+  {
+    std::unique_lock entry_lock{m.lock};
+    ldout(m.cct, 10) << __func__ << " start" << dendl;
+    RGWKmipHandles handles{m.cct};
+    handles.start();
+    while (!m.going_down) {
+      if (m.requests.empty()) {
+        m.cond.wait_for(entry_lock, std::chrono::seconds(MAXIDLE));
+        continue;
+      }
+      auto iter = m.requests.begin();
+      auto element = *iter;
+      m.requests.erase(iter);
+      entry_lock.unlock();
+      ldout(m.cct, 0) << "KMIP WORKER: Processing " << m.requests.size() << " requests" << dendl;
+      (void) handles.do_one_entry(element.details);
+      entry_lock.lock();
     }
-    auto iter = m.requests.begin();
-    auto element = *iter;
-    m.requests.erase(iter);
-    entry_lock.unlock();
-    (void) handles.do_one_entry(element.details);
-    entry_lock.lock();
+    for (;;) {
+      if (m.requests.empty()) break;
+      auto iter = m.requests.begin();
+      auto element = std::move(*iter);
+      ldout(m.cct, 0) << "KMIP WORKER: Dispatching op=" << (int)element.details.operation << dendl;
+      m.requests.erase(iter);
+      element.details.ret = -666;
+      element.details.done = true;
+      element.details.cond.notify_all();
+    }
+    handles.stop();
+    ldout(m.cct, 10) << __func__ << " finish" << dendl;
+    return nullptr;
   }
-  for (;;) {
-    if (m.requests.empty()) break;
-    auto iter = m.requests.begin();
-    auto element = std::move(*iter);
-    m.requests.erase(iter);
-    element.details.ret = -666;
-    element.details.done = true;
-    element.details.cond.notify_all();
-  }
-  handles.stop();
-  ldout(m.cct, 10) << __func__ << " finish" << dendl;
-  return nullptr;
-}

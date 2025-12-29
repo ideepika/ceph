@@ -198,6 +198,11 @@ using ceph::crypto::MD5;
 #define RGW_ATTR_BUCKET_ENCRYPTION_POLICY RGW_ATTR_BUCKET_ENCRYPTION_PREFIX "policy"
 #define RGW_ATTR_BUCKET_ENCRYPTION_KEY_ID RGW_ATTR_BUCKET_ENCRYPTION_PREFIX "key-id"
 
+//#define RGW_ATTR_CRYPT_KMIP_MODE "rgw.crypt.mode"
+#define RGW_ATTR_CRYPT_KMIP_KEK_ID "rgw.crypt.kmip.kek.id"
+#define RGW_ATTR_CRYPT_KMIP_WRAPPED_DEK "rgw.crypt.kmip.wrapped.dek"
+#define RGW_ATTR_CRYPT_KMIP_CONTEXT "rgw.crypt.kmip.context"
+
 #define RGW_ATTR_TRACE RGW_ATTR_PREFIX "trace"
 
 #define RGW_ATTR_BUCKET_NOTIFICATION RGW_ATTR_PREFIX "bucket-notification"
