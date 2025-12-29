@@ -4,6 +4,10 @@
 #pragma once
 
 class RGWKMIPManager;
+extern "C" {
+#include "kmip.h"
+#include "kmip_bio.h"
+}
 
 class RGWKMIPTransceiver {
 public:
@@ -13,7 +17,9 @@ public:
     GET,
     GET_ATTRIBUTES,
     GET_ATTRIBUTE_LIST,
-    DESTROY
+    DESTROY,
+    ENCRYPT,
+    DECRYPT
   };
   CephContext *cct;
   kmip_operation operation;
@@ -46,7 +52,10 @@ public:
   ~RGWKMIPTransceiver();
 
   int send();
-  int process(optional_yield y);
+  int process(const DoutPrefixProvider* dpp, optional_yield y);
+  virtual int execute(KMIP* ctx, BIO* bio) {
+    return 0;
+  }
 };
 
 class RGWKMIPManager {
