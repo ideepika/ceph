@@ -210,7 +210,7 @@ int RGWKmipSSES3::generate_and_wrap_dek(const DoutPrefixProvider* dpp,
   }
   
   plaintext_dek_out.append((char*)dek, 32);
-  ldpp_dout(dpp, 20) << "Wrapping DEK with KEK: " << kek_id << dendl;
+  ldpp_dout(dpp, 10) << "Wrapping DEK with KEK: " << kek_id << dendl;
   
   // Wrap DEK with KMIP
   struct WrapDEK : public RGWKMIPTransceiver {
@@ -240,7 +240,7 @@ int RGWKmipSSES3::generate_and_wrap_dek(const DoutPrefixProvider* dpp,
         int ciphertext_size = 0;
         uint8* iv = nullptr;
         int iv_size = 0;
-        
+        ldpp_dout(dpp, 0) << "kmip debug: encrypt execute " << dendl;
       int ret = kmip_bio_encrypt_with_context(
         ctx, bio,
         const_cast<char*>(kek_id.c_str()),  // key_id
@@ -289,7 +289,7 @@ int RGWKmipSSES3::generate_and_wrap_dek(const DoutPrefixProvider* dpp,
   }
   
   wrapped_dek_out = std::move(op.wrapped_dek);
-  ldpp_dout(dpp, 20) << "Successfully wrapped DEK" << dendl;
+  ldpp_dout(dpp, 10) << "Successfully wrapped DEK" << dendl;
   return 0;
 }
 
@@ -298,7 +298,7 @@ int RGWKmipSSES3::unwrap_dek(const DoutPrefixProvider* dpp,
                               const bufferlist& wrapped_dek,
                               const std::string& encryption_context,
                               bufferlist& plaintext_dek_out) {
-  ldpp_dout(dpp, 20) << "Unwrapping DEK with KEK: " << kek_id << dendl;
+  ldpp_dout(dpp, 10) << "kmip debug: Unwrapping DEK with KEK: " << kek_id << dendl;
   
   struct UnwrapDEK : public RGWKMIPTransceiver {
     const std::string& kek_id;
@@ -371,7 +371,7 @@ int RGWKmipSSES3::unwrap_dek(const DoutPrefixProvider* dpp,
   }
   
   plaintext_dek_out = std::move(op.plaintext_dek);
-  ldpp_dout(dpp, 20) << "Successfully unwrapped DEK" << dendl;
+  ldpp_dout(dpp, 10) << "Successfully unwrapped DEK" << dendl;
   return 0;
 }
 
