@@ -50,7 +50,7 @@ public:
     ret(-EDOM),
     done(false)
   {}
-  ~RGWKMIPTransceiver();
+  virtual ~RGWKMIPTransceiver();
 
   int send();
   int process(const DoutPrefixProvider* dpp, optional_yield y);

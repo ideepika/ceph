@@ -537,16 +537,23 @@ RGWKmipHandles::do_one_entry(RGWKMIPTransceiver &element)
   }
   switch(element.operation) {
   case RGWKMIPTransceiver::CREATE:
-    ldout(cct, 1) << "reached case for create " << dendl;
     memset(ta, 0, sizeof *ta);
     ta->attributes = a;
     ta->attribute_count = ap-a;
     u->create_req->object_type = KMIP_OBJTYPE_SYMMETRIC_KEY;
     u->create_req->template_attribute = ta;
     rbi->operation = KMIP_OP_CREATE;
-    // rbi->request_payload = u->create_req;
+    //rbi->request_payload = u->create_req;
     what = "create";
     break;
+  
+  case RGWKMIPTransceiver::ENCRYPT:
+  case RGWKMIPTransceiver::DECRYPT:
+  ldout(cct, 1) << "CUSTOM op=" << element.operation << dendl;
+  element.ret = element.execute(h->kmip_ctx, h->bio);
+  goto Done;  // Skip KMIP encoding, use custom logic
+  break;
+
   case RGWKMIPTransceiver::GET:
     if (element.unique_id)
       u->get_req->unique_identifier = uvalue;
