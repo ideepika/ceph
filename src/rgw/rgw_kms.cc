@@ -1283,7 +1283,11 @@ int make_actual_key_from_sse_s3(const DoutPrefixProvider *dpp,
                                 std::string& actual_key)
 {
   SseS3Context kctx { dpp->get_cct() };
-  const std::string kms_backend { kctx.backend() };
+  std::string kms_backend { kctx.backend() };
+  
+  ldpp_dout(dpp, 0) << "kmip debug: make_actual_key_from_sse_s3 " << kms_backend << dendl;
+  kms_backend = "kmip";
+
   if (RGW_SSE_KMS_BACKEND_VAULT == kms_backend) {
     return make_actual_key_from_vault(dpp, kctx, attrs, y, actual_key);
   }
