@@ -1118,8 +1118,19 @@ static int reconstitute_actual_key_from_kmip(const DoutPrefixProvider *dpp,
     return -EIO;
   }
   bufferlist unwrapped_dek;
-  kmip_backend->unwrap_dek(dpp, kek_id, dek_bl, "", unwrapped_dek);
-  actual_key = unwrapped_dek.to_str();
+  int r = kmip_backend->unwrap_dek(dpp, kek_id, dek_bl, "", unwrapped_dek);
+  if (r < 0) return r;
+  std::string kms_backend = kctx.backend();
+
+  if (kms_backend == "vault") {
+    actual_key = unwrapped_dek.to_str();
+  } else {
+    actual_key.clear();  // SSE-S3 ignores string param
+  }
+
+  ldpp_dout(dpp, 10) << "DEK ready: mode=" <<  kmip_backend
+                   << " key_len=" << actual_key.length() << dendl;
+
   return 0;
 }
 
@@ -1228,8 +1239,8 @@ int reconstitute_actual_key_from_kms(const DoutPrefixProvider *dpp,
 {
   std::string key_id = get_str_attribute(attrs, RGW_ATTR_CRYPT_KEYID);
   KMSContext kctx { dpp->get_cct() };
-  const std::string &kms_backend { kctx.backend() };
-
+  //const std::string &kms_backend { kctx.backend() };
+  std::string kms_backend = "kmip";
   ldpp_dout(dpp, 20) << "Getting KMS encryption key for key " << key_id << dendl;
   ldpp_dout(dpp, 20) << "SSE-KMS backend is " << kms_backend << dendl;
 
@@ -1273,8 +1284,8 @@ int reconstitute_actual_key_from_sse_s3(const DoutPrefixProvider *dpp,
 {
   std::string key_id = get_str_attribute(attrs, RGW_ATTR_CRYPT_KEYID);
   SseS3Context kctx { dpp->get_cct() };
-  const std::string &kms_backend { kctx.backend() };
-
+  //const std::string &kms_backend { kctx.backend() };
+  std::string kms_backend = "kmip";
   ldpp_dout(dpp, 20) << "Getting SSE-S3  encryption key for key " << key_id << dendl;
   ldpp_dout(dpp, 20) << "SSE-KMS backend is " << kms_backend << dendl;
 
