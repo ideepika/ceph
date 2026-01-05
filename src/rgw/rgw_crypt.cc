@@ -1336,9 +1336,6 @@ int rgw_s3_prepare_decrypt(req_state* s, optional_yield y,
   std::string actual_key;
   std::string stored_mode = get_str_attribute(attrs, RGW_ATTR_CRYPT_MODE);
   ldpp_dout(s, 15) << "Encryption mode: " << stored_mode << dendl;
-
-  int ret = reconstitute_actual_key_from_sse_s3(s, attrs, y, actual_key);
-  if (ret<0) return ret;
   
   const char *req_sse = s->info.env->get("HTTP_X_AMZ_SERVER_SIDE_ENCRYPTION", NULL);
   if (nullptr != req_sse && (s->op == OP_GET || s->op == OP_HEAD)) {
