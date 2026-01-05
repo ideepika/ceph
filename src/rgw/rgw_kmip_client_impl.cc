@@ -437,15 +437,28 @@ RGWKmipHandles::do_one_entry(RGWKMIPTransceiver &element)
   std::unique_lock l{element.lock};
 
   if (h) {
-    int custom = element.execute(h->kmip_ctx, h->bio);
-    if (custom != 0) {
-      element.ret = custom;
-      element.done = true;
-      element.cond.notify_all();
-      release_kmip_handle(h);
-      return element.ret;
-    }
+  int custom = element.execute(h->kmip_ctx, h->bio);
+  if (custom != 0) {
+    // Positive = success, negative = error
+    // Convert positive to 0 for Ceph convention
+    element.ret = (custom > 0) ? 0 : custom;
+    element.done = true;
+    element.cond.notify_all();
+    release_kmip_handle(h);
+    return element.ret;
   }
+  }
+
+  // if (h) {
+  //   int custom = element.execute(h->kmip_ctx, h->bio);
+  //   if (custom != 0) {
+  //     element.ret = custom;
+  //     element.done = true;
+  //     element.cond.notify_all();
+  //     release_kmip_handle(h);
+  //     return element.ret;
+  //   }
+  // }
 
   Attribute a[8], *ap;
   TextString nvalue[1], uvalue[1];

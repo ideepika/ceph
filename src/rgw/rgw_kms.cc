@@ -1120,16 +1120,12 @@ static int reconstitute_actual_key_from_kmip(const DoutPrefixProvider *dpp,
   bufferlist unwrapped_dek;
   int r = kmip_backend->unwrap_dek(dpp, kek_id, dek_bl, "", unwrapped_dek);
   if (r < 0) return r;
-  std::string kms_backend = kctx.backend();
+    ldpp_dout(dpp, 0) << "reconstitute: unwrapped_dek.length()=" << unwrapped_dek.length() << dendl;
+  
 
-  if (kms_backend == "vault") {
-    actual_key = unwrapped_dek.to_str();
-  } else {
-    actual_key.clear();  // SSE-S3 ignores string param
-  }
-
-  ldpp_dout(dpp, 10) << "DEK ready: mode=" <<  kmip_backend
-                   << " key_len=" << actual_key.length() << dendl;
+  actual_key.assign(unwrapped_dek.c_str(), unwrapped_dek.length());
+  
+  ldpp_dout(dpp, 0) << "reconstitute: actual_key.size()=" << actual_key.size() << dendl;
 
   return 0;
 }
