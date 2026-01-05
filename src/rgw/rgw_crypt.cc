@@ -943,6 +943,7 @@ int create_sse_s3_bucket_key(req_state* s, std::string& key_id, optional_yield y
 // Remove SSE-S3 bucket key using KMIP backend
 int remove_sse_s3_bucket_key(req_state* s, const std::string& key_id, optional_yield y) {
   auto backend = get_kmip_sse_s3_backend(s->cct);
+  ldpp_dout(s, 10) << "kmip debug: calling destroy bucket key and backend is " << backend << dendl;
   if (!backend) {
     ldpp_dout(s, 0) << "KMIP SSE-S3 backend unavailable" << dendl;
     return -EIO;
