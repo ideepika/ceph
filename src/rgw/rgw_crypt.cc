@@ -940,11 +940,13 @@ struct CryptAttributes {
 int create_sse_s3_bucket_key(req_state* s, std::string& key_id, optional_yield y) {
   auto backend = get_kmip_sse_s3_backend(s->cct);
   if (!backend) {
-    ldpp_dout(s, 0) << "KMIP SSE-S3 backend unavailable" << dendl;
+    ldpp_dout(s, 5) << "KMIP SSE-S3 backend unavailable" << dendl;
     return -EIO;
   }
-  ldpp_dout(s, 0) << "calling create bucket key " << dendl;
+
+  ldpp_dout(s, 10) << "calling create bucket key " << dendl;
   int ret = backend->create_bucket_key(s, s->bucket->get_name(), key_id);
+
   if (ret < 0) {
     ldpp_dout(s, 0) << "KMIP create_bucket_key failed: " << dendl;
   }
@@ -955,10 +957,12 @@ int create_sse_s3_bucket_key(req_state* s, std::string& key_id, optional_yield y
 int remove_sse_s3_bucket_key(req_state* s, const std::string& key_id, optional_yield y) {
   auto backend = get_kmip_sse_s3_backend(s->cct);
   ldpp_dout(s, 10) << "kmip debug: calling destroy bucket key and backend is " << backend << dendl;
+
   if (!backend) {
     ldpp_dout(s, 0) << "KMIP SSE-S3 backend unavailable" << dendl;
     return -EIO;
   }
+
   return backend->destroy_bucket_key(s, key_id);
 }
 
@@ -1349,7 +1353,7 @@ int rgw_s3_prepare_decrypt(req_state* s, optional_yield y,
   std::string actual_key;
   std::string stored_mode = get_str_attribute(attrs, RGW_ATTR_CRYPT_MODE);
   ldpp_dout(s, 15) << "Encryption mode: " << stored_mode << dendl;
-  
+
   const char *req_sse = s->info.env->get("HTTP_X_AMZ_SERVER_SIDE_ENCRYPTION", NULL);
   if (nullptr != req_sse && (s->op == OP_GET || s->op == OP_HEAD)) {
     return -ERR_INVALID_REQUEST;

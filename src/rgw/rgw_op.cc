@@ -9631,36 +9631,36 @@ void RGWPutBucketPublicAccessBlock::execute(optional_yield y)
   }
 
     // Check if KMIP is configured as KMS backend
-    std::string kms_backend = s->cct->_conf->rgw_crypt_s3_kms_backend;
-    
-    ldpp_dout(this, 5) << "kmip debug: kms_backend is " << kms_backend << dendl;
+  std::string kms_backend = s->cct->_conf->rgw_crypt_s3_kms_backend;
+  ldpp_dout(this, 10) << "kmip debug: kms_backend is " << kms_backend << dendl;
 
-    if (kms_backend == "kmip") {
-      // Get KMIP backend singleton
-      RGWKmipSSES3* kmip_backend = get_kmip_sse_s3_backend(s->cct);
-      if (!kmip_backend) {
-        ldpp_dout(this, 0) << "ERROR: KMIP backend not available" << dendl;
-        op_ret = -EIO;
-        return;
-      }
+  if (kms_backend == "kmip") {
 
-      // Create KEK for this bucket
-      std::string kek_id;
-      ldpp_dout(this, 0) << __func__ << "kmip debug: create_bucket_key " << dendl;
-      op_ret = kmip_backend->create_bucket_key(this, s->bucket->get_name(), kek_id);
-      if (op_ret < 0) {
-        ldpp_dout(this, 0) << "ERROR: Failed to create bucket KEK" << dendl;
-        return;
-      }
-
-      // Store KEK ID in bucket metadata
-      rgw::sal::Attrs& attrs = s->bucket->get_attrs();
-      bufferlist kek_id_bl;
-      kek_id_bl.append(kek_id);
-      attrs[RGW_ATTR_BUCKET_ENCRYPTION_KEY_ID] = kek_id_bl;
-
-      ldpp_dout(this, 10) << "Created and stored KEK ID: " << kek_id << dendl;
+    // Get KMIP backend singleton
+    RGWKmipSSES3* kmip_backend = get_kmip_sse_s3_backend(s->cct);
+    if (!kmip_backend) {
+      ldpp_dout(this, 0) << "ERROR: KMIP backend not available" << dendl;
+      op_ret = -EIO;
+      return;
     }
+
+    // Create KEK for this bucket
+    std::string kek_id;
+    ldpp_dout(this, 0) << __func__ << "kmip debug: create_bucket_key " << dendl;
+    op_ret = kmip_backend->create_bucket_key(this, s->bucket->get_name(), kek_id);
+    if (op_ret < 0) {
+      ldpp_dout(this, 0) << "ERROR: Failed to create bucket KEK" << dendl;
+      return;
+    }
+
+    // Store KEK ID in bucket metadata
+    rgw::sal::Attrs& attrs = s->bucket->get_attrs();
+    bufferlist kek_id_bl;
+    kek_id_bl.append(kek_id);
+    attrs[RGW_ATTR_BUCKET_ENCRYPTION_KEY_ID] = kek_id_bl;
+
+    ldpp_dout(this, 10) << "Created and stored KEK ID: " << kek_id << dendl;
+  }
 
   op_ret = rgw_forward_request_to_master(this, *s->penv.site, s->owner.id,
                                          &data, nullptr, s->info, s->err, y);
@@ -9781,7 +9781,7 @@ void RGWPutBucketEncryption::execute(optional_yield y)
     ldpp_dout(this, 0) << "ERROR: failed to initialize parser" << dendl;
     op_ret = -EINVAL;
     return;
-}
+  }
   op_ret = get_params(y);
   if (op_ret < 0) {
     return;
@@ -9875,10 +9875,9 @@ void RGWDeleteBucketEncryption::execute(optional_yield y)
       int ret = kmip_backend->destroy_bucket_key(this, kek_id);
       if (ret < 0) {
         ldpp_dout(this, 1) << "WARNING: Failed to destroy KEK, continuing..." << dendl;
-        // For prototype: don't fail the operation
       } else {
-          ldpp_dout(this, 10) << "Successfully destroyed KEK: " << kek_id << dendl;
-        }
+        ldpp_dout(this, 10) << "Successfully destroyed KEK: " << kek_id << dendl;
+      }
     }
   }
 
