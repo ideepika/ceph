@@ -20,7 +20,6 @@
 #include "rapidjson/error/en.h"
 #include "rgw_common.h"
 #include "rgw_kmip_sse_s3.h"
-#include <regex>
 
 #define dout_context g_ceph_context
 #define dout_subsys ceph_subsys_rgw
@@ -1108,12 +1107,12 @@ static int reconstitute_actual_key_from_kmip(const DoutPrefixProvider *dpp,
   bufferlist unwrapped_dek;
   int r = kmip_backend->unwrap_dek(dpp, kek_id, dek_bl, "", unwrapped_dek);
   if (r < 0) return r;
-    ldpp_dout(dpp, 0) << "reconstitute: unwrapped_dek.length()=" << unwrapped_dek.length() << dendl;
+    ldpp_dout(dpp, 10) << "reconstitute: unwrapped_dek.length()=" << unwrapped_dek.length() << dendl;
   
 
   actual_key.assign(unwrapped_dek.c_str(), unwrapped_dek.length());
   
-  ldpp_dout(dpp, 0) << "reconstitute: actual_key.size()=" << actual_key.size() << dendl;
+  ldpp_dout(dpp, 10) << "reconstitute: actual_key.size()=" << actual_key.size() << dendl;
 
   return 0;
 }
@@ -1223,8 +1222,7 @@ int reconstitute_actual_key_from_kms(const DoutPrefixProvider *dpp,
 {
   std::string key_id = get_str_attribute(attrs, RGW_ATTR_CRYPT_KEYID);
   KMSContext kctx { dpp->get_cct() };
-  //const std::string &kms_backend { kctx.backend() };
-  std::string kms_backend = "kmip";
+  const std::string &kms_backend { kctx.backend() };
   ldpp_dout(dpp, 20) << "Getting KMS encryption key for key " << key_id << dendl;
   ldpp_dout(dpp, 20) << "SSE-KMS backend is " << kms_backend << dendl;
 
@@ -1268,8 +1266,8 @@ int reconstitute_actual_key_from_sse_s3(const DoutPrefixProvider *dpp,
 {
   std::string key_id = get_str_attribute(attrs, RGW_ATTR_CRYPT_KEYID);
   SseS3Context kctx { dpp->get_cct() };
-  //const std::string &kms_backend { kctx.backend() };
-  std::string kms_backend = "kmip";
+  const std::string &kms_backend { kctx.backend() };
+
   ldpp_dout(dpp, 20) << "Getting SSE-S3  encryption key for key " << key_id << dendl;
   ldpp_dout(dpp, 20) << "SSE-KMS backend is " << kms_backend << dendl;
 
@@ -1290,10 +1288,9 @@ int make_actual_key_from_sse_s3(const DoutPrefixProvider *dpp,
                                 std::string& actual_key)
 {
   SseS3Context kctx { dpp->get_cct() };
-  std::string kms_backend { kctx.backend() };
-  
-  ldpp_dout(dpp, 0) << "kmip debug: make_actual_key_from_sse_s3 " << kms_backend << dendl;
-  kms_backend = "kmip";
+  const std::string &kms_backend { kctx.backend() };
+
+  ldpp_dout(dpp, 20) << "kmip debug: make_actual_key_from_sse_s3 " << kms_backend << dendl;
 
   if (RGW_SSE_KMS_BACKEND_VAULT == kms_backend) {
     return make_actual_key_from_vault(dpp, kctx, attrs, y, actual_key);
@@ -1326,7 +1323,7 @@ int create_sse_s3_bucket_key(const DoutPrefixProvider *dpp,
     secret_engine_str, secret_engine_parms) };
   if (RGW_SSE_KMS_VAULT_SE_TRANSIT == secret_engine){
     TransitSecretEngine engine(cct, kctx, std::move(secret_engine_parms));
-    ldpp_dout(dpp, 0)  << "trying to create bucket key " << dendl;
+    ldpp_dout(dpp, 10)  << "trying to create bucket key " << dendl;
     return engine.create_bucket_key(dpp, bucket_key, y);
   }
   else {
