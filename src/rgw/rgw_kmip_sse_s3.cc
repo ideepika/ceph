@@ -15,6 +15,34 @@ extern "C" {
 
 #define dout_subsys ceph_subsys_rgw
 
+// Bucket KEK cache - ONE KEK per bucket
+class BucketKEKCache {
+public:
+  std::unordered_map<std::string, std::string> bucket_to_kek_id;
+  ceph::mutex cache_lock = ceph::make_mutex("bucket_kek_cache");
+  bool get_kek(const std::string& bucket_name, std::string& kek_id) {
+    std::lock_guard l{cache_lock};
+    auto it = bucket_to_kek_id.find(bucket_name);
+    if (it != bucket_to_kek_id.end()) {
+      kek_id = it->second;
+      return true;
+    }
+    return false;
+  }
+  
+  void put_kek(const std::string& bucket_name, const std::string& kek_id) {
+    std::lock_guard l{cache_lock};
+    bucket_to_kek_id[bucket_name] = kek_id;
+  }
+  
+  bool remove_bucket(const std::string& bucket_name) {
+    std::lock_guard l{cache_lock};
+    return bucket_to_kek_id.erase(bucket_name) > 0;
+  }
+};
+
+static BucketKEKCache* g_bucket_cache = nullptr;
+
 static std::string hex_dump(const uint8_t* data, size_t len, size_t max_display = 32) {
   std::ostringstream oss;
   size_t display = std::min(len, max_display);
@@ -57,6 +85,8 @@ int RGWKmipSSES3::initialize() {
     return ret;
   }
 
+  g_bucket_cache = new BucketKEKCache();
+  
   ldout(cct, 10) << "KMIP SSE-S3 backend initialized" << dendl;
   return 0;
 }
@@ -65,6 +95,11 @@ int RGWKmipSSES3::create_bucket_key(const DoutPrefixProvider* dpp,
                                      const std::string& bucket_name,
                                      std::string& kek_id_out) {
   ldpp_dout(dpp, 20) << "Creating KEK for bucket: " << bucket_name << dendl;
+
+  if (g_bucket_cache->get_kek(bucket_name, kek_id_out)) {
+    ldpp_dout(dpp, 10) << "CACHE HIT: Reusing KEK for bucket: " << kek_id_out << dendl;
+    return 0;
+  }
 
   struct CreateAndActivateKey : public RGWKMIPTransceiver {
     std::string kek_id;
@@ -171,6 +206,14 @@ int RGWKmipSSES3::create_bucket_key(const DoutPrefixProvider* dpp,
   }
 
   kek_id_out = op.kek_id;
+
+  if (g_bucket_cache) {
+    g_bucket_cache->put_kek(bucket_name, kek_id_out);
+    ldpp_dout(dpp, 10) << "CACHE MISS → HIT: Created + cached new KEK: " << kek_id_out << dendl;
+  } else {
+    ldpp_dout(dpp, 5) << "WARNING: g_bucket_cache is NULL!" << dendl;
+  }
+
   ldpp_dout(dpp, 10) << "kmip: Created KEK UUID: " << kek_id_out << dendl;
   return 0;
 }
@@ -178,6 +221,28 @@ int RGWKmipSSES3::create_bucket_key(const DoutPrefixProvider* dpp,
 
 int RGWKmipSSES3::destroy_bucket_key(const DoutPrefixProvider* dpp,
                                       const std::string& kek_id) {
+
+  std::string bucket_name;
+  bool found_in_cache = false;
+  
+  if (g_bucket_cache) {
+    std::lock_guard l{g_bucket_cache->cache_lock};
+    for (const auto& pair : g_bucket_cache->bucket_to_kek_id) {
+      if (pair.second == kek_id) {
+        bucket_name = pair.first;
+        found_in_cache = true;
+        break;
+      }
+    }
+  }
+
+  if (found_in_cache) {
+    g_bucket_cache->remove_bucket(bucket_name);
+    ldpp_dout(dpp, 10) << "CACHE: Removed bucket '" << bucket_name 
+                       << "' (KEK: " << kek_id << ")" << dendl;
+  } else {
+    ldpp_dout(dpp, 15) << "CACHE: KEK " << kek_id << " not found in cache" << dendl;
+  }
 
   struct DestroyKey : public RGWKMIPTransceiver {
     const std::string& kek_id;
@@ -245,13 +310,15 @@ int RGWKmipSSES3::generate_and_wrap_dek(const DoutPrefixProvider* dpp,
   struct WrapDEK : public RGWKMIPTransceiver {
     const std::string& kek_id;
     const unsigned char* dek_ptr;
+    const std::string& encryption_context;
     bufferlist wrapped_dek;
     const DoutPrefixProvider* dpp;
 
-    WrapDEK(CephContext* cct, const std::string& kek, const unsigned char* dek_ptr, const DoutPrefixProvider* dpp_in)
+    WrapDEK(CephContext* cct, const std::string& kek, const unsigned char* dek_ptr, const std::string& ctx, const DoutPrefixProvider* dpp_in)
   : RGWKMIPTransceiver(cct, RGWKMIPTransceiver::ENCRYPT),
     kek_id(kek),
     dek_ptr(dek_ptr),
+    encryption_context(ctx),
     dpp(dpp_in) {}
 
     int execute(KMIP* ctx, BIO* bio) override {
@@ -268,10 +335,10 @@ int RGWKmipSSES3::generate_and_wrap_dek(const DoutPrefixProvider* dpp,
       params.padding_method = KMIP_PAD_NONE;
       params.random_iv = KMIP_TRUE;
       params.tag_length = 16;
-      const char* aad = kek_id.c_str();
-      int aad_size = kek_id.length();
+      const char* aad = encryption_context.c_str();
+      int aad_size = encryption_context.length();
 
-      ldpp_dout(dpp, 10) << "AAD: '" << std::string(aad, aad_size) << "' (len=" << aad_size << ")" << dendl;
+      ldpp_dout(dpp, 10) << "AAD: '" << encryption_context << "' (len=" << aad_size << ")" << dendl;
       ldpp_dout(dpp, 10) << "AAD (hex): " << hex_dump(reinterpret_cast<const uint8_t*>(aad), aad_size) << dendl;
 
       uint8_t* ciphertext = NULL;
@@ -336,7 +403,7 @@ int RGWKmipSSES3::generate_and_wrap_dek(const DoutPrefixProvider* dpp,
 
   };
 
-  WrapDEK op(cct, kek_id, dek, dpp);
+  WrapDEK op(cct, kek_id, dek, encryption_context, dpp);
 
   int ret = rgw_kmip_manager->add_request(&op);
   if (ret < 0) {
@@ -440,10 +507,10 @@ int RGWKmipSSES3::unwrap_dek(const DoutPrefixProvider* dpp,
       params.block_cipher_mode = KMIP_BLOCK_GCM;
       params.padding_method = KMIP_PAD_NONE;
       params.tag_length = 16;
-      const uint8_t* aad = reinterpret_cast<const uint8_t*>(kek_id.c_str());
-      int aad_size = static_cast<int>(kek_id.size());
+      const uint8_t* aad = reinterpret_cast<const uint8_t*>(encryption_context.c_str());
+      int aad_size = static_cast<int>(encryption_context.length());
 
-      ldpp_dout(dpp, 20) << "AAD: '" << std::string((char*)aad, aad_size) << "' (len=" << aad_size << ")" << dendl;
+      ldpp_dout(dpp, 20) << "AAD: '" << encryption_context << "' (len=" << aad_size << ")" << dendl;
       ldpp_dout(dpp, 20) << "AAD (hex): " << hex_dump(aad, aad_size) << dendl;
 
       uint8_t* plaintext = nullptr;
