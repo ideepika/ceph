@@ -50,7 +50,7 @@ int reconstitute_actual_key_from_sse_s3(const DoutPrefixProvider *dpp,
                                         std::string& actual_key);
 
 int create_sse_s3_bucket_key(const DoutPrefixProvider *dpp,
-                             const std::string& actual_key,
+                             std::string& actual_key,
                              optional_yield y);
 
 int remove_sse_s3_bucket_key(const DoutPrefixProvider *dpp,

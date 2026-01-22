@@ -27,22 +27,26 @@ public:
 
   int create_bucket_key(const DoutPrefixProvider* dpp,
                         const std::string& bucket_name,
-                        std::string& kek_id_out);
+                        std::string& kek_id_out,
+                        optional_yield y);
 
   int destroy_bucket_key(const DoutPrefixProvider* dpp,
-                         const std::string& kek_id);
+                         const std::string& kek_id,
+                         optional_yield y);
 
   int generate_and_wrap_dek(const DoutPrefixProvider* dpp,
                             const std::string& kek_id,
                             const std::string& encryption_context,
                             bufferlist& plaintext_dek_out,
-                            bufferlist& wrapped_dek_out);
+                            bufferlist& wrapped_dek_out,
+                            optional_yield y);
 
   int unwrap_dek(const DoutPrefixProvider* dpp,
                  const std::string& kek_id,
                  const bufferlist& wrapped_dek,
                  const std::string& encryption_context,
-                 bufferlist& plaintext_dek_out);
+                 bufferlist& plaintext_dek_out,
+                 optional_yield y);
 };
 
 RGWKmipSSES3* get_kmip_sse_s3_backend(CephContext* cct);
