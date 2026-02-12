@@ -5,6 +5,11 @@
 #include "rgw_kmip_client_impl.h"
 #include "common/errno.h"
 #include "common/async/yield_context.h"
+#include <openssl/err.h>
+#include <openssl/ssl.h>
+#include <openssl/rand.h>
+
+
 
 extern "C" {
 #include "kmip.h"
@@ -78,68 +83,83 @@ int RGWKmipSSES3::create_bucket_key(const DoutPrefixProvider* dpp,
         name(name_in),
         dpp(dpp_in) {}
 
-    int execute(KMIP* ctx, BIO* bio) override {
+  int execute(KMIP* ctx, BIO* bio) override {
       ldpp_dout(this->dpp, 10) << "KMIP execute ENTRY" << dendl;
+      ERR_clear_error();
       kmip_init(ctx, NULL, 0, KMIP_1_4);
+
+      if (!kek_id.empty()) {
+        return 0;
+      }
+
+      // --- Fixed Name Attribute Setup ---
+      Attribute name_attr;
+      memset(&name_attr, 0, sizeof(name_attr));
+      name_attr.type = KMIP_ATTR_NAME;
+
+      // libkmip Name struct initialization
+      Name* name_val = (Name*)ctx->calloc_func(ctx->state, 1, sizeof(Name));
+      
+      // libkmip text_string struct initialization
+      text_string* ts = (text_string*)ctx->calloc_func(ctx->state, 1, sizeof(text_string));
+
+      name_val->value = ts; 
+      name_val->type = KMIP_NAME_UNINTERPRETED_TEXT_STRING;
+      name_attr.value = name_val;
+
+      TemplateAttribute template_attr = {0};
+      Attribute attrs[4]; 
+      memset(attrs, 0, sizeof(attrs));
+
+      attrs[0] = name_attr;
+      
+      // Attr 1: AES
+      attrs[1].type = KMIP_ATTR_CRYPTOGRAPHIC_ALGORITHM;
+      attrs[1].value = ctx->calloc_func(ctx->state, 1, sizeof(int32));
+      *(int32*)attrs[1].value = KMIP_CRYPTOALG_AES;
+
+      // Attr 2: 256 bits
+      attrs[2].type = KMIP_ATTR_CRYPTOGRAPHIC_LENGTH;
+      attrs[2].value = ctx->calloc_func(ctx->state, 1, sizeof(int32));
+      *(int32*)attrs[2].value = 256;
+
+      // Attr 3: Encrypt+Decrypt
+      attrs[3].type = KMIP_ATTR_CRYPTOGRAPHIC_USAGE_MASK;
+      attrs[3].value = ctx->calloc_func(ctx->state, 1, sizeof(int32));
+      *(int32*)attrs[3].value = KMIP_CRYPTOMASK_ENCRYPT | KMIP_CRYPTOMASK_DECRYPT;
+
+      template_attr.attributes = attrs;
+      template_attr.attribute_count = 4;
 
       char* key_id = nullptr;
       int key_id_size = 0;
-
-      TemplateAttribute template_attr = {0};
-      Attribute attrs[3];
-      memset(attrs, 0, sizeof(attrs));
-      int attr_count = 0;
-
-      // Attr 1: AES
-      attrs[0].type = KMIP_ATTR_CRYPTOGRAPHIC_ALGORITHM;
-      attrs[0].value = ctx->calloc_func(ctx->state, 1, sizeof(int32));
-      *(int32*)attrs[0].value = KMIP_CRYPTOALG_AES;
-
-      // Attr 2: 256 bits
-      attrs[1].type = KMIP_ATTR_CRYPTOGRAPHIC_LENGTH;
-      attrs[1].value = ctx->calloc_func(ctx->state, 1, sizeof(int32));
-      *(int32*)attrs[1].value = 256;
-
-      // Attr 3: Encrypt+Decrypt
-      attrs[2].type = KMIP_ATTR_CRYPTOGRAPHIC_USAGE_MASK;
-      attrs[2].value = ctx->calloc_func(ctx->state, 1, sizeof(int32));
-      *(int32*)attrs[2].value = KMIP_CRYPTOMASK_ENCRYPT | KMIP_CRYPTOMASK_DECRYPT;
-
-      attr_count = 3;
-      template_attr.attributes = attrs;
-      template_attr.attribute_count = attr_count;
-
       int ret = kmip_bio_create_symmetric_key_with_context(ctx, bio, &template_attr, &key_id, &key_id_size);
-      ldpp_dout(this->dpp, 10) << "KMIP_EXECUTE_MARKER: Create returned: " << ret
-                              << " Pointer: " << (void*)key_id
-                              << " Size: " << key_id_size << dendl;
+      
+      // Cleanup attr memory (Start from 1 because attrs[0] uses stack structs ts and name_val)
+      ctx->free_func(ctx->state, ts);
+      ctx->free_func(ctx->state, name_val);
+      for (int i = 1; i < 4; i++) {
+        if (attrs[i].value) ctx->free_func(ctx->state, attrs[i].value);
+      }
 
       if (ret != KMIP_OK || !key_id) {
         ldpp_dout(this->dpp, 5) << "KMIP create failed: " << ret << dendl;
-        for (int i = 0; i < attr_count; i++) {
-          if (attrs[i].value) ctx->free_func(ctx->state, attrs[i].value);
-        }
+        ERR_clear_error();
         return -EIO;
       }
 
       kek_id = std::string(key_id, key_id_size);
       ldpp_dout(this->dpp, 5) << "SUCCESS: KMIP created key. kek_id=" << kek_id << dendl;
 
-      // Activate
       ret = kmip_bio_activate_with_context(ctx, bio, key_id);
       kmip_free_buffer(ctx, key_id, key_id_size);
 
-      // Free attrs
-      for (int i = 0; i < attr_count; i++) {
-        if (attrs[i].value) ctx->free_func(ctx->state, attrs[i].value);
-      }
-
       if (ret != KMIP_OK) {
-        ldpp_dout(this->dpp, 5) << "KMIP activate failed: " << ret << dendl;
+        ERR_clear_error();
         return -EIO;
       }
 
-      return 0;
+      return 0; 
     }
   };
 
@@ -182,8 +202,6 @@ int RGWKmipSSES3::destroy_bucket_key(const DoutPrefixProvider* dpp,
                                       const std::string& kek_id,
                                       optional_yield y) {
 
-  std::string bucket_name;
-
   struct DestroyKey : public RGWKMIPTransceiver {
     const std::string& kek_id;
     const DoutPrefixProvider* dpp;
@@ -194,29 +212,38 @@ int RGWKmipSSES3::destroy_bucket_key(const DoutPrefixProvider* dpp,
         dpp(dpp_in) {}
 
     int execute(KMIP* ctx, BIO* bio) override {
-      ldpp_dout(this->dpp, 10) << "DestroyKey: Destroying KEK: " << kek_id << dendl;
+      ldpp_dout(this->dpp, 10) << "DestroyKey: Processing KEK: " << kek_id << dendl;
+      
+      char* id_ptr = const_cast<char*>(kek_id.c_str());
+      int id_len = kek_id.length();
+      
+      kmip_init(ctx, NULL, 0, KMIP_1_4);
+      ERR_clear_error();
 
-      int result = kmip_bio_destroy_symmetric_key(
-            bio,
-            const_cast<char*>(kek_id.c_str()),
-            kmip_strnlen_s(kek_id.c_str(), 50)
-      );
+      int revoke_res = kmip_bio_revoke_with_context(ctx, bio, id_ptr, id_len, 6); 
+      
+      if (revoke_res != 0) {
+        ldpp_dout(this->dpp, 5) << "Revoke info: " << revoke_res 
+                                << " (Proceeding): " << kmip_last_message() << dendl;
+        ERR_clear_error(); 
+      }
 
-      ldpp_dout(this->dpp, 20) << "KMIP destroy returned: " << result << dendl;
+      ldpp_dout(this->dpp, 10) << "Destroying KEK: " << kek_id << dendl;
+      int destroy_res = kmip_bio_destroy_symmetric_key_with_context(ctx, bio, id_ptr, id_len);
 
-      if (result < 0) {
-        ldpp_dout(this->dpp, 0) << "KMIP destroy failed: " << result << dendl;
+      if (destroy_res != 0) {
+        ldpp_dout(this->dpp, 0) << "KMIP destroy failed: " << destroy_res << dendl;
+        ERR_clear_error();
         return -EIO;
       }
 
-      ldpp_dout(this->dpp, 20) << "KMIP destroy succeeded (status=" << result << ")" << dendl;
-      return 1;
+      return 0;
     }
   };
 
   DestroyKey op(dpp->get_cct(), kek_id, dpp);
 
-  int ret = rgw_kmip_manager->add_request(&op);
+  int ret = this->rgw_kmip_manager->add_request(&op);
   if (ret < 0) return ret;
 
   ret = op.wait(dpp, y);
@@ -350,7 +377,7 @@ int RGWKmipSSES3::generate_and_wrap_dek(const DoutPrefixProvider* dpp,
 
       ldpp_dout(dpp, 10) << "Encrypt SUCCESS ct=" << ciphertext_size
                         << " iv=" << iv_size << dendl;
-      return 1;
+      return 0;
     }
 
   };
@@ -508,8 +535,8 @@ int RGWKmipSSES3::unwrap_dek(const DoutPrefixProvider* dpp,
         ldpp_dout(dpp, 20) << "EXECUTE: plaintext_dek.length()=" << plaintext_dek.length() << dendl;
         ldpp_dout(dpp, 20) << "EXECUTE: plaintext_dek (hex)="
                          << hex_dump((uint8_t*)plaintext_dek.c_str(), plaintext_dek.length()) << dendl;
-        ldpp_dout(dpp, 20) << "EXECUTE: About to return 1" << dendl;
-        return 1;
+        ldpp_dout(dpp, 20) << "EXECUTE: About to return 0" << dendl;
+        return 0;
       }
       return 0;
     }

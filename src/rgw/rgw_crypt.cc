@@ -995,73 +995,64 @@ std::string expand_key_name(req_state *s, const std::string_view&t)
 static int get_sse_s3_bucket_key(req_state *s, optional_yield y,
                                  std::string &key_id)
 {
-  int res;
+  int res = 0;
   std::string saved_key = fetch_bucket_key_id(s);
   const std::string& backend = s->cct->_conf->rgw_crypt_sse_s3_backend;
 
-  if (backend == "kmip") {
-    if (!saved_key.empty()) {
-      key_id = saved_key;
-      return 0; // KEK already exists and is stored
-    }
-  } else if (backend == "vault") {
+  // 1. Return existing key if metadata is already present
+  if (!saved_key.empty()) {
+    key_id = saved_key;
+    return 0;
+  }
+
+  // 2. Expand key name for Vault if necessary
+  if (backend == "vault") {
     key_id = expand_key_name(s, s->cct->_conf->rgw_crypt_sse_s3_key_template);
     if (key_id == cant_expand_key) {
-      ldpp_dout(s, 5) << "ERROR: unable to expand key_id " <<
-        s->cct->_conf->rgw_crypt_sse_s3_key_template << " on bucket" << dendl;
+      ldpp_dout(s, 5) << "ERROR: unable to expand key_id template" << dendl;
       s->err.message = "Server side error - unable to expand key_id";
       return -EINVAL;
     }
-    
-    // if vault key matches what we saved, we can return
-    if (saved_key == key_id) {
-        return 0;
-      }
   }
 
-  // Vault: checks key exists, kmip creates new key
+  // 3. Create the key on the KMIP/Vault backend
   res = create_sse_s3_bucket_key(s, key_id, y);
-  // store the key created/found
-  if (res == 0) {
-    bufferlist bl;
-    bl.append(key_id);
-    for (int count = 0; count < 15; ++count) {
-      rgw::sal::Attrs attrs = s->bucket->get_attrs();
-      attrs[RGW_ATTR_BUCKET_ENCRYPTION_KEY_ID] = bl;
-      
-      res = s->bucket->merge_and_store_attrs(s, attrs, y);
-      if (res != -ECANCELED) break;
-      
-      s->bucket->try_refresh_info(s, nullptr, y); // Conflict, retry
-    }
-  } else {
-    return res; //error code
-  }
-
-  bufferlist key_id_bl;
-  key_id_bl.append(key_id.c_str(), key_id.length());
-
-  for (int count = 0; count < 15; ++count) {
-    rgw::sal::Attrs attrs = s->bucket->get_attrs();
-    attrs[RGW_ATTR_BUCKET_ENCRYPTION_KEY_ID] = key_id_bl;
-    res = s->bucket->merge_and_store_attrs(s, attrs, s->yield);
-    if (res != -ECANCELED) {
-      break;
-    }
-    res = s->bucket->try_refresh_info(s, nullptr, s->yield);
-    if (res != 0) {
-      break;
-    }
-  }
-
   if (res != 0) {
-    ldpp_dout(s, 5) << "ERROR: unable to save new key_id on bucket" << dendl;
-    s->err.message = "Server side error - unable to save key_id";
+    ldpp_dout(s, 0) << "ERROR: create_sse_s3_bucket_key failed, res=" << res << dendl;
     return res;
   }
 
-  ldpp_dout(s, 10) << "Successfully assigned KEK ID: " << key_id << " for backend: " << backend << dendl;
-  return 0;
+  // 4. Persist the ID to Bucket Attributes (The Link)
+  bufferlist bl;
+  bl.append(key_id);
+
+  // Retry loop for metadata synchronization
+  for (int count = 0; count < 15; ++count) {
+    rgw::sal::Attrs attrs = s->bucket->get_attrs();
+    attrs[RGW_ATTR_BUCKET_ENCRYPTION_KEY_ID] = bl;
+
+    res = s->bucket->merge_and_store_attrs(s, attrs, y);
+    if (res == 0) {
+      ldpp_dout(s, 10) << "Successfully linked KEK ID: " << key_id << dendl;
+      return 0;
+    }
+
+    if (res != -ECANCELED) {
+      ldpp_dout(s, 0) << "ERROR: failed to save bucket attr, res=" << res << dendl;
+      break;
+    }
+
+    // Conflict: refresh metadata and retry
+    ldpp_dout(s, 5) << "Metadata conflict (ECANCELED), retrying..." << dendl;
+    s->bucket->try_refresh_info(s, nullptr, y);
+  }
+
+  if (res != 0) {
+    ldpp_dout(s, 5) << "ERROR: unable to save key_id on bucket metadata" << dendl;
+    s->err.message = "Server side error - unable to save key_id";
+  }
+
+  return res;
 }
 
 int rgw_s3_prepare_encrypt(req_state* s, optional_yield y,
