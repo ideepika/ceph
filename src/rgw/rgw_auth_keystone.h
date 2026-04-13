@@ -6,6 +6,8 @@
 #include <string_view>
 #include <utility>
 #include <boost/optional.hpp>
+#include <unordered_set>
+#include <string>
 
 #include "rgw_auth.h"
 #include "rgw_rest_s3.h"
@@ -33,6 +35,22 @@ class TokenEngine : public rgw::auth::Engine {
   const rgw::auth::RemoteApplier::Factory* const apl_factory;
   rgw::keystone::Config& config;
   rgw::keystone::TokenCache& token_cache;
+  struct AcceptedServiceTypesCache {
+    std::unordered_set<std::string> services;
+
+    AcceptedServiceTypesCache() = default;
+
+    explicit AcceptedServiceTypesCache(CephContext* const cct) {
+      refresh(cct);
+    }
+
+    void refresh(CephContext* const cct);
+    bool contains(const std::string& service) const {
+      return services.find(service) != services.end();
+    }
+  };
+
+  AcceptedServiceTypesCache accepted_service_types;
 
   /* Helper methods. */
   bool is_applicable(const std::string& token) const noexcept;
@@ -51,6 +69,9 @@ class TokenEngine : public rgw::auth::Engine {
                         const req_state* s,
                         optional_yield y) const;
 
+  bool check_access_rules(const DoutPrefixProvider* dpp, const req_state* s, 
+                          const token_envelope_t& token) const;
+
 public:
   TokenEngine(CephContext* const cct,
               const rgw::auth::TokenExtractor* const auth_token_extractor,
@@ -63,7 +84,8 @@ public:
       service_token_extractor(service_token_extractor),
       apl_factory(apl_factory),
       config(config),
-      token_cache(token_cache) {
+      token_cache(token_cache),
+      accepted_service_types(cct) {
   }
 
   const char* get_name() const noexcept override {
