@@ -1,6 +1,8 @@
 // -*- mode:C++; tab-width:8; c-basic-offset:2; indent-tabs-mode:nil -*-
 // vim: ts=8 sw=2 sts=2 expandtab ft=cpp
 
+#include <memory>
+#include <mutex>
 #include <string>
 #include <unordered_set>
 #include <vector>
@@ -87,23 +89,72 @@ path_matches_pattern(const std::string_view pattern, const std::string_view path
   return pi == pattern.size();
 }
 
-/* Build the set of accepted service types from config. Returns an empty set
- * when the option is unconfigured, which callers treat as "accept all". */
-static std::unordered_set<std::string>
-build_accepted_service_types(CephContext* const cct)
+/* Returns the parsed set of accepted service types from
+ * rgw_keystone_accepted_service_types. An empty set means the option is
+ * unconfigured, which callers treat as "accept all".
+ *
+ * Splitting and trimming the comma-separated config value is redundant work
+ * to repeat on every request, so the parsed result is cached and only
+ * rebuilt when the underlying config string changes. */
+static std::shared_ptr<const std::unordered_set<std::string>>
+get_accepted_service_types(CephContext* const cct)
 {
-  std::unordered_set<std::string> result;
-  std::string accepted_types =
+  static std::mutex m;
+  static std::string cached_raw;
+  static std::shared_ptr<const std::unordered_set<std::string>> cached;
+
+  std::string current =
       cct->_conf.get_val<std::string>("rgw_keystone_accepted_service_types");
-  std::vector<std::string> parsed;
-  get_str_vec(accepted_types, ",", parsed);
-  for (auto& s : parsed) {
-    boost::algorithm::trim(s);
-    if (!s.empty()) {
-      result.insert(std::move(s));
+
+  std::lock_guard l{m};
+  if (!cached || current != cached_raw) {
+    auto parsed_set = std::make_shared<std::unordered_set<std::string>>();
+    std::vector<std::string> parsed;
+    get_str_vec(current, ",", parsed);
+    for (auto& s : parsed) {
+      boost::algorithm::trim(s);
+      if (!s.empty()) {
+        parsed_set->insert(std::move(s));
+      }
+    }
+    cached = std::move(parsed_set);
+    cached_raw = std::move(current);
+  }
+  return cached;
+}
+
+/* Applies rgw_keystone_verify_access_rules / rgw_keystone_accepted_service_types
+ * to the given token and request, on both the cached-token and
+ * freshly-validated-token paths. */
+static bool
+enforce_access_rules(const DoutPrefixProvider* dpp, const req_state* s,
+                     const rgw::keystone::TokenEnvelope& token)
+{
+  if (!dpp->get_cct()->_conf.get_val<bool>("rgw_keystone_verify_access_rules")) {
+    return true;
+  }
+
+  const auto& raw_rules = token.get_access_rules();
+  const auto accepted_svcs = get_accepted_service_types(dpp->get_cct());
+
+  std::vector<rgw::keystone::TokenEnvelope::AccessRule> rules_to_check;
+  if (accepted_svcs->empty()) {
+    rules_to_check = raw_rules;
+  } else {
+    for (const auto& rule : raw_rules) {
+      if (accepted_svcs->count(rule.service)) {
+        rules_to_check.push_back(rule);
+      }
     }
   }
-  return result;
+
+  if (!check_access_rules(dpp, rules_to_check, s->info.method, s->decoded_uri)) {
+    ldpp_dout(dpp, 0) << "access rules check failed for method="
+                      << s->info.method << " path=" << s->decoded_uri
+                      << dendl;
+    return false;
+  }
+  return true;
 }
 
 bool
@@ -390,29 +441,10 @@ TokenEngine::authenticate(const DoutPrefixProvider* dpp,
     ldpp_dout(dpp, 20) << "cached token.project.id=" << t->get_project_id()
                        << dendl;
 
-    if (dpp->get_cct()->_conf.get_val<bool>("rgw_keystone_verify_access_rules")) {
-      const auto& raw_rules = t->get_access_rules();
-      const auto accepted_svcs = build_accepted_service_types(dpp->get_cct());
-      std::vector<token_envelope_t::AccessRule> rules_to_check;
-
-      //filter rules on service type
-      if (accepted_svcs.empty()) {
-        rules_to_check = raw_rules;
-      } else {
-        for (const auto& rule : raw_rules) {
-          if (accepted_svcs.count(rule.service)) {
-            rules_to_check.push_back(rule);
-          }
-        }
-      }
-
-      //check request method, t is from cache but info->method is fresh call checking all req
-      if (!check_access_rules(dpp, rules_to_check, s->info.method, s->decoded_uri)) {
-        ldpp_dout(dpp, 0) << "access rules check failed for cached token, method="
-                          << s->info.method << " path=" << s->decoded_uri
-                          << dendl;
-        return result_t::deny(-EACCES);
-      }
+    /* The token may be cached, but info.method/decoded_uri are always from
+     * the current request, so access rules are enforced on every request. */
+    if (!enforce_access_rules(dpp, s, *t)) {
+      return result_t::deny(-EACCES);
     }
 
     //on rule pass
@@ -528,25 +560,8 @@ TokenEngine::authenticate(const DoutPrefixProvider* dpp,
       ldpp_dout(dpp, 0) << "validated token: " << t->get_project_name() << ":"
                         << t->get_user_name()
                         << " expires: " << t->get_expires() << dendl;
-      if (dpp->get_cct()->_conf.get_val<bool>("rgw_keystone_verify_access_rules")) {
-        const auto& raw_rules = t->get_access_rules();
-        const auto accepted_svcs = build_accepted_service_types(dpp->get_cct());
-        std::vector<token_envelope_t::AccessRule> rules_to_check;
-        if (accepted_svcs.empty()) {
-          rules_to_check = raw_rules;
-        } else {
-          for (const auto& rule : raw_rules) {
-            if (accepted_svcs.count(rule.service)) {
-              rules_to_check.push_back(rule);
-            }
-          }
-        }
-        if (!check_access_rules(dpp, rules_to_check, s->info.method, s->decoded_uri)) {
-          ldpp_dout(dpp, 0) << "access rules check failed for method="
-                            << s->info.method << " path=" << s->decoded_uri
-                            << dendl;
-          return result_t::deny(-EACCES);
-        }
+      if (!enforce_access_rules(dpp, s, *t)) {
+        return result_t::deny(-EACCES);
       }
 
       token_cache.add(token_id, *t);
