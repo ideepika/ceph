@@ -110,7 +110,7 @@ int main(int argc, char *argv[])
 
   LinuxKeyringSecret::initialize_process_keyring();
 
-  main.init_frontends1(false /* nfs */);
+  main.init_frontends1(rgw::InstanceType::Daemon, rgw::ProtocolType::HTTP_S3);
   main.init_numa();
 
   if (g_conf()->daemonize) {
@@ -166,6 +166,9 @@ int main(int argc, char *argv[])
   main.init_tracepoints();
   main.init_lua();
   main.init_kms_cache();
+#ifdef WITH_RADOSGW_LANCEDB
+  main.init_s3vector();
+#endif
 #ifdef WITH_RADOSGW_RADOS
   main.init_dedup();
 #endif

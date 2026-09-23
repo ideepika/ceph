@@ -351,7 +351,7 @@ options:
   note: Enabling the ``s3`` API is a requirement for
     any ``radosgw`` instance that is meant to
     participate in a :ref:`multisite` configuration.
-  default: s3, s3control, s3website, swift, swift_auth, admin, sts, iam, notifications
+  default: s3, s3control, s3website, swift, swift_auth, admin, sts, iam, notifications, s3vectors
   services:
   - rgw
   with_legacy: true
@@ -756,15 +756,13 @@ options:
     For compatibility, setting this configuration variable to the empty string causes
     the default ``swift`` to be used; if you do want an empty prefix, set this option
     to ``/``.
-
-    .. warning::
-
-       If you set this option to ``/``, you must disable the S3 API by modifying
-       ``rgw_enable_apis`` to exclude ``s3``. It is not possible to operate radosgw
-       with ``rgw_swift_url_prefix = /`` and simultaneously support both the S3 and
-       Swift APIs. If you do need to support both APIs without prefixes, deploy
-       multiple radosgw instances to listen on different hosts (or ports) instead,
-       enabling some for S3 and some for Swift.
+  warning: |
+    If you set this option to ``/``, you must disable the S3 API by modifying
+    ``rgw_enable_apis`` to exclude ``s3``. It is not possible to operate radosgw
+    with ``rgw_swift_url_prefix = /`` and simultaneously support both the S3 and
+    Swift APIs. If you do need to support both APIs without prefixes, deploy
+    multiple radosgw instances to listen on different hosts (or ports) instead,
+    enabling some for S3 and some for Swift.
   example: /swift-testing
   default: swift
   services:
@@ -1527,6 +1525,73 @@ options:
   services:
   - rgw
   with_legacy: true
+# overrides for librgw/smb
+- name: rgw_smb_run_gc_threads
+  type: bool
+  level: advanced
+  desc: run GC threads in librgw/smb (default off)
+  default: false
+  services:
+  - rgw
+  with_legacy: true
+- name: rgw_smb_run_lc_threads
+  type: bool
+  level: advanced
+  desc: run lifecycle threads in librgw/smb (default off)
+  default: false
+  services:
+  - rgw
+  with_legacy: true
+- name: rgw_smb_run_quota_threads
+  type: bool
+  level: advanced
+  desc: run quota threads in librgw/smb (default on)
+  default: true
+  services:
+  - rgw
+  with_legacy: true
+- name: rgw_smb_run_restore_threads
+  type: bool
+  level: advanced
+  desc: run objects' restore threads in librgw/smb (default off)
+  default: false
+  services:
+  - rgw
+  with_legacy: true
+- name: rgw_smb_run_dedup_threads
+  type: bool
+  level: advanced
+  desc: run dedup threads in librgw/smb (default off)
+  default: false
+  services:
+  - rgw
+  with_legacy: true
+- name: rgw_smb_run_sync_thread
+  type: bool
+  level: advanced
+  desc: run sync thread in librgw/smb (default off)
+  default: false
+  services:
+  - rgw
+  with_legacy: true
+- name: rgw_smb_frontends
+  type: str
+  level: basic
+  desc: RGW frontends configuration when running as librgw/smb
+  long_desc: A comma-delimited list of frontends configuration. Each configuration
+    contains the type of the frontend followed by an optional space delimited set
+    of key=value config parameters.
+  fmt_desc: Configures the rgw-smb frontend(s). The configuration for multiple
+    frontends can be provided in a comma-delimited list. Each frontend
+    configuration may include a list of options separated by spaces,
+    where each option is in the form "key=value" or "key". See
+    `RGW_SMB Frontends`_ for more on supported options.
+  default: rgw-smb
+  services:
+  - rgw
+  with_legacy: true
+  see_also:
+  - rgw_frontends
 - name: rgw_nfs_frontends
   type: str
   level: basic
@@ -4999,7 +5064,22 @@ options:
   default: 11
   services:
     - rgw
-
+- name: rgw_s3vector_topk_post_filter_factor
+  type: float
+  level: advanced
+  desc: Oversampling factor for topK when JSON metadata post-filtering is used
+  long_desc: When a vector query uses metadata filtering on non-column fields,
+    multiply topK by this factor to fetch more candidates from the index before
+    post-filtering. Higher values increase the chance of returning the full topK
+    results after filtering, at the cost of more work.
+  default: 1
+  services:
+  - rgw
+  min: 1
+  max: 10
+  flags:
+  - runtime
+  with_legacy: true
 - name: rgw_usage_log_key_transition
   type: bool
   level: advanced
@@ -5049,7 +5129,6 @@ options:
   flags:
   - runtime
   with_legacy: true
-
 - name: rgw_sigv4_insecure
   type: bool
   level: advanced
@@ -5060,6 +5139,35 @@ options:
     If you are running multisite, you must set this option until all clusters
     are upgraded, then turn it back off.
   default: false
+  services:
+  - rgw
+  flags:
+  - runtime
+  with_legacy: true
+# S3 Vector (LanceDB) backend configuration
+- name: rgw_s3vector_backend
+  type: str
+  level: advanced
+  desc: S3 Vector backend type
+  long_desc: Specifies the storage backend for S3 Vector (LanceDB). Use "local" for
+    local filesystem storage, or "rgw" for RGW's internal Storage Abstraction Layer
+    (same Ceph cluster).
+  default: rgw
+  enum_values:
+  - local
+  - rgw
+  services:
+  - rgw
+  flags:
+  - runtime
+  with_legacy: true
+- name: rgw_s3vector_local_path
+  type: str
+  level: advanced
+  desc: Local path for S3 Vector LanceDB storage
+  long_desc: The local filesystem path where LanceDB databases will be stored when
+    using the "local" backend. Each vector bucket will be created as a subdirectory.
+  default: /var/lib/ceph/radosgw/$cluster-$id/s3vector-lancedb
   services:
   - rgw
   flags:

@@ -518,6 +518,8 @@ public:
   ~RGWCompleteMultipart_ObjStore_S3() override {}
 
   int get_params(optional_yield y) override;
+  int verify_encryption(std::map<std::string, bufferlist>& attrs,
+                        rgw::cksum::Type cksum_type) override;
   void send_response() override;
 };
 
@@ -809,7 +811,6 @@ protected:
   bool is_obj_update_op() const override {
     return is_acl_op() || is_tagging_op() || is_obj_retention_op() || is_obj_legal_hold_op() || is_select_op();
   }
-  RGWOp *get_common_read_op();
   RGWOp *get_obj_op(bool get_data);
 
   RGWOp *op_get() override;
@@ -833,8 +834,11 @@ private:
   const bool enable_sts;
   const bool enable_iam;
   const bool enable_pubsub;
+#ifdef WITH_RADOSGW_LANCEDB
+  const bool enable_s3vector;
+#endif
 public:
-  RGWRESTMgr_S3(bool enable_s3control, bool _enable_s3website, bool _enable_sts, bool _enable_iam, bool _enable_pubsub);
+  RGWRESTMgr_S3(bool enable_s3control, bool _enable_s3website, bool _enable_sts, bool _enable_iam, bool _enable_pubsub, bool _enable_s3vector);
   ~RGWRESTMgr_S3() override;
 
   RGWHandler_REST *get_handler(rgw::sal::Driver* driver,
@@ -843,7 +847,7 @@ public:
                                const std::string& frontend_prefix) override;
 
   RGWRESTMgr* get_resource_mgr_as_default(req_state* const s,
-                                          std::string_view uri,
+                                          const std::string& uri,
                                           std::string* our_uri) override;
 };
 
