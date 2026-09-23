@@ -8,7 +8,7 @@
 
 #include <gtest/gtest.h>
 
-#include "common/Formatter.h"
+#include "common/JSONFormatter.h"
 #include "common/TrackedOp.h"
 #include "common/tracer.h"
 #include "global/global_context.h"
@@ -147,7 +147,7 @@ protected:
   }
 
   std::string dump() {
-    JSONFormatter f;
+    ceph::JSONFormatter f;
     tracker.dump_historic_ops(&f);
     std::ostringstream ss;
     f.flush(ss);
