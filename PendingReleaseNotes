@@ -1,5 +1,23 @@
 >=22.0.0
 
+* OSD: Operations slower than ``osd_op_trace_slow_threshold`` seconds can now
+  be exported as traces to Jaeger. A trace is built after the operation
+  completes, from the events the op tracker already records, so faster
+  operations cost nothing extra; ``osd_op_trace_max_per_sec`` limits the rate.
+  Traced operations show a ``trace_id`` in ``dump_historic_ops``. Disabled by
+  default. See the tracing documentation.
+* OSD, RGW: Spans can now be exported over OTLP/HTTP, the OpenTelemetry
+  protocol accepted by Jaeger v2, Grafana Tempo, the OpenTelemetry Collector
+  and most tracing backends: set ``trace_exporter`` to ``otlp`` and
+  ``trace_otlp_endpoint`` to the backend's URL. The default remains the Jaeger
+  UDP exporter, whose destination host is now configurable with
+  ``jaeger_agent_host``, so all daemons can send to one Jaeger instead of an
+  agent on every host. OSDs apply changes to these options without restarting.
+  Builds with tracing now require protobuf (``WITH_OTLP``, on by default).
+* OSD: The op tracker event ``sub_op_commit_rec`` is now
+  ``sub_op_commit_rec from osd.N``, naming the replica that acknowledged.
+  Scripts that match the exact event name need updating.
+
 * RGW: The default value of ``rgw_rest_conn_connect_to_resolved_ips`` changed
   from ``false`` to ``true``.
 * RGW: The default value of ``rgw_rest_conn_ip_fail_timeout_secs`` changed

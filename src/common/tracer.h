@@ -5,8 +5,47 @@
 
 #include "acconfig.h"
 #include "include/encoding.h"
+#include "include/utime.h"
+
+#include <string>
+#include <utility>
+#include <vector>
+
+namespace tracing {
+
+// The timeline of an operation that has already happened, as recorded by the
+// op tracker. Tracer::record_op() turns it into a trace after the fact, so
+// building it costs nothing on the I/O path.
+struct OpTimeline {
+  std::string name;
+  utime_t start;
+  utime_t end;
+  bool complete = true;  // false: the op is still in flight at `end`
+  std::vector<std::pair<utime_t, std::string>> events;
+  std::vector<std::pair<std::string, std::string>> attributes;
+
+  // some stamps can be unset (zero), so events outside the lifetime are ignored
+  bool in_lifetime(utime_t stamp) const {
+    return stamp >= start && stamp <= end;
+  }
+};
+
+// the time between two consecutive events of an OpTimeline
+struct OpPhase {
+  std::string name;  // "<event> -> <next event>"
+  utime_t start;
+  utime_t end;
+};
+
+// the phases of `t` that took at least `min_share` of the op, in order. An op
+// still in flight ends with a "<last event> -> (in flight)" phase.
+std::vector<OpPhase> op_phases(const OpTimeline& t, double min_share);
+
+} // namespace tracing
 
 #ifdef HAVE_JAEGER
+#include <shared_mutex>
+
 #include "opentelemetry/trace/provider.h"
 
 using jspan = opentelemetry::trace::Span;
@@ -23,16 +62,29 @@ static_assert(SpanIdkSize == opentelemetry::trace::SpanId::kSize);
 
 class Tracer {
  private:
-  const static opentelemetry::nostd::shared_ptr<opentelemetry::trace::Tracer> noop_tracer;
+  using tracer_ptr = opentelemetry::nostd::shared_ptr<opentelemetry::trace::Tracer>;
+  const static tracer_ptr noop_tracer;
   const static jspan_ptr noop_span;
   CephContext* cct = nullptr;;
-  opentelemetry::nostd::shared_ptr<opentelemetry::trace::Tracer> tracer;
+  std::string service_name;
+  mutable std::shared_mutex tracer_lock;  ///< protects tracer, which reconfigure() replaces
+  tracer_ptr tracer;
+
+  // a tracer exporting as trace_exporter and its options currently say
+  tracer_ptr make_tracer();
+  tracer_ptr get_tracer() const {
+    std::shared_lock l(tracer_lock);
+    return tracer;
+  }
 
  public:
 
   Tracer() = default;
 
   void init(CephContext* _cct, opentelemetry::nostd::string_view service_name);
+  // re-create the exporter after trace_exporter or one of its options
+  // changed; spans already started still go to the previous exporter
+  void reconfigure();
 
   bool is_enabled() const;
   // creates and returns a new span with `trace_name`
@@ -50,6 +102,11 @@ class Tracer {
   // parent_ctx contains the required information of the trace.
   jspan_ptr add_span(opentelemetry::nostd::string_view span_name, const jspan_context& parent_ctx);
 
+  // exports `timeline` as a trace with its recorded timestamps: one span for
+  // the op, a child span for each phase that took a noticeable share of it.
+  // `parent` may be invalid. Works whether or not jaeger_tracing_enable is set.
+  // returns the trace id as hex, or an empty string if nothing was exported.
+  std::string record_op(const OpTimeline& timeline, const jspan_context& parent);
 };
 
 inline void encode(const jspan_context& span_ctx, bufferlist& bl, uint64_t f = 0) {
@@ -146,10 +203,12 @@ namespace tracing {
 
 struct Tracer {
   void init(CephContext* _cct, std::string_view service_name) {}
+  void reconfigure() {}
   bool is_enabled() const { return false; }
   jspan_ptr start_trace(std::string_view, bool enabled = true) { return {}; }
   jspan_ptr add_span(std::string_view, const jspan_ptr&) { return {}; }
   jspan_ptr add_span(std::string_view span_name, const jspan_context& parent_ctx) { return {}; }
+  std::string record_op(const OpTimeline&, const jspan_context&) { return {}; }
 };
 
 inline void encode(const jspan_context& span_ctx, bufferlist& bl, uint64_t f = 0) {
