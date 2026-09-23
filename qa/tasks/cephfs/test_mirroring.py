@@ -595,10 +595,14 @@ class TestMirroring(CephFSTestCase):
 
     def assert_mirror_log_lacks_pattern(self, pattern):
         log_path = self.get_mirror_daemon_log_path()
-        p = self.mount_a.run_shell(['cat', log_path])
-        self.assertNotRegex(
-            p.stdout.getvalue(), pattern,
-            msg=f'unexpected pattern {pattern!r} in cephfs-mirror log')
+        p = self.mount_a.run_shell(
+            ['grep', '-qE', pattern, log_path], check_status=False)
+        if p.returncode == 0:
+            self.fail(f'found unexpected pattern {pattern!r} in cephfs-mirror log')
+        # grep exits 1 when the pattern is not found, which is what we want.
+        self.assertEqual(
+            p.returncode, 1,
+            f'failed to search cephfs-mirror log {log_path}')
 
     def wait_for_mirror_daemon_recovery(self, fs_name, fs_id, dir_name, peer_uuid):
         # A new rados_inst alone does not mean mirroring is ready: wait until the
@@ -2238,8 +2242,6 @@ class TestMirroring(CephFSTestCase):
     def test_cephfs_mirror_incremental_sync(self):
         """ Test incremental snapshot synchronization (based on mtime differences)."""
 
-        self.skipTest("temporarily disable test: snapdiff bug - see https://tracker.ceph.com/issues/74984")
-
         self.setup_mount_b(mds_perm='rw')
         repo = 'ceph-qa-suite'
         repo_dir = 'ceph_repo'
@@ -2289,7 +2291,9 @@ class TestMirroring(CephFSTestCase):
         vthird = res[TestMirroring.PERF_COUNTER_KEY_NAME_CEPHFS_MIRROR_PEER][0]
         self.assertGreater(vthird["counters"]["snaps_synced"], vsecond["counters"]["snaps_synced"])
         inc_sync_duration1 = vthird["counters"]["last_synced_duration"]
-        self.assertGreaterEqual(float(full_sync_duration), float(inc_sync_duration1))
+        # For small number of files, incremental sync mostly takes more time because of snapdiff.
+        # This has become obvious after a separate crawler thread with multi-threaded mirroring
+        log.debug(f'full_sync_duration - {full_sync_duration}, inc_sync_duration1 - {inc_sync_duration1}')
 
         # diff again, this time back to HEAD
         log.debug('resetting to HEAD')
@@ -2304,7 +2308,9 @@ class TestMirroring(CephFSTestCase):
         vfourth = res[TestMirroring.PERF_COUNTER_KEY_NAME_CEPHFS_MIRROR_PEER][0]
         self.assertGreater(vfourth["counters"]["snaps_synced"], vthird["counters"]["snaps_synced"])
         inc_sync_duration2 = vfourth["counters"]["last_synced_duration"]
-        self.assertGreaterEqual(float(full_sync_duration), float(inc_sync_duration2))
+        # For small number of files, incremental sync mostly takes more time because of snapdiff.
+        # This has become obvious after a separate crawler thread with multi-threaded mirroring
+        log.debug(f'full_sync_duration - {full_sync_duration}, inc_sync_duration2 - {inc_sync_duration2}')
 
         self.disable_mirroring(self.primary_fs_name, self.primary_fs_id)
 
@@ -2518,6 +2524,83 @@ class TestMirroring(CephFSTestCase):
             self.assertEqual(source_states[path][:3],
                              destination_states[path][:3])
 
+    def test_cephfs_mirror_blockdiff_pure_truncate(self):
+        """Verify incremental sync when only the file size changes."""
+
+        self.setup_mount_b(mds_perm='rw')
+        self.config_set(
+            'client.mirror',
+            'cephfs_mirror_blockdiff_min_file_size', 16777216)
+        peer_spec = "client.mirror_remote@ceph"
+        dir_name = 'd0'
+        cases = [
+            ('object_boundary_shrink', 64, 32),
+            ('partial_object_shrink', 64, 33),
+            ('same_object_shrink', 19, 18),
+            ('sparse_grow', 20, 40),
+        ]
+
+        def snapshot_file_state(mount, snap_name, file_name):
+            path = f'{dir_name}/.snap/{snap_name}/{file_name}'
+            stat = mount.run_shell(
+                ['stat', '-c', '%F:%s', path]
+            ).stdout.getvalue().strip()
+            file_type, size = stat.rsplit(':', 1)
+            digest = mount.run_shell(
+                ['sha256sum', path]
+            ).stdout.getvalue().split()[0]
+            return file_type, int(size), digest
+
+        self.enable_mirroring(self.primary_fs_name, self.primary_fs_id)
+        self.peer_add(self.primary_fs_name, self.primary_fs_id,
+                      peer_spec, self.secondary_fs_name)
+        self.mount_a.run_shell(['mkdir', dir_name])
+        self.add_directory(self.primary_fs_name, self.primary_fs_id,
+                           f'/{dir_name}')
+
+        for file_name, initial_size_mb, _ in cases:
+            self.mount_a.run_shell([
+                'dd', 'if=/dev/zero', f'of={dir_name}/{file_name}',
+                'bs=1M', f'count={initial_size_mb}', 'conv=fsync'
+            ])
+
+        self.mount_a.run_shell(['mkdir', f'{dir_name}/.snap/snap_a'])
+        self.check_peer_status(self.primary_fs_name, self.primary_fs_id,
+                               peer_spec, f'/{dir_name}', 'snap_a', 1)
+        self.verify_snapshot(dir_name, 'snap_a')
+
+        for file_name, initial_size_mb, final_size_mb in cases:
+            self.mount_a.run_shell([
+                'truncate', '-s', f'{final_size_mb}M',
+                f'{dir_name}/{file_name}'
+            ])
+            if final_size_mb > initial_size_mb:
+                # Ensure snapdiff reports sparse growth without writing data.
+                self.mount_a.run_shell([
+                    'touch', '-m', f'{dir_name}/{file_name}'
+                ])
+
+        self.mount_a.run_shell(['mkdir', f'{dir_name}/.snap/snap_b'])
+        self.check_peer_status(self.primary_fs_name, self.primary_fs_id,
+                               peer_spec, f'/{dir_name}', 'snap_b', 2)
+        self.assertIn('snap_b', self.mount_b.ls(path=f'{dir_name}/.snap'))
+
+        mismatches = []
+        for file_name, _, _ in cases:
+            source_state = snapshot_file_state(
+                self.mount_a, 'snap_b', file_name)
+            destination_state = snapshot_file_state(
+                self.mount_b, 'snap_b', file_name)
+            log.info('pure truncate case %s: source=%s destination=%s',
+                     file_name, source_state, destination_state)
+            if source_state != destination_state:
+                mismatches.append((file_name, source_state, destination_state))
+
+        self.remove_directory(self.primary_fs_name, self.primary_fs_id,
+                              f'/{dir_name}')
+        self.disable_mirroring(self.primary_fs_name, self.primary_fs_id)
+        self.assertEqual([], mismatches)
+
     def test_cephfs_mirror_incremental_sync_with_type_mixup(self):
         """ Test incremental snapshot synchronization with file type changes.
 
@@ -2599,8 +2682,6 @@ class TestMirroring(CephFSTestCase):
         mirror daemon should identify the purge and switch to using remote
         comparison to sync the snapshot (in the next iteration of course).
         """
-
-        self.skipTest("temporarily disable test: snapdiff bug - see https://tracker.ceph.com/issues/74984")
 
         self.setup_mount_b(mds_perm='rw')
         repo = 'ceph-qa-suite'

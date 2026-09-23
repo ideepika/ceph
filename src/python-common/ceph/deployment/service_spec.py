@@ -42,7 +42,8 @@ from ceph.deployment.hostspec import (
 from ceph.deployment.utils import unwrap_ipv6, valid_addr, verify_non_negative_int
 from ceph.deployment.utils import verify_positive_int, verify_non_negative_number
 from ceph.deployment.utils import verify_boolean, verify_enum, verify_int, verify_non_empty_string
-from ceph.deployment.utils import verify_size_with_units, validate_port, validate_unique_ports
+from ceph.deployment.utils import verify_size_with_units, validate_port, validate_unique_ports, \
+    validate_ip
 from ceph.cephadm.d3n_types import D3NCacheSpec, D3NCacheError
 from ceph.utils import is_hex
 from ceph.smb import constants as smbconst
@@ -1905,6 +1906,8 @@ class NvmeofServiceSpec(ServiceSpec):
                  port: Optional[int] = None,
                  pool: Optional[str] = None,
                  enable_auth: bool = False,
+                 enable_encryption: bool = False,
+                 encryption_key_path: Optional[str] = None,
                  ssl: Optional[bool] = False,
                  certificate_source: Optional[str] = None,
                  custom_sans: Optional[List[str]] = None,
@@ -2040,6 +2043,13 @@ class NvmeofServiceSpec(ServiceSpec):
         self.group = group or ''
         #: ``enable_auth`` enables user authentication on nvmeof gateway
         self.enable_auth = enable_auth
+
+        #: ``enable_encryption`` enables encryption for the NVMe-oF gateway
+        self.enable_encryption = enable_encryption
+
+        #: ``encryption_key_path`` is the absolute host-side path to an externally
+        #: managed encryption key file used when ``enable_encryption`` is enabled
+        self.encryption_key_path = encryption_key_path
         self.ssl = ssl or enable_auth  # to force enabling ssl field when auth is enabled
         #: ``state_update_notify`` enables automatic update from OMAP in nvmeof gateway
         self.state_update_notify = state_update_notify
@@ -2301,6 +2311,27 @@ class NvmeofServiceSpec(ServiceSpec):
             raise SpecValidationError('Cannot add NVMEOF: No Pool specified')
 
         verify_boolean(self.enable_auth, "Enable authentication")
+        verify_boolean(self.enable_encryption, "Enable encryption")
+
+        if self.encryption_key and self.encryption_key_path:
+            raise SpecValidationError(
+                'encryption_key and encryption_key_path cannot both be set'
+            )
+
+        if self.enable_encryption:
+            if not self.encryption_key_path and not self.encryption_key:
+                raise SpecValidationError(
+                    'enable_encryption=true requires either encryption_key_path or encryption_key'
+                )
+            if self.encryption_key_path and not self.encryption_key_path.startswith('/'):
+                raise SpecValidationError(
+                    'encryption_key_path must be an absolute path'
+                )
+        elif self.encryption_key_path:
+            raise SpecValidationError(
+                'encryption_key_path requires enable_encryption=true'
+            )
+
         if self.enable_auth or self.ssl:
             if self.certificate_source == CertificateSource.INLINE.value:
                 if not all([self.server_key, self.server_cert, self.client_key,
@@ -2748,6 +2779,7 @@ class MgmtGatewaySpec(ServiceSpec):
     def validate(self) -> None:
         super(MgmtGatewaySpec, self).validate()
         validate_port(self.port, 'port')
+        validate_ip(self.virtual_ip)
         self._validate_certificate(self.ssl_cert, "ssl_cert")
         self._validate_private_key(self.ssl_key, "ssl_key")
         self._validate_boolean_switch(self.ssl_prefer_server_ciphers, "ssl_prefer_server_ciphers")
