@@ -1032,8 +1032,20 @@ void Infiniband::verify_prereq(CephContext *cct) {
    struct rlimit limit;
    getrlimit(RLIMIT_MEMLOCK, &limit);
    if (limit.rlim_cur != RLIM_INFINITY || limit.rlim_max != RLIM_INFINITY) {
-      lderr(cct) << __func__ << "!!! WARNING !!! For RDMA to work properly user memlock (ulimit -l) must be big enough to allow large amount of registered memory."
-				  " We recommend setting this parameter to infinity" << dendl;
+      // Say what the limit is and what RDMA will try to register, so the
+      // operator can act on this without guessing. Falling short shows up as
+      // an opaque allocation failure much later, far from the cause.
+      uint64_t want = (uint64_t)cct->_conf->ms_async_rdma_receive_buffers *
+                        cct->_conf->ms_async_rdma_buffer_size +
+                      (uint64_t)cct->_conf->ms_async_rdma_send_buffers *
+                        cct->_conf->ms_async_rdma_buffer_size;
+      lderr(cct) << __func__ << " !!! WARNING !!! RDMA registers pinned memory, but"
+                 << " memlock (ulimit -l) is limited: soft=" << limit.rlim_cur
+                 << " hard=" << limit.rlim_max << " bytes. This configuration may"
+                 << " register up to " << want << " bytes ("
+                 << (want >> 20) << " MiB) per daemon. Set memlock to unlimited"
+                 << " (e.g. /etc/security/limits.conf) or RDMA may fail to"
+                 << " allocate buffers." << dendl;
    }
    init_prereq = true;
 }
