@@ -27,6 +27,7 @@
 
 #include <atomic>
 #include <functional>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -237,12 +238,13 @@ class Infiniband {
 
     class Cluster {
      public:
-      Cluster(MemoryManager& m, uint32_t s);
+      Cluster(MemoryManager& m, uint32_t s, uint32_t nshards = 1);
       ~Cluster();
 
       int fill(uint32_t num);
-      void take_back(std::vector<Chunk*> &ck);
-      int get_buffers(std::vector<Chunk*> &chunks, size_t bytes);
+      void take_back(std::vector<Chunk*> &ck, uint32_t shard = 0);
+      int get_buffers(std::vector<Chunk*> &chunks, size_t bytes,
+                      uint32_t shard = 0);
       Chunk *get_chunk_by_buffer(const char *c) {
         uint32_t idx = (c - base) / buffer_size;
         Chunk *chunk = chunk_base + idx;
@@ -258,8 +260,14 @@ class Infiniband {
       MemoryManager& manager;
       uint32_t buffer_size;
       uint32_t num_chunk = 0;
-      ceph::mutex lock = ceph::make_mutex("cluster_lock");
-      std::vector<Chunk*> free_chunks;
+      // Free chunks are sharded per messenger worker so that allocation and
+      // release do not contend on one lock. Chunks are fungible, so a shard
+      // that runs dry borrows from the others rather than reporting no memory.
+      struct Shard {
+        ceph::mutex lock = ceph::make_mutex("cluster_shard_lock");
+        std::vector<Chunk*> free_chunks;
+      };
+      std::vector<std::unique_ptr<Shard>> shards;
       char *base = nullptr;
       char *end = nullptr;
       Chunk* chunk_base = nullptr;
@@ -346,9 +354,10 @@ class Infiniband {
     void* malloc(size_t size);
     void  free(void *ptr);
 
-    void create_tx_pool(uint32_t size, uint32_t tx_num);
-    void return_tx(std::vector<Chunk*> &chunks);
-    int get_send_buffers(std::vector<Chunk*> &c, size_t bytes);
+    void create_tx_pool(uint32_t size, uint32_t tx_num, uint32_t nshards);
+    void return_tx(std::vector<Chunk*> &chunks, uint32_t shard = 0);
+    int get_send_buffers(std::vector<Chunk*> &c, size_t bytes,
+                         uint32_t shard = 0);
     bool is_tx_buffer(const char* c) { return send->is_my_buffer(c); }
     bool is_valid_chunk(const Chunk* c) { return send->is_valid_chunk(c); }
     Chunk *get_tx_chunk_by_buffer(const char *c) {
@@ -573,7 +582,7 @@ class Infiniband {
     }
     get_memory_manager()->release_rx_buffer(chunk);
   }
-  int get_tx_buffers(std::vector<Chunk*> &c, size_t bytes);
+  int get_tx_buffers(std::vector<Chunk*> &c, size_t bytes, uint32_t shard = 0);
   CompletionChannel *create_comp_channel(CephContext *c);
   CompletionQueue *create_comp_queue(CephContext *c, CompletionChannel *cc=NULL);
   uint8_t get_ib_physical_port() { return ib_physical_port; }

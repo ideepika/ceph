@@ -44,7 +44,7 @@ RDMADispatcher::~RDMADispatcher()
 
 RDMADispatcher::RDMADispatcher(CephContext* c, std::shared_ptr<Infiniband>& ib,
                                unsigned worker_id)
-  : cct(c), ib(ib)
+  : cct(c), worker_id(worker_id), ib(ib)
 {
   std::ostringstream pname;
   pname << "AsyncMessenger::RDMADispatcher-" << worker_id;
@@ -593,7 +593,7 @@ void RDMADispatcher::post_tx_buffer(std::vector<Chunk*> &chunks)
     return ;
 
   inflight -= chunks.size();
-  ib->get_memory_manager()->return_tx(chunks);
+  ib->get_memory_manager()->return_tx(chunks, worker_id);
   ldout(cct, 30) << __func__ << " release " << chunks.size()
                  << " chunks, inflight " << inflight << dendl;
   notify_pending_workers();
@@ -798,7 +798,7 @@ int RDMAWorker::connect(const entity_addr_t &addr, const SocketOptions &opts, Co
 int RDMAWorker::get_reged_mem(RDMAConnectedSocketImpl *o, std::vector<Chunk*> &c, size_t bytes)
 {
   ceph_assert(center.in_thread());
-  int r = ib->get_tx_buffers(c, bytes);
+  int r = ib->get_tx_buffers(c, bytes, id);
   size_t got = ib->get_memory_manager()->get_tx_buffer_size() * r;
   ldout(cct, 30) << __func__ << " need " << bytes << " bytes, reserve " << got << " registered  bytes, inflight " << dispatcher->inflight << dendl;
   dispatcher->inflight += r;

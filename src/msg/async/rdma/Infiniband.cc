@@ -749,9 +749,15 @@ void Infiniband::MemoryManager::Chunk::reset_write_chunk()
   bound = bytes;
 }
 
-Infiniband::MemoryManager::Cluster::Cluster(MemoryManager& m, uint32_t s)
+Infiniband::MemoryManager::Cluster::Cluster(MemoryManager& m, uint32_t s,
+                                            uint32_t nshards)
   : manager(m), buffer_size(s)
 {
+  if (nshards < 1)
+    nshards = 1;
+  shards.reserve(nshards);
+  for (uint32_t i = 0; i < nshards; ++i)
+    shards.emplace_back(std::make_unique<Shard>());
 }
 
 Infiniband::MemoryManager::Cluster::~Cluster()
@@ -779,39 +785,49 @@ int Infiniband::MemoryManager::Cluster::fill(uint32_t num)
   chunk_base = static_cast<Chunk*>(::malloc(sizeof(Chunk) * num));
   // FIPS zeroization audit 20191115: this memset is not security related.
   memset(static_cast<void*>(chunk_base), 0, sizeof(Chunk) * num);
-  free_chunks.reserve(num);
   ibv_mr* m = ibv_reg_mr(manager.pd->pd, base, bytes, IBV_ACCESS_REMOTE_WRITE | IBV_ACCESS_LOCAL_WRITE);
   ceph_assert(m);
   Chunk* chunk = chunk_base;
+  uint32_t n = 0;
   for (uint32_t offset = 0; offset < bytes; offset += buffer_size){
     new(chunk) Chunk(m, buffer_size, base + offset, 0, buffer_size, m->lkey);
-    free_chunks.push_back(chunk);
+    shards[n++ % shards.size()]->free_chunks.push_back(chunk);
     chunk++;
   }
   return 0;
 }
 
-void Infiniband::MemoryManager::Cluster::take_back(std::vector<Chunk*> &ck)
+void Infiniband::MemoryManager::Cluster::take_back(std::vector<Chunk*> &ck,
+                                                   uint32_t shard)
 {
-  std::lock_guard l{lock};
+  Shard &s = *shards[shard % shards.size()];
+  std::lock_guard l{s.lock};
   for (auto c : ck) {
     c->reset_write_chunk();
-    free_chunks.push_back(c);
+    s.free_chunks.push_back(c);
   }
 }
 
-int Infiniband::MemoryManager::Cluster::get_buffers(std::vector<Chunk*> &chunks, size_t block_size)
+int Infiniband::MemoryManager::Cluster::get_buffers(std::vector<Chunk*> &chunks,
+                                                    size_t block_size,
+                                                    uint32_t shard)
 {
-  std::lock_guard l{lock};
-  uint32_t chunk_buffer_number = (block_size + buffer_size - 1) / buffer_size;
-  chunk_buffer_number = free_chunks.size() < chunk_buffer_number ? free_chunks.size(): chunk_buffer_number;
-  uint32_t r = 0;
+  const uint32_t want = (block_size + buffer_size - 1) / buffer_size;
+  const uint32_t nshards = shards.size();
+  uint32_t got = 0;
 
-  for (r = 0; r < chunk_buffer_number; ++r) {
-    chunks.push_back(free_chunks.back());
-    free_chunks.pop_back();
+  // Own shard first, then borrow from the others, so a busy worker is never
+  // starved by chunks sitting idle on a shard belonging to an idle one.
+  for (uint32_t i = 0; i < nshards && got < want; ++i) {
+    Shard &s = *shards[(shard + i) % nshards];
+    std::lock_guard l{s.lock};
+    while (got < want && !s.free_chunks.empty()) {
+      chunks.push_back(s.free_chunks.back());
+      s.free_chunks.pop_back();
+      ++got;
+    }
   }
-  return r;
+  return got;
 }
 
 bool Infiniband::MemoryManager::MemPoolContext::can_alloc(unsigned nbufs)
@@ -988,23 +1004,26 @@ void Infiniband::MemoryManager::free(void *ptr)
     std::free(ptr);
 }
 
-void Infiniband::MemoryManager::create_tx_pool(uint32_t size, uint32_t tx_num)
+void Infiniband::MemoryManager::create_tx_pool(uint32_t size, uint32_t tx_num,
+                                               uint32_t nshards)
 {
   ceph_assert(device);
   ceph_assert(pd);
 
-  send = new Cluster(*this, size);
+  send = new Cluster(*this, size, nshards);
   send->fill(tx_num);
 }
 
-void Infiniband::MemoryManager::return_tx(std::vector<Chunk*> &chunks)
+void Infiniband::MemoryManager::return_tx(std::vector<Chunk*> &chunks,
+                                          uint32_t shard)
 {
-  send->take_back(chunks);
+  send->take_back(chunks, shard);
 }
 
-int Infiniband::MemoryManager::get_send_buffers(std::vector<Chunk*> &c, size_t bytes)
+int Infiniband::MemoryManager::get_send_buffers(std::vector<Chunk*> &c,
+                                                size_t bytes, uint32_t shard)
 {
-  return send->get_buffers(c, bytes);
+  return send->get_buffers(c, bytes, shard);
 }
 
 static std::atomic<bool> init_prereq = {false};
@@ -1119,7 +1138,10 @@ void Infiniband::init()
                 << " completion entries" << dendl;
 
   memory_manager = new MemoryManager(cct, device, pd);
-  memory_manager->create_tx_pool(cct->_conf->ms_async_rdma_buffer_size, tx_queue_len);
+  // one free-chunk shard per messenger worker
+  memory_manager->create_tx_pool(cct->_conf->ms_async_rdma_buffer_size,
+                                 tx_queue_len,
+                                 cct->_conf->ms_async_op_threads);
 
   if (support_srq) {
     srq = create_shared_receive_queue(rx_queue_len, MAX_SHARED_RX_SGE_COUNT);
@@ -1159,9 +1181,10 @@ ibv_srq* Infiniband::create_shared_receive_queue(uint32_t max_wr, uint32_t max_s
   return ibv_create_srq(pd->pd, &sia);
 }
 
-int Infiniband::get_tx_buffers(std::vector<Chunk*> &c, size_t bytes)
+int Infiniband::get_tx_buffers(std::vector<Chunk*> &c, size_t bytes,
+                               uint32_t shard)
 {
-  return memory_manager->get_send_buffers(c, bytes);
+  return memory_manager->get_send_buffers(c, bytes, shard);
 }
 
 /**

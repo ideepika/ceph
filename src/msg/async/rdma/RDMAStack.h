@@ -42,6 +42,8 @@ class RDMADispatcher {
 
   std::thread t;
   CephContext *cct;
+  // worker this dispatcher serves; also its tx free-chunk shard
+  unsigned worker_id;
   std::shared_ptr<Infiniband> ib;
   Infiniband::CompletionQueue* tx_cq = nullptr;
   Infiniband::CompletionQueue* rx_cq = nullptr;
