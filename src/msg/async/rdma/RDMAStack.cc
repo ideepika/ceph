@@ -86,7 +86,12 @@ void RDMADispatcher::polling_start()
   if (t.joinable()) 
     return; // dispatcher thread already running 
 
-  ib->get_memory_manager()->set_rx_stat_logger(perf_logger);
+  // The rx buffer pool is shared device-wide while dispatchers are per worker,
+  // so let worker 0 own its stats. Without this each dispatcher overwrites the
+  // last, and the counters silently describe whichever worker started most
+  // recently rather than the pool as a whole.
+  if (worker_id == 0)
+    ib->get_memory_manager()->set_rx_stat_logger(perf_logger);
 
   tx_cc = ib->create_comp_channel(cct);
   ceph_assert(tx_cc);
@@ -347,9 +352,12 @@ void RDMADispatcher::polling()
         while (!done && r == 0) {
           r = TEMP_FAILURE_RETRY(poll(channel_poll, 2, 100));
           if (r < 0) {
-            r = -errno;
-            lderr(cct) << __func__ << " poll failed " << r << dendl;
-            ceph_abort();
+            // EINTR is already retried above. Anything else is reported and
+            // retried rather than aborting: losing one wakeup costs a poll
+            // interval, while aborting takes the whole daemon down.
+            lderr(cct) << __func__ << " poll failed " << cpp_strerror(errno)
+                       << ", retrying" << dendl;
+            r = 0;
           }
         }
         if (r > 0 && tx_cc->get_cq_event())

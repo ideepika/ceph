@@ -837,9 +837,14 @@ bool Infiniband::MemoryManager::MemPoolContext::can_alloc(unsigned nbufs)
     return true;
 
   if (n_bufs_allocated + nbufs > (unsigned)manager->cct->_conf->ms_async_rdma_receive_buffers) {
-    lderr(manager->cct) << __func__ << " WARNING: OUT OF RX BUFFERS: allocated: " <<
-        n_bufs_allocated << " requested: " << nbufs <<
-        " limit: " << manager->cct->_conf->ms_async_rdma_receive_buffers << dendl;
+    // Name the option to raise. The receive pool is shared across the whole
+    // device while dispatchers are per worker, so the ceiling has to cover
+    // every worker's queue pairs, not one worker's.
+    lderr(manager->cct) << __func__ << " WARNING: OUT OF RX BUFFERS: allocated: "
+        << n_bufs_allocated << " requested: " << nbufs
+        << " limit: " << manager->cct->_conf->ms_async_rdma_receive_buffers
+        << ". Raise ms_async_rdma_receive_buffers (0 means unlimited); the pool"
+           " is shared by all messenger workers." << dendl;
     return false;
   }
 
