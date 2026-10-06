@@ -552,11 +552,26 @@ void RDMADispatcher::handle_tx_event(ibv_wc *cqe, int n)
     // 2) 'fin' message, wr_id points to the QP
     if (ib->get_memory_manager()->is_valid_chunk(chunk)) {
       tx_chunks.push_back(chunk);
-    } else if (reinterpret_cast<QueuePair*>(response->wr_id)->get_local_qp_number() == response->qp_num ) {
-      ldout(cct, 1) << __func__ << " sending of the disconnect msg completed" << dendl;
     } else {
-      ldout(cct, 1) << __func__ << " not tx buffer, chunk " << chunk << dendl;
-      ceph_abort();
+      // A non-chunk wr_id is the QueuePair itself, used for the 'fin' message.
+      // Validate it against the QP registered for this qp_num rather than
+      // dereferencing wr_id blind: a stale or corrupt wr_id would otherwise be
+      // a wild pointer read. A completion we cannot account for is a bug on one
+      // connection, so log it and drop it instead of aborting the whole daemon.
+      bool is_fin = false;
+      {
+        std::lock_guard l{lock};
+        QueuePair *qp = get_qp_lockless(response->qp_num);
+        is_fin = qp && reinterpret_cast<uint64_t>(qp) == response->wr_id;
+      }
+      if (is_fin) {
+        ldout(cct, 1) << __func__ << " sending of the disconnect msg completed" << dendl;
+      } else {
+        lderr(cct) << __func__ << " unrecognised tx completion, wr_id 0x" << std::hex
+                   << response->wr_id << std::dec << " qp " << response->qp_num
+                   << "; dropping" << dendl;
+        perf_logger->inc(l_msgr_rdma_tx_total_wc_errors);
+      }
     }
   }
 
