@@ -15,6 +15,8 @@
  *
  */
 
+#include <sstream>
+
 #include <poll.h>
 #include <errno.h>
 #include <sys/time.h>
@@ -40,10 +42,13 @@ RDMADispatcher::~RDMADispatcher()
   ceph_assert(dead_queue_pairs.empty());
 }
 
-RDMADispatcher::RDMADispatcher(CephContext* c, std::shared_ptr<Infiniband>& ib)
+RDMADispatcher::RDMADispatcher(CephContext* c, std::shared_ptr<Infiniband>& ib,
+                               unsigned worker_id)
   : cct(c), ib(ib)
 {
-  PerfCountersBuilder plb(cct, "AsyncMessenger::RDMADispatcher", l_msgr_rdma_dispatcher_first, l_msgr_rdma_dispatcher_last);
+  std::ostringstream pname;
+  pname << "AsyncMessenger::RDMADispatcher-" << worker_id;
+  PerfCountersBuilder plb(cct, pname.str(), l_msgr_rdma_dispatcher_first, l_msgr_rdma_dispatcher_last);
 
   plb.add_u64_counter(l_msgr_rdma_polling, "polling", "Whether dispatcher thread is polling");
   plb.add_u64_counter(l_msgr_rdma_inflight_tx_chunks, "inflight_tx_chunks", "The number of inflight tx chunks");
@@ -820,11 +825,9 @@ void RDMAWorker::handle_pending_message()
 }
 
 RDMAStack::RDMAStack(CephContext *cct)
-  : NetworkStack(cct), ib(std::make_shared<Infiniband>(cct)),
-    rdma_dispatcher(std::make_shared<RDMADispatcher>(cct, ib))
+  : NetworkStack(cct), ib(std::make_shared<Infiniband>(cct))
 {
   ldout(cct, 20) << __func__ << " constructing RDMAStack..." << dendl;
-  ldout(cct, 20) << " creating RDMAStack:" << this << " with dispatcher:" << rdma_dispatcher.get() << dendl;
 }
 
 RDMAStack::~RDMAStack()
@@ -837,8 +840,13 @@ RDMAStack::~RDMAStack()
 Worker* RDMAStack::create_worker(CephContext *c, unsigned worker_id)
 {
   auto w = new RDMAWorker(c, worker_id);
-  w->set_dispatcher(rdma_dispatcher);
+  if (rdma_dispatchers.size() <= worker_id)
+    rdma_dispatchers.resize(worker_id + 1);
+  rdma_dispatchers[worker_id] = std::make_shared<RDMADispatcher>(c, ib, worker_id);
+  w->set_dispatcher(rdma_dispatchers[worker_id]);
   w->set_ib(ib);
+  ldout(c, 20) << __func__ << " worker " << worker_id << " dispatcher "
+               << rdma_dispatchers[worker_id].get() << dendl;
   return w;
 }
 

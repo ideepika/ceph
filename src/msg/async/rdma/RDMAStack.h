@@ -84,7 +84,8 @@ class RDMADispatcher {
  public:
   PerfCounters *perf_logger;
 
-  explicit RDMADispatcher(CephContext* c, std::shared_ptr<Infiniband>& ib);
+  RDMADispatcher(CephContext* c, std::shared_ptr<Infiniband>& ib,
+                 unsigned worker_id);
   virtual ~RDMADispatcher();
   void handle_async_event();
 
@@ -154,6 +155,7 @@ class RDMAWorker : public Worker {
   }
   void handle_pending_message();
   void set_dispatcher(std::shared_ptr<RDMADispatcher>& dispatcher) { this->dispatcher = dispatcher; }
+  std::shared_ptr<RDMADispatcher>& get_dispatcher() { return dispatcher; }
   void set_ib(std::shared_ptr<Infiniband> &ib) {this->ib = ib;}
   void notify_worker() {
     center.dispatch_event_external(tx_handler);
@@ -325,7 +327,9 @@ class RDMAStack : public NetworkStack {
   std::vector<std::thread> threads;
   PerfCounters *perf_counter;
   std::shared_ptr<Infiniband> ib;
-  std::shared_ptr<RDMADispatcher> rdma_dispatcher;
+  // one dispatcher per worker: each owns its own tx/rx CQ and polling
+  // thread, so completions no longer funnel through a single thread.
+  std::vector<std::shared_ptr<RDMADispatcher>> rdma_dispatchers;
 
   std::atomic<bool> fork_finished = {false};
 

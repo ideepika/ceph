@@ -113,8 +113,13 @@ int RDMAServerSocketImpl::accept(ConnectedSocket *sock, const SocketOptions &opt
 
   RDMAWorker *rw = dynamic_cast<RDMAWorker*>(w);
   RDMAConnectedSocketImpl* server;
-  //Worker* w = dispatcher->get_stack()->get_worker();
-  server = new RDMAConnectedSocketImpl(cct, ib, dispatcher, rw);
+  // The accepted connection is serviced by `rw`, which is not necessarily the
+  // worker that is listening. Bind its queue pair to `rw`'s own dispatcher so
+  // completions land on the CQ polled by the thread that owns the connection;
+  // using the listener's dispatcher funnels every accepted QP onto one CQ.
+  auto& accept_dispatcher = rw->get_dispatcher();
+  accept_dispatcher->polling_start();
+  server = new RDMAConnectedSocketImpl(cct, ib, accept_dispatcher, rw);
   // Construction can fail under fd pressure (eventfd) or on queue pair creation.
   // Such a socket has fd() < 0 and/or a null qp; handing it back on the success
   // path would trip ceph_assert(socket.fd() >= 0) in AsyncConnection::accept.

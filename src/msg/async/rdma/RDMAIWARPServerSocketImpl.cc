@@ -101,7 +101,7 @@ int RDMAIWARPServerSocketImpl::accept(ConnectedSocket *sock, const SocketOptions
   RDMAWorker *rw = dynamic_cast<RDMAWorker*>(w);
   RDMACMInfo info(event_cm_id, event_channel, remote_conn_param->qp_num);
   RDMAIWARPConnectedSocketImpl* server =
-    new RDMAIWARPConnectedSocketImpl(cct, ib, dispatcher, rw, &info);
+    new RDMAIWARPConnectedSocketImpl(cct, ib, rw->get_dispatcher(), rw, &info);
 
   // Construction can fail under fd pressure (eventfd) or on queue pair creation;
   // such a socket must not reach the messenger (its fd() is -1).  Free it on its
