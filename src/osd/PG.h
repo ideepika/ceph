@@ -42,6 +42,7 @@
 #include "PeeringState.h"
 #include "recovery_types.h"
 #include "MissingLoc.h"
+#include "BackfillDigest.h"
 #include "scrubber_common.h"
 
 #include "mgr/OSDPerfMetricTypes.h"
@@ -400,6 +401,16 @@ public:
 
   /// read existing pg state off disk
   void read_state(ObjectStore *store);
+
+  /// per-PG object digest used to skip identical ranges in backfill
+  BackfillDigest backfill_digest;
+  bool backfill_digest_enabled() const;
+  /// reset the digest when the PG's layout changed or it was never built
+  void ensure_backfill_digest();
+  void backfill_digest_apply(const pg_log_entry_t &e);
+  void backfill_digest_dirty(const hobject_t &o);
+  void load_backfill_digest();
+  void persist_backfill_digest();
   static int peek_map_epoch(ObjectStore *store, spg_t pgid, epoch_t *pepoch);
 
   static int get_latest_struct_v() {

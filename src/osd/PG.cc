@@ -33,6 +33,8 @@
 
 #include "messages/MOSDOp.h"
 #include "messages/MOSDPGScan.h"
+#include "include/intarith.h"
+#include "messages/MOSDPGBackfillDigest.h"
 #include "messages/MOSDPGBackfill.h"
 #include "messages/MOSDPGBackfillRemove.h"
 #include "messages/MBackfillReserve.h"
@@ -891,6 +893,7 @@ void PG::shutdown()
 {
   ch->flush();
   std::scoped_lock l{*this};
+  persist_backfill_digest();
   recovery_state.shutdown();
   on_shutdown();
 }
@@ -2140,6 +2143,11 @@ bool PG::can_discard_request(OpRequestRef& op)
 
   case MSG_OSD_PG_SCAN:
     return can_discard_scan(op);
+  case MSG_OSD_PG_BACKFILL_DIGEST:
+    {
+      auto m = op->get_req<MOSDPGBackfillDigest>();
+      return old_peering_msg(m->map_epoch, m->query_epoch);
+    }
   case MSG_OSD_PG_BACKFILL:
     return can_discard_backfill(op);
   case MSG_OSD_PG_BACKFILL_REMOVE:
@@ -2506,6 +2514,114 @@ void PG::with_heartbeat_peers(std::function<void(int)>&& f)
   for (auto p : probe_targets) {
     f(p);
   }
+}
+
+static ghobject_t backfill_digest_oid(spg_t pgid)
+{
+  return ghobject_t(hobject_t(sobject_t(
+    object_t("backfill_digest_" + stringify(pgid)), 0)));
+}
+
+bool PG::backfill_digest_enabled() const
+{
+  return cct->_conf.get_val<bool>("osd_backfill_digest") &&
+    pool.info.is_replicated();
+}
+
+void PG::ensure_backfill_digest()
+{
+  const uint64_t want = cct->_conf.get_val<uint64_t>(
+    "osd_backfill_digest_leaves");
+  const unsigned leaf_bits = want ? cbits(want) - 1 : 0;
+  const unsigned split_bits =
+    info.pgid.pgid.get_split_bits(pool.info.get_pg_num());
+  if (backfill_digest.matches(info.pgid.pool(), info.pgid.ps(), split_bits,
+			      leaf_bits)) {
+    return;
+  }
+  backfill_digest.reset(info.pgid.pool(), info.pgid.ps(), split_bits,
+			leaf_bits);
+  if (info.last_update == eversion_t()) {
+    // a PG that never logged anything holds no objects
+    for (unsigned i = 0; i < backfill_digest.num_leaves(); ++i) {
+      backfill_digest.set_leaf(i, 0);
+    }
+  }
+  dout(10) << __func__ << " reset, " << backfill_digest.num_dirty() << "/"
+	   << backfill_digest.num_leaves() << " leaves dirty" << dendl;
+}
+
+void PG::backfill_digest_apply(const pg_log_entry_t &e)
+{
+  if (backfill_digest.empty()) {
+    ensure_backfill_digest();
+  }
+  // maintained whether or not the exchange is enabled, so turning it on
+  // at runtime finds a usable digest
+  if (pool.info.is_replicated()) {
+    backfill_digest.apply(e);
+  } else {
+    backfill_digest.mark_dirty(e.soid);
+  }
+}
+
+void PG::backfill_digest_dirty(const hobject_t &o)
+{
+  if (backfill_digest.empty()) {
+    ensure_backfill_digest();
+  }
+  backfill_digest.mark_dirty(o);
+}
+
+void PG::load_backfill_digest()
+{
+  const ghobject_t oid = backfill_digest_oid(info.pgid);
+  bufferlist bl;
+  int r = osd->store->read(osd->meta_ch, oid, 0, 0, bl);
+  bool loaded = false;
+  if (r > 0) {
+    try {
+      auto p = bl.cbegin();
+      eversion_t stamp;
+      BackfillDigest d;
+      decode(stamp, p);
+      decode(d, p);
+      if (stamp == info.last_update) {
+	backfill_digest = std::move(d);
+	loaded = true;
+      }
+    } catch (const ceph::buffer::error &e) {
+      derr << __func__ << " cannot decode: " << e.what() << dendl;
+    }
+  }
+  if (r >= 0) {
+    // only a clean shutdown may leave one behind
+    ObjectStore::Transaction t;
+    t.remove(coll_t::meta(), oid);
+    osd->store->queue_transaction(osd->meta_ch, std::move(t));
+  }
+  ensure_backfill_digest();
+  dout(10) << __func__ << (loaded ? " loaded" : " not loaded") << ", "
+	   << backfill_digest.num_dirty() << "/" << backfill_digest.num_leaves()
+	   << " leaves dirty" << dendl;
+}
+
+void PG::persist_backfill_digest()
+{
+  if (backfill_digest.empty()) {
+    return;
+  }
+  const ghobject_t oid = backfill_digest_oid(info.pgid);
+  bufferlist bl;
+  encode(info.last_update, bl);
+  encode(backfill_digest, bl);
+  ObjectStore::Transaction t;
+  t.touch(coll_t::meta(), oid);
+  t.truncate(coll_t::meta(), oid, 0);
+  t.write(coll_t::meta(), oid, 0, bl.length(), bl);
+  osd->store->queue_transaction(osd->meta_ch, std::move(t));
+  dout(10) << __func__ << " at " << info.last_update << ", "
+	   << backfill_digest.num_dirty() << " leaves dirty" << dendl;
 }
 
 uint64_t PG::get_min_alloc_size() const {

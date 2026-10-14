@@ -45,6 +45,7 @@
 #include "messages/MOSDPGBackfillRemove.h"
 #include "messages/MOSDPGLog.h"
 #include "messages/MOSDPGScan.h"
+#include "messages/MOSDPGBackfillDigest.h"
 #include "messages/MOSDPGTrim.h"
 #include "messages/MOSDPGUpdateLogMissing.h"
 #include "messages/MOSDPGUpdateLogMissingReply.h"
@@ -409,6 +410,7 @@ void PrimaryLogPG::on_local_recover(
 {
   dout(10) << __func__ << ": " << hoid << dendl;
 
+  backfill_digest_dirty(hoid);
   ObjectRecoveryInfo recovery_info(_recovery_info);
   clear_object_snap_mapping(t, hoid);
   if (!is_delete && recovery_info.soid.is_snap()) {
@@ -1949,6 +1951,10 @@ void PrimaryLogPG::do_request(
 
   case MSG_OSD_PG_SCAN:
     do_scan(op, handle);
+    break;
+
+  case MSG_OSD_PG_BACKFILL_DIGEST:
+    do_backfill_digest(op, handle);
     break;
 
   case MSG_OSD_PG_BACKFILL:
@@ -4692,6 +4698,251 @@ void PrimaryLogPG::do_scan(
   }
 }
 
+void PrimaryLogPG::on_repop_log_entries(
+  const std::vector<pg_log_entry_t> &log,
+  bool applied)
+{
+  // an empty transaction leaves the object as it was here
+  if (applied) {
+    for (const auto &e : log) {
+      backfill_digest_apply(e);
+    }
+  }
+}
+
+bool PrimaryLogPG::refresh_backfill_digest(ThreadPool::TPHandle &handle)
+{
+  ensure_backfill_digest();
+  auto &d = backfill_digest;
+  const unsigned n = d.num_leaves();
+  const bool verify = cct->_conf.get_val<bool>("osd_backfill_digest_verify");
+  const unsigned dirty = d.num_dirty();
+  uint64_t read = 0;
+  unsigned mismatch = 0;
+  for (unsigned i = 0; i < n; ) {
+    if (!verify && !d.is_dirty(i)) {
+      ++i;
+      continue;
+    }
+    unsigned j = i + 1;
+    while (j < n && (verify || d.is_dirty(j))) {
+      ++j;
+    }
+    std::vector<uint64_t> vals(j - i, 0);
+    vector<hobject_t> ls;
+    int r = pgbackend->objects_list_range(
+      d.leaf_begin(i), d.leaf_begin(j), &ls, nullptr);
+    if (r < 0) {
+      derr << __func__ << " listing failed: " << cpp_strerror(r) << dendl;
+      return false;
+    }
+    for (const auto &o : ls) {
+      handle.reset_tp_timeout();
+      bufferlist bl;
+      if (pgbackend->objects_get_attr(o, OI_ATTR, &bl) < 0) {
+	continue;
+      }
+      object_info_t oi(bl);
+      unsigned leaf = d.leaf_of(o);
+      if (leaf < i || leaf >= j) {
+	derr << __func__ << " " << o << " listed outside leaves " << i
+	     << ".." << j << dendl;
+	return false;
+      }
+      vals[leaf - i] ^= BackfillDigest::object_hash(o, oi.version);
+      ++read;
+    }
+    for (unsigned k = i; k < j; ++k) {
+      if (verify && !d.is_dirty(k) && d.get_leaf(k) != vals[k - i]) {
+	++mismatch;
+	derr << __func__ << " leaf " << k << " maintained " << std::hex
+	     << d.get_leaf(k) << " rebuilt " << vals[k - i] << std::dec
+	     << dendl;
+      }
+      d.set_leaf(k, vals[k - i]);
+    }
+    i = j;
+  }
+  osd->logger->inc(l_osd_bf_digest_refresh_objects, read);
+  if (mismatch) {
+    osd->logger->inc(l_osd_bf_digest_verify_mismatch, mismatch);
+  }
+  dout(10) << __func__ << " rebuilt " << (verify ? n : dirty) << "/" << n
+	   << " leaves from " << read << " objects"
+	   << (verify ? ", verify mismatches " + stringify(mismatch) : "")
+	   << dendl;
+  return true;
+}
+
+bool PrimaryLogPG::start_backfill_digest_exchange(ThreadPool::TPHandle &handle)
+{
+  backfill_skip.clear();
+  if (!backfill_digest_enabled() || !refresh_backfill_digest(handle)) {
+    return false;
+  }
+  const auto &d = backfill_digest;
+  backfill_skip.epoch = get_last_peering_reset();
+  backfill_skip.since = projected_last_update;
+  backfill_skip.leaves.assign(d.num_leaves(), 1);
+  for (const auto &bt : get_backfill_targets()) {
+    auto m = new MOSDPGBackfillDigest(
+      MOSDPGBackfillDigest::OP_REQUEST, pg_whoami,
+      spg_t(info.pgid.pgid, bt.shard), get_osdmap_epoch(),
+      get_last_peering_reset());
+    m->since = backfill_skip.since;
+    m->split_bits = d.get_split_bits();
+    m->leaf_bits = d.get_leaf_bits();
+    m->leaves = d.get_leaves();
+    m->set_priority(recovery_state.get_recovery_op_priority());
+    osd->send_message_osd_cluster(bt.osd, m, get_osdmap_epoch());
+    ceph_assert(waiting_on_backfill.find(bt) == waiting_on_backfill.end());
+    waiting_on_backfill.insert(bt);
+  }
+  dout(10) << __func__ << " since " << backfill_skip.since << " to "
+	   << get_backfill_targets() << dendl;
+  start_recovery_op(hobject_t::get_max());
+  return true;
+}
+
+void PrimaryLogPG::do_backfill_digest(
+  OpRequestRef op,
+  ThreadPool::TPHandle &handle)
+{
+  auto m = op->get_req<MOSDPGBackfillDigest>();
+  dout(10) << __func__ << " " << *m << dendl;
+  op->mark_started();
+
+  switch (m->op) {
+  case MOSDPGBackfillDigest::OP_REQUEST:
+    {
+      std::vector<uint8_t> equal(m->leaves.size(), 0);
+      if (backfill_digest_enabled() && refresh_backfill_digest(handle) &&
+	  backfill_digest.matches(info.pgid.pool(), info.pgid.ps(),
+				  m->split_bits, m->leaf_bits)) {
+	equal = backfill_digest.compare(m->leaves);
+      }
+      backfill_skip.clear();
+      backfill_skip.epoch = get_last_peering_reset();
+      backfill_skip.since = m->since;
+      backfill_skip.leaves = equal;
+      backfill_skip.active = true;
+      unsigned skip = std::count(equal.begin(), equal.end(), 1);
+      dout(10) << __func__ << " skipping " << skip << "/" << equal.size()
+	       << " leaves" << dendl;
+
+      auto reply = new MOSDPGBackfillDigest(
+	MOSDPGBackfillDigest::OP_REPLY, pg_whoami,
+	spg_t(info.pgid.pgid, get_primary().shard), get_osdmap_epoch(),
+	m->query_epoch);
+      reply->since = m->since;
+      reply->equal = std::move(equal);
+      reply->set_priority(recovery_state.get_recovery_op_priority());
+      osd->send_message_osd_cluster(reply, m->get_connection());
+    }
+    break;
+
+  case MOSDPGBackfillDigest::OP_REPLY:
+    {
+      if (!is_primary() ||
+	  backfill_skip.epoch != get_last_peering_reset() ||
+	  backfill_skip.since != m->since ||
+	  !waiting_on_backfill.count(m->from)) {
+	dout(10) << __func__ << " stale reply from " << m->from << dendl;
+	break;
+      }
+      auto &leaves = backfill_skip.leaves;
+      for (unsigned i = 0; i < leaves.size(); ++i) {
+	leaves[i] &= (i < m->equal.size() && m->equal[i]);
+      }
+      waiting_on_backfill.erase(m->from);
+      if (waiting_on_backfill.empty()) {
+	backfill_skip.active = true;
+	unsigned skip = std::count(leaves.begin(), leaves.end(), 1);
+	osd->logger->inc(l_osd_bf_digest_exchanges);
+	osd->logger->inc(l_osd_bf_digest_leaves_skipped, skip);
+	osd->logger->inc(l_osd_bf_digest_leaves_total, leaves.size());
+	dout(5) << __func__ << " backfill skips " << skip << "/"
+		<< leaves.size() << " leaves over "
+		<< get_backfill_targets().size() << " target(s)" << dendl;
+	finish_recovery_op(hobject_t::get_max());
+      }
+    }
+    break;
+  }
+}
+
+bool PrimaryLogPG::backfill_skip_active() const
+{
+  return backfill_skip.active &&
+    backfill_skip.epoch == get_last_peering_reset() &&
+    backfill_skip.leaves.size() == backfill_digest.num_leaves();
+}
+
+void PrimaryLogPG::note_backfill_change(const pg_log_entry_t &e)
+{
+  if (!backfill_skip.epoch || !is_primary()) {
+    return;
+  }
+  backfill_skip.changed.insert(e.soid);
+  if (!e.is_delete()) {
+    return;
+  }
+  // a target that skips this range would never list the object, so
+  // never learn that it is gone
+  for (const auto &bt : get_backfill_targets()) {
+    if (should_send_op(bt, e.soid)) {
+      continue;
+    }
+    auto m = new MOSDPGBackfillRemove(
+      spg_t(info.pgid.pgid, bt.shard), get_osdmap_epoch());
+    m->ls.push_back(std::make_pair(e.soid, e.version));
+    m->set_priority(recovery_state.get_recovery_op_priority());
+    osd->send_message_osd_cluster(bt.osd, m, get_osdmap_epoch());
+  }
+}
+
+int PrimaryLogPG::list_for_backfill(
+  const hobject_t &begin, int min, int max,
+  vector<hobject_t> *ls, hobject_t *next)
+{
+  if (!backfill_skip_active()) {
+    return pgbackend->objects_list_partial(begin, min, max, ls, next);
+  }
+  const auto &d = backfill_digest;
+  const auto &skip = backfill_skip.leaves;
+  const unsigned n = d.num_leaves();
+  if (min > max) {
+    min = max;
+  }
+  hobject_t cur = begin;
+  while (!cur.is_max() && ls->size() < (unsigned)min) {
+    unsigned leaf = cur.pool == d.get_pool() ? d.leaf_of(cur) : 0;
+    if (skip[leaf]) {
+      hobject_t end = d.leaf_begin(leaf + 1);
+      if (is_primary()) {
+	// objects logged since the exchange may differ on the targets
+	for (auto it = backfill_skip.changed.lower_bound(cur);
+	     it != backfill_skip.changed.end() && *it < end; ++it) {
+	  ls->push_back(*it);
+	}
+      }
+      cur = end;
+      continue;
+    }
+    unsigned stop = leaf + 1;
+    while (stop < n && !skip[stop]) {
+      ++stop;
+    }
+    int r = pgbackend->objects_list_partial(
+      cur, min, max, ls, &cur, d.leaf_begin(stop));
+    if (r < 0) {
+      return r;
+    }
+  }
+  *next = cur;
+  return 0;
+}
+
 void PrimaryLogPG::do_backfill(OpRequestRef op)
 {
   auto m = op->get_req<MOSDPGBackfill>();
@@ -4790,6 +5041,7 @@ void PrimaryLogPG::do_backfill_remove(OpRequestRef op)
                  << dendl;
       }
     }
+    backfill_digest_dirty(p.first);
     remove_snap_mapped_object(t, p.first);
   }
   int r = osd->store->queue_transaction(ch, std::move(t), NULL);
@@ -11745,6 +11997,8 @@ void PrimaryLogPG::issue_repop(RepGather *repop, OpContext *ctx)
   }
   for (auto &&entry: ctx->log) {
     projected_log.add(entry);
+    backfill_digest_apply(entry);
+    note_backfill_change(entry);
   }
 
   recovery_state.pre_submit_op(
@@ -11863,6 +12117,11 @@ void PrimaryLogPG::submit_log_entries(
 {
   dout(10) << __func__ << " " << entries << dendl;
   ceph_assert(is_primary());
+
+  for (const auto &e : entries) {
+    backfill_digest_dirty(e.soid);
+    note_backfill_change(e);
+  }
 
   eversion_t version;
   if (!entries.empty()) {
@@ -12920,6 +13179,9 @@ void PrimaryLogPG::do_update_log_missing(OpRequestRef &op)
 	   << " op_trim_to = " << op_trim_to << " op_pg_committed_to = "
 	   << op_pg_committed_to << dendl;
 
+  for (const auto &e : m->entries) {
+    backfill_digest_dirty(e.soid);
+  }
   recovery_state.append_log_entries_update_missing(
     m->entries, t, op_trim_to, op_pg_committed_to);
   eversion_t new_lcod = info.last_complete;
@@ -13522,6 +13784,11 @@ void PrimaryLogPG::_clear_recovery_state()
   dout(15) << __func__ << dendl;
 
   last_backfill_started = hobject_t();
+  // a target keeps its skip set for the interval: scanning more than the
+  // primary expects would make the primary remove objects it skipped
+  if (is_primary()) {
+    backfill_skip.clear();
+  }
   set<hobject_t>::iterator i = backfills_in_flight.begin();
   while (i != backfills_in_flight.end()) {
     backfills_in_flight.erase(i++);
@@ -14204,6 +14471,10 @@ uint64_t PrimaryLogPG::recover_backfill(
 
     backfills_in_flight.clear();
     pending_backfill_updates.clear();
+
+    if (start_backfill_digest_exchange(handle)) {
+      return 1;
+    }
   }
 
   for (set<pg_shard_t>::const_iterator i = get_backfill_targets().begin();
@@ -14699,10 +14970,12 @@ void PrimaryLogPG::scan_range_primary(
 
   vector<hobject_t> ls;
   ls.reserve(max);
-  int r = pgbackend->objects_list_partial(bi->begin, min, max, &ls, &bi->end);
+  int r = list_for_backfill(bi->begin, min, max, &ls, &bi->end);
   ceph_assert(r >= 0);
   dout(10) << " got " << ls.size() << " items, next " << bi->end << dendl;
   dout(20) << ls << dendl;
+  osd->logger->inc(l_osd_bf_scan_calls);
+  osd->logger->inc(l_osd_bf_scan_objects, ls.size());
 
   for (vector<hobject_t>::iterator p = ls.begin(); p != ls.end(); ++p) {
     handle.reset_tp_timeout();
@@ -14769,10 +15042,12 @@ void PrimaryLogPG::scan_range_replica(
 
   vector<hobject_t> ls;
   ls.reserve(max);
-  int r = pgbackend->objects_list_partial(bi->begin, min, max, &ls, &bi->end);
+  int r = list_for_backfill(bi->begin, min, max, &ls, &bi->end);
   ceph_assert(r >= 0);
   dout(10) << " got " << ls.size() << " items, next " << bi->end << dendl;
   dout(20) << ls << dendl;
+  osd->logger->inc(l_osd_bf_scan_calls);
+  osd->logger->inc(l_osd_bf_scan_objects, ls.size());
 
   for (vector<hobject_t>::iterator p = ls.begin(); p != ls.end(); ++p) {
     handle.reset_tp_timeout();

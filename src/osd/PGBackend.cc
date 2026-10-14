@@ -626,7 +626,8 @@ int PGBackend::objects_list_partial(
   int min,
   int max,
   vector<hobject_t> *ls,
-  hobject_t *next)
+  hobject_t *next,
+  const hobject_t &end)
 {
   ceph_assert(ls);
   // Starts with the smallest generation to make sure the result list
@@ -635,20 +636,22 @@ int PGBackend::objects_list_partial(
   ghobject_t _next;
   if (!begin.is_min())
     _next = ghobject_t(begin, 0, get_parent()->whoami_shard().shard);
+  const ghobject_t _end = end.is_max() ? ghobject_t::get_max() :
+    ghobject_t(end, 0, get_parent()->whoami_shard().shard);
   ls->reserve(max);
   int r = 0;
 
   if (min > max)
     min = max;
 
-  while (!_next.is_max() && ls->size() < (unsigned)min) {
+  while (!_next.is_max() && _next < _end && ls->size() < (unsigned)min) {
     vector<ghobject_t> objects;
     if (HAVE_FEATURE(parent->min_upacting_features(),
                      OSD_FIXED_COLLECTION_LIST)) {
       r = store->collection_list(
         ch,
         _next,
-        ghobject_t::get_max(),
+        _end,
         max - ls->size(),
         &objects,
         &_next);
@@ -656,7 +659,7 @@ int PGBackend::objects_list_partial(
       r = store->collection_list_legacy(
         ch,
         _next,
-        ghobject_t::get_max(),
+        _end,
         max - ls->size(),
         &objects,
         &_next);
@@ -677,7 +680,7 @@ int PGBackend::objects_list_partial(
     }
   }
   if (r == 0)
-    *next = _next.hobj;
+    *next = (_next.is_max() || _next >= _end) ? end : _next.hobj;
   return r;
 }
 

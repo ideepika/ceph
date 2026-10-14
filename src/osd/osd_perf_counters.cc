@@ -498,6 +498,28 @@ PerfCounters *build_osd_logger(CephContext *cct) {
       l_osd_scrub_ec_reserv_secondaries_num, "scrub_ec_replicas_in_reservation",
       "number of replicas to reserve EC");
 
+  osd_plb.add_u64_counter(
+    l_osd_bf_digest_exchanges, "backfill_digest_exchanges",
+    "backfill digest exchanges completed as primary");
+  osd_plb.add_u64_counter(
+    l_osd_bf_digest_leaves_skipped, "backfill_digest_leaves_skipped",
+    "digest leaves left out of backfill scans");
+  osd_plb.add_u64_counter(
+    l_osd_bf_digest_leaves_total, "backfill_digest_leaves_total",
+    "digest leaves compared at backfill start");
+  osd_plb.add_u64_counter(
+    l_osd_bf_digest_refresh_objects, "backfill_digest_refresh_objects",
+    "objects read to rebuild dirty digest leaves");
+  osd_plb.add_u64_counter(
+    l_osd_bf_digest_verify_mismatch, "backfill_digest_verify_mismatch",
+    "digest leaves that differed from a full rebuild");
+  osd_plb.add_u64_counter(
+    l_osd_bf_scan_objects, "backfill_scan_objects",
+    "objects returned by backfill scans");
+  osd_plb.add_u64_counter(
+    l_osd_bf_scan_calls, "backfill_scan_calls",
+    "backfill scans run as primary or target");
+
   return osd_plb.create_perf_counters();
 }
 

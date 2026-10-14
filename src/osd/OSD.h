@@ -2133,6 +2133,7 @@ private:
     case MSG_OSD_PG_PULL:
     case MSG_OSD_PG_PUSH_REPLY:
     case MSG_OSD_PG_SCAN:
+    case MSG_OSD_PG_BACKFILL_DIGEST:
     case MSG_OSD_PG_BACKFILL:
     case MSG_OSD_PG_BACKFILL_REMOVE:
     case MSG_OSD_EC_WRITE:

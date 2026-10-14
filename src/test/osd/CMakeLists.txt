@@ -111,6 +111,12 @@ add_executable(unittest_pglog
   )
 add_ceph_unittest(unittest_pglog)
 target_link_libraries(unittest_pglog osd os global ${CMAKE_DL_LIBS} ${BLKID_LIBRARIES})
+# unittest_backfill_digest
+add_executable(unittest_backfill_digest
+  TestBackfillDigest.cc
+  )
+add_ceph_unittest(unittest_backfill_digest)
+target_link_libraries(unittest_backfill_digest osd global ${CMAKE_DL_LIBS})
 # unittest_peeringstate
 add_executable(unittest_peeringstate
   TestPeeringState.cc

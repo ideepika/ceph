@@ -232,6 +232,12 @@ typedef std::shared_ptr<const OSDMap> OSDMapRef;
        pg_shard_t peer,
        const hobject_t &hoid) = 0;
 
+     /// replica received log entries; applied is false when the
+     /// primary shipped an empty transaction for them
+     virtual void on_repop_log_entries(
+       const std::vector<pg_log_entry_t> &log,
+       bool applied) {}
+
      virtual bool pg_is_undersized() const = 0;
      virtual bool pg_is_repair() const = 0;
 
@@ -624,7 +630,8 @@ typedef std::shared_ptr<const OSDMap> OSDMapRef;
      int min,
      int max,
      std::vector<hobject_t> *ls,
-     hobject_t *next);
+     hobject_t *next,
+     const hobject_t &end = hobject_t::get_max());
 
    int objects_list_range(
      const hobject_t &start,

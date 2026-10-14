@@ -4671,6 +4671,17 @@ int OSD::shutdown()
     dout(10) << "stopping agent" << dendl;
     service.agent_stop();
 
+    {
+      vector<PGRef> pgs;
+      _get_pgs(&pgs);
+      for (auto &pg : pgs) {
+	pg->lock();
+	pg->persist_backfill_digest();
+	pg->unlock();
+      }
+      service.meta_ch->flush();
+    }
+
     utime_t  start_time_umount = ceph_clock_now();
     store->prepare_for_fast_shutdown();
     service.fast_shutdown();
@@ -5399,6 +5410,8 @@ void OSD::load_pgs()
       ceph_assert(NULL != shards[shard_index]);
       store->set_collection_commit_queue(pg->coll, &(shards[shard_index]->context_queue));
     }
+
+    pg->load_backfill_digest();
 
     dout(10) << __func__ << " loaded " << *pg << dendl;
     pg->unlock();

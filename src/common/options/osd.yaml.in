@@ -1678,6 +1678,28 @@ options:
   default: 512
   fmt_desc: The maximum number of objects per backfill scan.
   with_legacy: true
+- name: osd_backfill_digest
+  type: bool
+  level: dev
+  default: false
+  desc: Exchange per-PG object digests at backfill start and skip listing
+    hash ranges the primary and all backfill targets hold identically
+  long_desc: Replicated pools only. Every OSD in the cluster must run a
+    build that understands MSG_OSD_PG_BACKFILL_DIGEST.
+  see_also:
+  - osd_backfill_digest_leaves
+  - osd_backfill_digest_verify
+- name: osd_backfill_digest_leaves
+  type: uint
+  level: dev
+  default: 1024
+  desc: Number of digest leaves per PG, rounded down to a power of two
+- name: osd_backfill_digest_verify
+  type: bool
+  level: dev
+  default: false
+  desc: Before every digest exchange, rebuild the digest by listing the
+    whole PG and count leaves that differ from the maintained one
 - name: osd_extblkdev_plugins
   type: str
   level: advanced

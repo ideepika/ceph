@@ -1344,6 +1344,8 @@ void ReplicatedBackend::do_repop(OpRequestRef op)
     }
   }
 
+  get_parent()->on_repop_log_entries(log, !rm->opt.empty() && !async);
+
   parent->update_stats(m->pg_stats);
   parent->log_operation(
     std::move(log),

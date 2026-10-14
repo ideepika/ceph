@@ -162,6 +162,7 @@ class MOSDPGRecoveryDelete;
 class MOSDPGRecoveryDeleteReply;
 class MOSDPGRemove;
 class MOSDPGScan;
+class MOSDPGBackfillDigest;
 class MOSDPGTemp;
 class MOSDPGTrim;
 class MOSDPGUpdateLogMissing;

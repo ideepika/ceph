@@ -636,6 +636,7 @@ public:
     case MSG_OSD_PG_BACKFILL:
     case MSG_OSD_PG_BACKFILL_REMOVE:
     case MSG_OSD_PG_SCAN:
+    case MSG_OSD_PG_BACKFILL_DIGEST:
       return true;
     default:
       return false;

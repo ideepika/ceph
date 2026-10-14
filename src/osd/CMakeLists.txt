@@ -16,6 +16,7 @@ set(osd_srcs
   PG.cc
   PGLog.cc
   PrimaryLogPG.cc
+  BackfillDigest.cc
   ReplicatedBackend.cc
   PGBackend.cc
   OSDCap.cc

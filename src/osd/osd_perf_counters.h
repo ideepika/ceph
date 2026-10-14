@@ -218,6 +218,14 @@ enum osd_counter_idx_t {
   /// number of replicas
   l_osd_scrub_ec_reserv_secondaries_num,
 
+  l_osd_bf_digest_exchanges,       ///< digest exchanges completed as primary
+  l_osd_bf_digest_leaves_skipped,  ///< leaves skipped by those exchanges
+  l_osd_bf_digest_leaves_total,    ///< leaves compared by those exchanges
+  l_osd_bf_digest_refresh_objects, ///< objects read to rebuild dirty leaves
+  l_osd_bf_digest_verify_mismatch, ///< leaves that differed from a full rebuild
+  l_osd_bf_scan_objects,           ///< objects returned by backfill scans
+  l_osd_bf_scan_calls,             ///< backfill scans (primary and target)
+
   l_osd_last,
 };
 

@@ -96,6 +96,7 @@
 #include "messages/MOSDRepScrubMap.h"
 #include "messages/MOSDForceRecovery.h"
 #include "messages/MOSDPGScan.h"
+#include "messages/MOSDPGBackfillDigest.h"
 #include "messages/MOSDPGBackfill.h"
 #include "messages/MOSDBackoff.h"
 #include "messages/MOSDPGBackfillRemove.h"
@@ -625,6 +626,9 @@ Message *decode_message(CephContext *cct,
     break;
   case MSG_OSD_PG_SCAN:
     m = make_message<MOSDPGScan>();
+    break;
+  case MSG_OSD_PG_BACKFILL_DIGEST:
+    m = make_message<MOSDPGBackfillDigest>();
     break;
   case MSG_OSD_PG_BACKFILL:
     m = make_message<MOSDPGBackfill>();

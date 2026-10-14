@@ -554,6 +554,10 @@ public:
     pg_shard_t peer,
     const hobject_t &hoid) override;
 
+  void on_repop_log_entries(
+    const std::vector<pg_log_entry_t> &log,
+    bool applied) override;
+
   bool pg_is_undersized() const override {
     return is_undersized();
   }
@@ -1143,6 +1147,24 @@ protected:
   std::set<hobject_t> backfills_in_flight;
   std::map<hobject_t, pg_stat_t> pending_backfill_updates;
 
+  /// leaves left out of backfill scans after a digest exchange
+  struct BackfillSkip {
+    epoch_t epoch = 0;   ///< last_peering_reset this belongs to; 0 = none
+    eversion_t since;    ///< primary version the compared leaves describe
+    bool active = false; ///< primary: all targets replied
+    std::vector<uint8_t> leaves;  ///< 1 = skip this leaf
+    std::set<hobject_t> changed;  ///< primary: logged after since
+    void clear() { *this = BackfillSkip(); }
+  } backfill_skip;
+
+  bool backfill_skip_active() const;
+  bool refresh_backfill_digest(ThreadPool::TPHandle &handle);
+  bool start_backfill_digest_exchange(ThreadPool::TPHandle &handle);
+  void note_backfill_change(const pg_log_entry_t &e);
+  int list_for_backfill(
+    const hobject_t &begin, int min, int max,
+    std::vector<hobject_t> *ls, hobject_t *next);
+
   void dump_recovery_info(ceph::Formatter *f) const override {
     f->open_array_section("waiting_on_backfill");
     for (std::set<pg_shard_t>::const_iterator p = waiting_on_backfill.begin();
@@ -1579,6 +1601,9 @@ public:
 			  OpContext *ctx_for_op_returns=nullptr);
   void do_pg_op(OpRequestRef op);
   void do_scan(
+    OpRequestRef op,
+    ThreadPool::TPHandle &handle);
+  void do_backfill_digest(
     OpRequestRef op,
     ThreadPool::TPHandle &handle);
   void do_backfill(OpRequestRef op);
