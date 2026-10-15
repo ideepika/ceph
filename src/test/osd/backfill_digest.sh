@@ -50,24 +50,39 @@ export CEPH_ARGS="--log-to-stderr=false ${CEPH_ARGS:-}"
 # ---------------------------------------------------------------- cluster --
 
 vstart_kill_all() {
-  pkill -9 -f "[/]${BUILD#/}/bin/ceph-" 2>/dev/null || true
-  for _ in $(seq 30); do
-    pgrep -f "[/]${BUILD#/}/bin/ceph-" >/dev/null || return 0
+  local pat="[/]${BUILD#/}/bin/ceph-|ceph-osd .*-c [/]${BUILD#/}/ceph.conf"
+  pkill -9 -u "$(id -u)" -f "$pat" 2>/dev/null || true
+  for _ in $(seq 120); do
+    pgrep -u "$(id -u)" -f "$pat" >/dev/null || return 0
     sleep 1
   done
+  log "warning: daemons from $BUILD still running after kill"
+}
+
+all_osds_up() {
+  for _ in $(seq 90); do
+    $CEPH osd stat -f json 2>/dev/null | python3 -c "
+import json,sys; d=json.load(sys.stdin)
+sys.exit(0 if d['num_up_osds']==d['num_osds']==$NOSD else 1)" && return 0
+    sleep 2
+  done
+  return 1
 }
 
 start_cluster() {
   [ "$CLUSTER" = vstart ] || return 0
   vstart_kill_all
-  rm -rf dev out
-  local opts=(
-    -o "osd_min_pg_log_entries = 1"
-    -o "osd_max_pg_log_entries = 2"
-    -o "osd_pg_log_trim_min = 0"
+  sleep 2
+  rm -rf dev out || { sleep 5; rm -rf dev out; }
+  local opts=()
+  if [ "${PGLOG:-tiny}" = tiny ]; then
+    # force backfill instead of log-based recovery
+    opts+=(-o "osd_min_pg_log_entries = 1" -o "osd_max_pg_log_entries = 2"
+	   -o "osd_pg_log_trim_min = 0")
+  fi
+  opts+=(
     -o "osd_pool_default_pg_autoscale_mode = off"
-    -o "osd_op_queue = wpq"
-    -o "osd_backfill_digest = ${DIGEST:-true}"
+    -o "osd_op_queue = ${OPQ:-wpq}"
     -o "osd_backfill_digest_verify = $VERIFY"
     -o "debug_osd = ${DEBUG_OSD:-10}"
   )
@@ -75,9 +90,21 @@ start_cluster() {
   for o in $EXTRA_OPTS; do
     opts+=(-o "${o/=/ = }")
   done
-  MON=1 OSD=$NOSD MDS=0 MGR=1 RGW=0 NFS=0 ../src/vstart.sh -n -d \
-    --without-dashboard "${opts[@]}" > "$OUT/vstart.log" 2>&1 ||
-    die "vstart, see $OUT/vstart.log"
+  local try
+  for try in 1 2 3; do
+    # a fixed port collides with other clusters on a shared host
+    export CEPH_PORT=$(( 41000 + RANDOM % 900 * 20 ))
+    MON=1 OSD=$NOSD MDS=0 MGR=1 RGW=0 NFS=0 ../src/vstart.sh -n -d \
+      --without-dashboard "${opts[@]}" > "$OUT/vstart.log" 2>&1 &&
+      timeout 60 $CEPH -s >/dev/null 2>&1 && all_osds_up && break
+    log "vstart attempt $try failed (port $CEPH_PORT)"
+    vstart_kill_all
+    sleep 5
+    rm -rf dev out
+    [ "$try" = 3 ] && die "vstart, see $OUT/vstart.log"
+  done
+  # the conf file would override a runtime toggle, so set this centrally
+  $CEPH config set osd osd_backfill_digest "${DIGEST:-true}" >/dev/null
   log "vstart up: $NOSD osds"
 }
 
@@ -115,7 +142,8 @@ sys.exit(0 if [o for o in d['osds'] if o['osd']==$1 and not o['up']] else 1)" &&
 
 osd_start() {
   if [ "$CLUSTER" = vstart ]; then
-    bin/ceph-osd -i "$1" -c "$CEPH_CONF" >> "$OUT/osd.$1.restart.log" 2>&1
+    # absolute path, so vstart_kill_all matches restarted daemons too
+    "$BUILD/bin/ceph-osd" -i "$1" -c "$CEPH_CONF" >> "$OUT/osd.$1.restart.log" 2>&1
   else
     osd_cmd "${OSD_START:?}" "$1"
   fi
@@ -279,6 +307,18 @@ make_pool() {
 }
 
 fill() {
+  if [ -n "${FILL_SECS:-}" ]; then
+    # large A/B pools: rados bench writes far faster than one put per object;
+    # content of these objects is not tracked, only their names
+    log "fill: rados bench for ${FILL_SECS}s, $OBJSIZE B objects"
+    rados -p "$POOL" bench "$FILL_SECS" write -b "$OBJSIZE" -t 64 \
+      --no-cleanup > "$OUT/fill-bench.log" 2>&1
+    rados -p "$POOL" ls | grep -v '^benchmark_last_metadata$' |
+      awk '{print $1, "x"}' | sort > "$OUT/expect"
+    log "fill: $(wc -l < "$OUT/expect") objects"
+    wait_clean 600 || die "not clean after fill"
+    return
+  fi
   log "fill: $NOBJ x $OBJSIZE B"
   : > "$OUT/expect"
   seq -f 'obj%07g' 1 "$NOBJ" | write_objs a
@@ -385,6 +425,14 @@ m_ab() {
 }
 m_none() { :; }
 
+# few objects rewritten many times: overflows a production-size pg log, so
+# the returning OSD needs backfill although few objects changed
+m_hot() {
+  local names; names=$(pick "${HOT:-400}")
+  for _ in $(seq "${HOT_ROUNDS:-300}"); do echo "$names"; done | put_many b
+  echo "$names" | expect_set b
+}
+
 ab() {
   start_cluster
   make_pool
@@ -392,6 +440,11 @@ ab() {
   fill
   log "ab: $NOBJ objects, $PGS pgs, $CHANGE changed + $DELETE deleted per round"
   echo "rep arm floor_s total_s backfill_s counters" > "$OUT/ab.tsv"
+  # unscored: the first restarts after a fill are slow (compaction, cold caches)
+  for arm in false true; do
+    $CEPH config set osd osd_backfill_digest "$arm" >/dev/null
+    round "warmup-$arm" TERM "$DOWN" "${MUTATE_FN:-m_ab}"
+  done
   for rep in $(seq "$REPS"); do
     local arms="false true"
     [ $((rep % 2)) = 0 ] && arms="true false"
@@ -399,7 +452,10 @@ ab() {
       $CEPH config set osd osd_backfill_digest "$arm" >/dev/null
       round "rep$rep-$arm-floor" TERM "$DOWN" m_none
       local floor=$ROUND_S
-      round "rep$rep-$arm" TERM "$DOWN" m_ab
+      round "rep$rep-$arm" TERM "$DOWN" "${MUTATE_FN:-m_ab}"
+      if [ "$arm" = false ] && [[ $ROUND_C != *digest_exchanges=0* ]]; then
+        die "control arm exchanged digests: $ROUND_C"
+      fi
       local bf; bf=$(awk -v a="$ROUND_S" -v b="$floor" 'BEGIN{printf "%.2f", a-b}')
       echo "$rep $arm $floor $ROUND_S $bf $ROUND_C" >> "$OUT/ab.tsv"
       log "rep$rep digest=$arm: floor ${floor}s total ${ROUND_S}s backfill ${bf}s"
