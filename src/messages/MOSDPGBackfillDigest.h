@@ -34,6 +34,7 @@ public:
   pg_shard_t from;
   spg_t pgid;
   eversion_t since;		///< primary version the leaves describe
+  uint64_t exchange = 0;	///< primary's id for this exchange, echoed back
   __u32 split_bits = 0;
   __u32 leaf_bits = 0;
   std::vector<uint64_t> leaves;	///< request: primary's leaves
@@ -68,7 +69,8 @@ public:
   void print(std::ostream &out) const override {
     out << "pg_backfill_digest(" << get_op_name(op) << " " << pgid
 	<< " e " << map_epoch << "/" << query_epoch
-	<< " since " << since << " leaves " << leaves.size()
+	<< " since " << since << " x " << exchange
+	<< " leaves " << leaves.size()
 	<< " equal " << equal.size() << ")";
   }
 
@@ -80,6 +82,7 @@ public:
     encode(from, payload);
     encode(pgid, payload);
     encode(since, payload);
+    encode(exchange, payload);
     encode(split_bits, payload);
     encode(leaf_bits, payload);
     encode(leaves, payload);
@@ -94,6 +97,7 @@ public:
     decode(from, p);
     decode(pgid, p);
     decode(since, p);
+    decode(exchange, p);
     decode(split_bits, p);
     decode(leaf_bits, p);
     decode(leaves, p);

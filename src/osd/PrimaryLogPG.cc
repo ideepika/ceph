@@ -4783,13 +4783,16 @@ bool PrimaryLogPG::start_backfill_digest_exchange(ThreadPool::TPHandle &handle)
   const auto &d = backfill_digest;
   backfill_skip.epoch = get_last_peering_reset();
   backfill_skip.since = projected_last_update;
+  backfill_skip.exchange = ++backfill_digest_exchanges;
   backfill_skip.leaves.assign(d.num_leaves(), 1);
+  backfill_digest_epoch = backfill_skip.epoch;
   for (const auto &bt : get_backfill_targets()) {
     auto m = new MOSDPGBackfillDigest(
       MOSDPGBackfillDigest::OP_REQUEST, pg_whoami,
       spg_t(info.pgid.pgid, bt.shard), get_osdmap_epoch(),
       get_last_peering_reset());
     m->since = backfill_skip.since;
+    m->exchange = backfill_skip.exchange;
     m->split_bits = d.get_split_bits();
     m->leaf_bits = d.get_leaf_bits();
     m->leaves = d.get_leaves();
@@ -4835,6 +4838,7 @@ void PrimaryLogPG::do_backfill_digest(
 	spg_t(info.pgid.pgid, get_primary().shard), get_osdmap_epoch(),
 	m->query_epoch);
       reply->since = m->since;
+      reply->exchange = m->exchange;
       reply->equal = std::move(equal);
       reply->set_priority(recovery_state.get_recovery_op_priority());
       osd->send_message_osd_cluster(reply, m->get_connection());
@@ -4846,6 +4850,7 @@ void PrimaryLogPG::do_backfill_digest(
       if (!is_primary() ||
 	  backfill_skip.epoch != get_last_peering_reset() ||
 	  backfill_skip.since != m->since ||
+	  backfill_skip.exchange != m->exchange ||
 	  !waiting_on_backfill.count(m->from)) {
 	dout(10) << __func__ << " stale reply from " << m->from << dendl;
 	break;
@@ -4880,11 +4885,15 @@ bool PrimaryLogPG::backfill_skip_active() const
 
 void PrimaryLogPG::note_backfill_change(const pg_log_entry_t &e)
 {
-  if (!backfill_skip.epoch || !is_primary()) {
+  if (!is_primary()) {
     return;
   }
-  backfill_skip.changed.insert(e.soid);
-  if (!e.is_delete()) {
+  if (backfill_skip.epoch) {
+    backfill_skip.changed.insert(e.soid);
+  }
+  // targets keep skipping for the rest of the interval, also after this
+  // backfill was canceled and restarted without an exchange
+  if (!e.is_delete() || backfill_digest_epoch != get_last_peering_reset()) {
     return;
   }
   // a target that skips this range would never list the object, so

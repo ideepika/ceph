@@ -1154,8 +1154,13 @@ protected:
     bool active = false; ///< primary: all targets replied
     std::vector<uint8_t> leaves;  ///< 1 = skip this leaf
     std::set<hobject_t> changed;  ///< primary: logged after since
+    uint64_t exchange = 0;        ///< primary: id of the pending exchange
     void clear() { *this = BackfillSkip(); }
   } backfill_skip;
+  uint64_t backfill_digest_exchanges = 0;
+  /// last_peering_reset in which an exchange was started; targets may
+  /// skip ranges for the rest of that interval
+  epoch_t backfill_digest_epoch = 0;
 
   bool backfill_skip_active() const;
   bool refresh_backfill_digest(ThreadPool::TPHandle &handle);

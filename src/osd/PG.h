@@ -1141,13 +1141,16 @@ protected:
 
     // LogEntryHandler
     void remove(const hobject_t &hoid) override {
+      pg->backfill_digest_dirty(hoid);
       pg->get_pgbackend()->remove(hoid, t);
     }
     void try_stash(const hobject_t &hoid, version_t v) override {
+      pg->backfill_digest_dirty(hoid);
       pg->get_pgbackend()->try_stash(hoid, v, t);
     }
     void rollback(const pg_log_entry_t &entry) override {
       ceph_assert(entry.can_rollback());
+      pg->backfill_digest_dirty(entry.soid);
       pg->get_pgbackend()->rollback(entry, t);
     }
     void rollforward(const pg_log_entry_t &entry) override {
