@@ -1163,6 +1163,11 @@ protected:
   epoch_t backfill_digest_epoch = 0;
 
   bool backfill_skip_active() const;
+  void on_backfill_digest_suspended() override {
+    if (!backfill_skip.active) {
+      backfill_skip.exchange = 0;  // ids start at 1, no reply matches
+    }
+  }
   bool refresh_backfill_digest(ThreadPool::TPHandle &handle);
   bool start_backfill_digest_exchange(ThreadPool::TPHandle &handle);
   void note_backfill_change(const pg_log_entry_t &e);

@@ -411,6 +411,9 @@ public:
   void backfill_digest_dirty(const hobject_t &o);
   void load_backfill_digest();
   void persist_backfill_digest();
+  /// backfill suspended: a digest reply still in flight must not be taken
+  /// for the scan replies waited on after resume
+  virtual void on_backfill_digest_suspended() {}
   static int peek_map_epoch(ObjectStore *store, spg_t pgid, epoch_t *pepoch);
 
   static int get_latest_struct_v() {

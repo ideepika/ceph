@@ -520,6 +520,10 @@ void PG::finish_recovery_op(const hobject_t& soid, bool dequeue)
 void PG::split_into(pg_t child_pgid, PG *child, unsigned split_bits)
 {
   dout(10) << __func__ << " split_bits " << split_bits << dendl;
+  // objects moved to the child; a later merge back would restore the same
+  // layout and make the stale digest look valid
+  backfill_digest = BackfillDigest();
+  child->backfill_digest = BackfillDigest();
 
   recovery_state.split_into(child_pgid, &child->recovery_state, split_bits);
 
@@ -548,6 +552,7 @@ void PG::merge_from(map<spg_t,PGRef>& sources, PeeringCtx &rctx,
 		    unsigned split_bits,
 		    const pg_merge_meta_t& last_pg_merge_meta)
 {
+  backfill_digest = BackfillDigest();
   dout(10) << __func__ << " from " << sources << " split_bits " << split_bits
 	   << dendl;
   map<spg_t, PeeringState*> source_ps;
@@ -1611,6 +1616,7 @@ void PG::on_backfill_suspended()
     waiting_on_backfill.clear();
     finish_recovery_op(hobject_t::get_max());
   }
+  on_backfill_digest_suspended();
 }
 
 void PG::on_recovery_reserved()

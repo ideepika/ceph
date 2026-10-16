@@ -258,7 +258,8 @@ verify_content() {
     md5sum < "$OUT/pay.$p" | cut -d' ' -f1 > "$OUT/pay.$p.md5"
   done
   local mism
-  mism=$(awk '{print $1, $2}' "$OUT/expect" | xargs -P "$PAR" -n2 sh -c '
+  # bench-filled objects ("x") have untracked content
+  mism=$(awk '$2 != "x" {print $1, $2}' "$OUT/expect" | xargs -r -P "$PAR" -n2 sh -c '
     h=$(rados -p '"$POOL"' get "$1" - 2>/dev/null | md5sum | cut -d" " -f1)
     [ "$h" = "$(cat '"$OUT"'/pay.$2.md5)" ] || echo "$1"' _ | wc -l)
   if [ "$mism" != 0 ]; then
