@@ -45,7 +45,7 @@ if [ "$CLUSTER" = vstart ]; then
   export CEPH_CONF=$BUILD/ceph.conf
 fi
 CEPH="ceph --connect-timeout 30"
-export CEPH_ARGS="--log-to-stderr=false ${CEPH_ARGS:-}"
+export CEPH_ARGS="--log-to-stderr=false --log-file=/dev/null ${CEPH_ARGS:-}"
 
 # ---------------------------------------------------------------- cluster --
 
@@ -94,7 +94,9 @@ start_cluster() {
   for try in 1 2 3; do
     # a fixed port collides with other clusters on a shared host
     export CEPH_PORT=$(( 41000 + RANDOM % 900 * 20 ))
-    MON=1 OSD=$NOSD MDS=0 MGR=1 RGW=0 NFS=0 ../src/vstart.sh -n -d \
+    # no -d: debug logging for every daemon and CLI call filled 130 GB overnight
+    # daemons must not inherit the client-only CEPH_ARGS
+    env -u CEPH_ARGS MON=1 OSD=$NOSD MDS=0 MGR=1 RGW=0 NFS=0 ../src/vstart.sh -n \
       --without-dashboard "${opts[@]}" > "$OUT/vstart.log" 2>&1 &&
       timeout 60 $CEPH -s >/dev/null 2>&1 && all_osds_up && break
     log "vstart attempt $try failed (port $CEPH_PORT)"
@@ -143,7 +145,7 @@ sys.exit(0 if [o for o in d['osds'] if o['osd']==$1 and not o['up']] else 1)" &&
 osd_start() {
   if [ "$CLUSTER" = vstart ]; then
     # absolute path, so vstart_kill_all matches restarted daemons too
-    "$BUILD/bin/ceph-osd" -i "$1" -c "$CEPH_CONF" >> "$OUT/osd.$1.restart.log" 2>&1
+    env -u CEPH_ARGS "$BUILD/bin/ceph-osd" -i "$1" -c "$CEPH_CONF" >> "$OUT/osd.$1.restart.log" 2>&1
   else
     osd_cmd "${OSD_START:?}" "$1"
   fi
@@ -329,6 +331,9 @@ fill() {
 # one backfill round: stop osds, run a mutation, start, wait clean
 round() {   # tag sig "osds" mutate_fn [during_fn]
   local tag=$1 sig=$2 osds=$3 mutate=$4 during=${5:-}
+  # shared host: stop before the disk fills
+  local free_gb; free_gb=$(df -BG --output=avail "$OUT" | tail -1 | tr -dc 0-9)
+  [ "${free_gb:-0}" -ge "${MIN_FREE_GB:-50}" ] || die "only ${free_gb} GB free"
   $CEPH osd set noout >/dev/null 2>&1
   for o in $osds; do osd_stop "$o" "$sig"; done
   $mutate
